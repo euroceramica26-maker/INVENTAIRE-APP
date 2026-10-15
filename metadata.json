@@ -1,0 +1,6 @@
+{
+  "name": "Inventaire Pro - Scan QR, OCR & Export Excel",
+  "description": "Application industrielle d'inventaire physique : scan QR/code-barres, OCR intelligent, catalogue Excel, gestion machines/familles, contrôle qualité et synchronisation.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
