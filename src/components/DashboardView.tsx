@@ -17,6 +17,7 @@ import { useInventory } from '../context/InventoryContext';
 import { Article, InventoryEntry } from '../types/inventory';
 import { QUALITE_LABELS } from '../utils/excelExport';
 import { exportFullJsonBackup } from '../utils/storage';
+import { ConfirmModal } from './ConfirmModal';
 
 interface DashboardViewProps {
   onOpenScanner: () => void;
@@ -40,6 +41,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     familles,
     deleteEntry,
     searchArticles,
+    matchScannedArticle,
     clearEntireDatabase
   } = useInventory();
 
@@ -49,11 +51,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [selectedFamille, setSelectedFamille] = useState<string>('all');
   const [selectedQualite, setSelectedQualite] = useState<string>('all');
 
-  // Search suggestions
+  // Deletion modals state
+  const [entryToDelete, setEntryToDelete] = useState<InventoryEntry | null>(null);
+  const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
+
+  // Search suggestions enhanced with scan parsing (code, designation, reference, or composite scan)
   const searchResults = useMemo(() => {
     if (!searchTerm.trim()) return [];
-    return searchArticles(searchTerm, selectedMachine, selectedFamille).slice(0, 5);
-  }, [searchTerm, selectedMachine, selectedFamille, searchArticles]);
+    
+    // Check if query matches via the scan comparison engine
+    const scanMatch = matchScannedArticle(searchTerm);
+    const standardResults = searchArticles(searchTerm, selectedMachine, selectedFamille);
+    
+    const combined: Article[] = [];
+    if (scanMatch.matchedArticle) {
+      combined.push(scanMatch.matchedArticle);
+    }
+    for (const art of standardResults) {
+      if (!combined.some(c => c.id === art.id)) {
+        combined.push(art);
+      }
+    }
+    return combined.slice(0, 6);
+  }, [searchTerm, selectedMachine, selectedFamille, searchArticles, matchScannedArticle]);
 
   // Filtered inventory entries
   const filteredEntries = useMemo(() => {
@@ -129,7 +149,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Rechercher par code article, désignation, référence ou emplacement..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchResults.length > 0) {
+                  onSelectArticleToCount(searchResults[0]);
+                  setSearchTerm('');
+                }
+              }}
+              placeholder="Rechercher ou scanner code article, désignation, référence..."
               className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300/80 rounded-xl text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-amber-500 focus:outline-none transition-all"
             />
             {searchTerm && (
@@ -302,15 +328,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button>
               {(entries.length > 0 || articles.length > 0) && (
                 <button
-                  onClick={() => {
-                    if (confirm("Voulez-vous vraiment vider entièrement la base de données (articles et saisies) ?")) {
-                      clearEntireDatabase();
-                    }
-                  }}
-                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg"
-                  title="Vider toute la base de données"
+                  onClick={() => setIsConfirmClearOpen(true)}
+                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1 text-xs"
+                  title="Vider toute la base de données (remise à zéro)"
                 >
                   <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:inline font-medium">Vider la base</span>
                 </button>
               )}
             </div>
@@ -434,13 +457,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`Supprimer la saisie pour ${item.code_article} ?`)) {
-                              deleteEntry(item.id);
-                            }
-                          }}
+                          onClick={() => setEntryToDelete(item)}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Supprimer"
+                          title="Supprimer la saisie"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -453,6 +472,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Modal confirmation suppression d'une ligne d'inventaire */}
+      <ConfirmModal
+        isOpen={!!entryToDelete}
+        title="Supprimer la saisie d'inventaire"
+        message={`Êtes-vous sûr de vouloir supprimer la saisie d'inventaire pour l'article ${entryToDelete?.code_article} (${entryToDelete?.designation}) ?`}
+        confirmLabel="Supprimer"
+        isDestructive={true}
+        onConfirm={() => {
+          if (entryToDelete) {
+            deleteEntry(entryToDelete.id);
+            setEntryToDelete(null);
+          }
+        }}
+        onCancel={() => setEntryToDelete(null)}
+      />
+
+      {/* Modal confirmation effacement complet de la base */}
+      <ConfirmModal
+        isOpen={isConfirmClearOpen}
+        title="Vider toute la base de données"
+        message="Attention : Cette action va effacer définitivement tous les articles importés, les machines, familles, emplacements et toutes les saisies d'inventaire pour repartir d'une base 100% vide."
+        confirmLabel="Tout supprimer (Remise à zéro)"
+        isDestructive={true}
+        onConfirm={() => {
+          clearEntireDatabase();
+          setIsConfirmClearOpen(false);
+        }}
+        onCancel={() => setIsConfirmClearOpen(false)}
+      />
     </div>
   );
 };

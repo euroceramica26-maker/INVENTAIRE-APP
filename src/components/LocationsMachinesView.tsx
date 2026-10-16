@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { generateSampleLocationsExcel } from '../utils/excelImport';
+import { ConfirmModal } from './ConfirmModal';
 
 interface LocationsMachinesViewProps {
   onOpenImport: () => void;
@@ -25,11 +26,19 @@ export const LocationsMachinesView: React.FC<LocationsMachinesViewProps> = ({ on
     articles,
     entries,
     addMachine,
+    deleteMachine,
     addFamille,
-    addLocation
+    deleteFamille,
+    addLocation,
+    deleteLocation
   } = useInventory();
 
   const [activeTab, setActiveTab] = useState<'machines' | 'familles' | 'locations'>('machines');
+  const [itemToDelete, setItemToDelete] = useState<{
+    type: 'machine' | 'famille' | 'location';
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Input states for adding
   const [newMachine, setNewMachine] = useState('');
@@ -221,9 +230,18 @@ export const LocationsMachinesView: React.FC<LocationsMachinesViewProps> = ({ on
                           </span>
                         </div>
                       </div>
-                      <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md">
-                        {entryCount} / {articleCount}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md">
+                          {entryCount} / {articleCount}
+                        </span>
+                        <button
+                          onClick={() => setItemToDelete({ type: 'machine', id: m, name: m })}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Supprimer la machine"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -304,9 +322,18 @@ export const LocationsMachinesView: React.FC<LocationsMachinesViewProps> = ({ on
                           </span>
                         </div>
                       </div>
-                      <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">
-                        {entryCount} / {articleCount}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">
+                          {entryCount} / {articleCount}
+                        </span>
+                        <button
+                          onClick={() => setItemToDelete({ type: 'famille', id: f, name: f })}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Supprimer la famille"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -416,9 +443,18 @@ export const LocationsMachinesView: React.FC<LocationsMachinesViewProps> = ({ on
                           </span>
                         </div>
                       </div>
-                      <span className="text-xs text-slate-500 font-mono">
-                        {entryCount} articles comptés
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500 font-mono">
+                          {entryCount} articles comptés
+                        </span>
+                        <button
+                          onClick={() => setItemToDelete({ type: 'location', id: loc.id, name: `${loc.code} (${loc.nom})` })}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Supprimer l'emplacement"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -426,6 +462,30 @@ export const LocationsMachinesView: React.FC<LocationsMachinesViewProps> = ({ on
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal Suppression Machine / Famille / Emplacement */}
+      <ConfirmModal
+        isOpen={!!itemToDelete}
+        title={
+          itemToDelete?.type === 'machine'
+            ? 'Supprimer la machine'
+            : itemToDelete?.type === 'famille'
+            ? 'Supprimer la famille'
+            : "Supprimer l'emplacement"
+        }
+        message={`Êtes-vous sûr de vouloir supprimer définitivement "${itemToDelete?.name}" ?`}
+        confirmLabel="Supprimer"
+        isDestructive={true}
+        onConfirm={() => {
+          if (itemToDelete) {
+            if (itemToDelete.type === 'machine') deleteMachine(itemToDelete.id);
+            else if (itemToDelete.type === 'famille') deleteFamille(itemToDelete.id);
+            else if (itemToDelete.type === 'location') deleteLocation(itemToDelete.id);
+            setItemToDelete(null);
+          }
+        }}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div>
   );
 };

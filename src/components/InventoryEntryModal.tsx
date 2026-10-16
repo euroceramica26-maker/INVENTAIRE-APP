@@ -32,6 +32,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
   onSaveAndNext
 }) => {
   const {
+    articles,
     locations,
     familles,
     machines,
@@ -39,6 +40,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
     lastLocation,
     setLastLocation,
     addOrUpdateEntry,
+    addArticle,
     addMachine,
     addFamille,
     addLocation
@@ -132,6 +134,23 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
   };
 
   const handleSave = (continueScanning = false) => {
+    // If this article is new and not in the catalog database, save it to the base
+    const isKnownArticle = articles.some(
+      (a) => a.code_article.toLowerCase() === currentArticle.code_article.toLowerCase()
+    );
+    if (!isKnownArticle && currentArticle.code_article) {
+      addArticle({
+        code_article: currentArticle.code_article,
+        designation: currentArticle.designation || currentArticle.code_article,
+        reference: currentArticle.reference || currentArticle.code_article,
+        famille: famille || currentArticle.famille || 'Général',
+        machine: machine || currentArticle.machine || 'Standard',
+        unite: unite || currentArticle.unite || 'Pièce',
+        emplacement: emplacement || currentArticle.emplacement || lastLocation || '',
+        quantite: quantite
+      });
+    }
+
     addOrUpdateEntry(
       {
         articleId: currentArticle.id,
@@ -172,7 +191,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
               <Package className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-xs font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
                   {currentArticle.code_article}
                 </span>
@@ -183,6 +202,17 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                       Réf: {currentArticle.reference}
                     </span>
                   </>
+                )}
+                {articles.some(
+                  (a) => a.code_article.toLowerCase() === currentArticle.code_article.toLowerCase()
+                ) ? (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    ✓ Rechargé de la Base
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                    Nouvel Article Détecté
+                  </span>
                 )}
               </div>
               <h2 className="text-base font-bold text-slate-900 leading-tight mt-0.5 truncate max-w-md">

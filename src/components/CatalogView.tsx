@@ -12,6 +12,7 @@ import {
 import { useInventory } from '../context/InventoryContext';
 import { Article } from '../types/inventory';
 import { generateSampleArticlesExcel } from '../utils/excelImport';
+import { ConfirmModal } from './ConfirmModal';
 
 interface CatalogViewProps {
   onOpenImport: () => void;
@@ -36,6 +37,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   const [filterMachine, setFilterMachine] = useState<string>('all');
   const [filterFamille, setFilterFamille] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'counted' | 'not_counted'>('all');
+  const [articleToDelete, setArticleToDelete] = useState<Article | null>(null);
 
   // New Article Modal
   const [isCreatingArticle, setIsCreatingArticle] = useState(false);
@@ -283,12 +285,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                             <span>Saisir</span>
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm(`Supprimer ${art.code_article} du catalogue ?`)) {
-                                deleteArticle(art.id);
-                              }
-                            }}
+                            onClick={() => setArticleToDelete(art)}
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Supprimer du catalogue"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -418,6 +417,22 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal Suppression Article */}
+      <ConfirmModal
+        isOpen={!!articleToDelete}
+        title="Supprimer du catalogue"
+        message={`Êtes-vous sûr de vouloir supprimer définitivement l'article "${articleToDelete?.code_article} - ${articleToDelete?.designation}" du catalogue ?`}
+        confirmLabel="Supprimer"
+        isDestructive={true}
+        onConfirm={() => {
+          if (articleToDelete) {
+            deleteArticle(articleToDelete.id);
+            setArticleToDelete(null);
+          }
+        }}
+        onCancel={() => setArticleToDelete(null)}
+      />
     </div>
   );
 };

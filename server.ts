@@ -1,0 +1,454 @@
+import express from 'express';
+import { createServer } from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const PORT = parseInt(process.env.PORT || '3000', 10);
+const DATA_DIR = path.resolve(__dirname, 'data');
+const DB_FILE = path.resolve(DATA_DIR, 'inventory-database.json');
+
+// Interface for server database state
+interface ServerDatabase {
+  articles: any[];
+  entries: any[];
+  locations: any[];
+  familles: string[];
+  machines: string[];
+  lastLocation: string;
+  updatedAt: string;
+}
+
+// Initial state : completely blank on first boot as requested
+const emptyDatabase: ServerDatabase = {
+  articles: [],
+  entries: [],
+  locations: [],
+  familles: [],
+  machines: [],
+  lastLocation: '',
+  updatedAt: new Date().toISOString()
+};
+
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// Load or initialize DB
+let db: ServerDatabase = { ...emptyDatabase };
+
+function loadDatabase(): ServerDatabase {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      return {
+        articles: Array.isArray(parsed.articles) ? parsed.articles : [],
+        entries: Array.isArray(parsed.entries) ? parsed.entries : [],
+        locations: Array.isArray(parsed.locations) ? parsed.locations : [],
+        familles: Array.isArray(parsed.familles) ? parsed.familles : [],
+        machines: Array.isArray(parsed.machines) ? parsed.machines : [],
+        lastLocation: typeof parsed.lastLocation === 'string' ? parsed.lastLocation : '',
+        updatedAt: parsed.updatedAt || new Date().toISOString()
+      };
+    }
+  } catch (err) {
+    console.error('Error loading inventory database file:', err);
+  }
+  return { ...emptyDatabase };
+}
+
+function saveDatabase(): void {
+  try {
+    db.updatedAt = new Date().toISOString();
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving inventory database file:', err);
+  }
+}
+
+db = loadDatabase();
+saveDatabase();
+
+const app = express();
+const server = createServer(app);
+
+app.use(express.json({ limit: '50mb' }));
+
+// Set up WebSocket server on path /api/ws
+const wss = new WebSocketServer({ server, path: '/api/ws' });
+
+function broadcast(message: any, excludeClient?: WebSocket) {
+  const data = JSON.stringify(message);
+  wss.clients.forEach((client) => {
+    if (client !== excludeClient && client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(data);
+      } catch (err) {
+        // ignore client send error
+      }
+    }
+  });
+}
+
+function broadcastClientCount() {
+  broadcast({
+    type: 'CLIENT_COUNT',
+    count: wss.clients.size
+  });
+}
+
+// Handle mutations on server DB
+function applyAction(actionType: string, payload: any): boolean {
+  switch (actionType) {
+    case 'SYNC_STATE': {
+      if (payload) {
+        if (Array.isArray(payload.articles)) db.articles = payload.articles;
+        if (Array.isArray(payload.entries)) db.entries = payload.entries;
+        if (Array.isArray(payload.locations)) db.locations = payload.locations;
+        if (Array.isArray(payload.familles)) db.familles = payload.familles;
+        if (Array.isArray(payload.machines)) db.machines = payload.machines;
+        if (typeof payload.lastLocation === 'string') db.lastLocation = payload.lastLocation;
+      }
+      break;
+    }
+
+    case 'ADD_ENTRY': {
+      const entry = payload;
+      if (!entry) return false;
+      const index = db.entries.findIndex((e) => e.id === entry.id);
+      if (index >= 0) {
+        db.entries[index] = entry;
+      } else {
+        // Check duplicate code_article & emplacement
+        const matchIdx = db.entries.findIndex(
+          (e) =>
+            e.code_article.toLowerCase() === entry.code_article.toLowerCase() &&
+            e.emplacement.toLowerCase() === entry.emplacement.toLowerCase()
+        );
+        if (matchIdx >= 0) {
+          db.entries[matchIdx] = entry;
+        } else {
+          db.entries.unshift(entry);
+        }
+      }
+      if (entry.emplacement && entry.emplacement.trim()) {
+        db.lastLocation = entry.emplacement.trim();
+      }
+      break;
+    }
+
+    case 'DELETE_ENTRY': {
+      const id = payload?.id || payload;
+      db.entries = db.entries.filter((e) => e.id !== id);
+      break;
+    }
+
+    case 'CLEAR_ENTRIES': {
+      db.entries = [];
+      break;
+    }
+
+    case 'CLEAR_DATABASE': {
+      db.articles = [];
+      db.entries = [];
+      db.locations = [];
+      db.familles = [];
+      db.machines = [];
+      db.lastLocation = '';
+      break;
+    }
+
+    case 'ADD_ARTICLE': {
+      const art = payload;
+      if (!art) return false;
+      const existingIdx = db.articles.findIndex((a) => a.id === art.id || a.code_article.toLowerCase() === art.code_article.toLowerCase());
+      if (existingIdx >= 0) {
+        db.articles[existingIdx] = art;
+      } else {
+        db.articles.unshift(art);
+      }
+      if (art.machine && !db.machines.includes(art.machine)) db.machines.push(art.machine);
+      if (art.famille && !db.familles.includes(art.famille)) db.familles.push(art.famille);
+      if (art.emplacement && !db.locations.some((l) => l.code.toLowerCase() === art.emplacement.toLowerCase())) {
+        db.locations.push({
+          id: `loc-${Date.now()}`,
+          code: art.emplacement,
+          nom: art.emplacement,
+          zone: 'Général'
+        });
+      }
+      break;
+    }
+
+    case 'UPDATE_ARTICLE': {
+      const updated = payload;
+      db.articles = db.articles.map((a) => (a.id === updated.id ? updated : a));
+      break;
+    }
+
+    case 'DELETE_ARTICLE': {
+      const id = payload?.id || payload;
+      db.articles = db.articles.filter((a) => a.id !== id);
+      break;
+    }
+
+    case 'ADD_MACHINE': {
+      const m = (payload?.name || payload || '').trim();
+      if (m && !db.machines.some((x) => x.toLowerCase() === m.toLowerCase())) {
+        db.machines.push(m);
+      }
+      break;
+    }
+
+    case 'DELETE_MACHINE': {
+      const m = (payload?.name || payload || '').trim();
+      db.machines = db.machines.filter((x) => x.toLowerCase() !== m.toLowerCase());
+      break;
+    }
+
+    case 'ADD_FAMILLE': {
+      const f = (payload?.name || payload || '').trim();
+      if (f && !db.familles.some((x) => x.toLowerCase() === f.toLowerCase())) {
+        db.familles.push(f);
+      }
+      break;
+    }
+
+    case 'DELETE_FAMILLE': {
+      const f = (payload?.name || payload || '').trim();
+      db.familles = db.familles.filter((x) => x.toLowerCase() !== f.toLowerCase());
+      break;
+    }
+
+    case 'ADD_LOCATION': {
+      const loc = payload;
+      if (loc && loc.code) {
+        if (!db.locations.some((l) => l.code.toLowerCase() === loc.code.toLowerCase())) {
+          db.locations.push(loc);
+        }
+      }
+      break;
+    }
+
+    case 'DELETE_LOCATION': {
+      const idOrCode = payload?.id || payload?.code || payload;
+      db.locations = db.locations.filter((l) => l.id !== idOrCode && l.code !== idOrCode);
+      break;
+    }
+
+    case 'SET_LAST_LOCATION': {
+      const loc = typeof payload === 'string' ? payload : payload?.location;
+      if (loc) {
+        db.lastLocation = loc.trim();
+      }
+      break;
+    }
+
+    case 'IMPORT_ARTICLES': {
+      const { newArticles, newMachines, newFamilles, newEmplacements } = payload;
+      if (Array.isArray(newArticles)) {
+        const map = new Map<string, any>();
+        db.articles.forEach((a) => map.set(a.code_article.toLowerCase(), a));
+        newArticles.forEach((a) => map.set(a.code_article.toLowerCase(), a));
+        db.articles = Array.from(map.values());
+      }
+      if (Array.isArray(newMachines)) {
+        newMachines.forEach((m) => {
+          if (m && !db.machines.some((x) => x.toLowerCase() === m.toLowerCase())) {
+            db.machines.push(m);
+          }
+        });
+      }
+      if (Array.isArray(newFamilles)) {
+        newFamilles.forEach((f) => {
+          if (f && !db.familles.some((x) => x.toLowerCase() === f.toLowerCase())) {
+            db.familles.push(f);
+          }
+        });
+      }
+      if (Array.isArray(newEmplacements)) {
+        newEmplacements.forEach((code) => {
+          if (code && !db.locations.some((l) => l.code.toLowerCase() === code.toLowerCase())) {
+            db.locations.push({
+              id: `loc-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              code,
+              nom: code,
+              zone: 'Import Catalogue'
+            });
+          }
+        });
+      }
+      break;
+    }
+
+    case 'IMPORT_LOCATIONS': {
+      const { newLocations, newZones } = payload;
+      if (Array.isArray(newLocations)) {
+        const map = new Map<string, any>();
+        db.locations.forEach((l) => map.set(l.code.toLowerCase(), l));
+        newLocations.forEach((l) => map.set(l.code.toLowerCase(), l));
+        db.locations = Array.from(map.values());
+      }
+      break;
+    }
+
+    case 'LOAD_DEMO': {
+      if (payload) {
+        if (Array.isArray(payload.articles)) db.articles = payload.articles;
+        if (Array.isArray(payload.locations)) db.locations = payload.locations;
+        if (Array.isArray(payload.familles)) db.familles = payload.familles;
+        if (Array.isArray(payload.machines)) db.machines = payload.machines;
+      }
+      break;
+    }
+
+    default:
+      return false;
+  }
+
+  saveDatabase();
+  return true;
+}
+
+// WebSocket Connection lifecycle
+wss.on('connection', (ws: WebSocket) => {
+  // Send current state immediately upon connection
+  ws.send(
+    JSON.stringify({
+      type: 'INIT_STATE',
+      payload: db,
+      clientCount: wss.clients.size
+    })
+  );
+
+  // Notify all clients of new connection
+  broadcastClientCount();
+
+  ws.on('message', (message: string) => {
+    try {
+      const data = JSON.parse(message.toString());
+      if (data.type === 'PING') {
+        ws.send(JSON.stringify({ type: 'PONG' }));
+        return;
+      }
+
+      if (data.type === 'ACTION') {
+        const handled = applyAction(data.action, data.payload);
+        if (handled) {
+          // Broadcast updated state to all connected devices!
+          broadcast({
+            type: 'STATE_UPDATED',
+            payload: db,
+            action: data.action,
+            fromClient: data.clientId
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error handling WebSocket message:', err);
+    }
+  });
+
+  ws.on('close', () => {
+    broadcastClientCount();
+  });
+
+  ws.on('error', (err) => {
+    console.error('WebSocket client error:', err);
+  });
+});
+
+// REST API Endpoints
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    connectedClients: wss.clients.size,
+    dbStats: {
+      articles: db.articles.length,
+      entries: db.entries.length,
+      locations: db.locations.length,
+      machines: db.machines.length,
+      familles: db.familles.length
+    }
+  });
+});
+
+app.get('/api/inventory/state', (req, res) => {
+  res.json({
+    success: true,
+    data: db,
+    connectedClients: wss.clients.size
+  });
+});
+
+app.post('/api/inventory/action', (req, res) => {
+  const { action, payload, clientId } = req.body;
+  if (!action) {
+    return res.status(400).json({ success: false, error: 'Missing action' });
+  }
+
+  const handled = applyAction(action, payload);
+  if (handled) {
+    broadcast({
+      type: 'STATE_UPDATED',
+      payload: db,
+      action,
+      fromClient: clientId
+    });
+    return res.json({ success: true, data: db });
+  }
+
+  return res.status(400).json({ success: false, error: 'Unknown action' });
+});
+
+app.post('/api/inventory/sync', (req, res) => {
+  const { articles, entries, locations, familles, machines, lastLocation } = req.body;
+  if (articles !== undefined) db.articles = articles;
+  if (entries !== undefined) db.entries = entries;
+  if (locations !== undefined) db.locations = locations;
+  if (familles !== undefined) db.familles = familles;
+  if (machines !== undefined) db.machines = machines;
+  if (lastLocation !== undefined) db.lastLocation = lastLocation;
+
+  saveDatabase();
+  broadcast({
+    type: 'STATE_UPDATED',
+    payload: db
+  });
+
+  res.json({ success: true, data: db });
+});
+
+// Dev vs Prod Vite Integration
+const isProduction = process.env.NODE_ENV === 'production';
+
+async function startServer() {
+  if (!isProduction) {
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa'
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.resolve(__dirname, 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.resolve(distPath, 'index.html'));
+    });
+  }
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Inventory Pro Server running on http://0.0.0.0:${PORT}`);
+    console.log(`📡 WebSocket real-time sync listening on ws://0.0.0.0:${PORT}/api/ws`);
+  });
+}
+
+startServer();

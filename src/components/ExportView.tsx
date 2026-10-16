@@ -97,14 +97,15 @@ export const ExportView: React.FC = () => {
 
   const handleExport = () => {
     if (filteredData.length === 0) {
-      alert("Aucune donnée à exporter avec les filtres sélectionnés.");
+      setLastExportMessage("Aucune donnée à exporter avec les filtres sélectionnés.");
+      setTimeout(() => setLastExportMessage(null), 5000);
       return;
     }
 
     const res = exportInventoryToExcel(entries, articles, filters, 'Inventaire_Global');
     if (res.success) {
       setLastExportMessage(
-        `Export Excel généré : ${res.fileName} — Total ${res.rowCount} articles (${res.countSaisis} saisis, ${res.countAFaire} à faire pour contrôle)`
+        `Export Excel téléchargé : ${res.fileName} — Total ${res.rowCount} articles (${res.countSaisis} saisis, ${res.countAFaire} à faire pour contrôle)`
       );
       setTimeout(() => setLastExportMessage(null), 8000);
     }

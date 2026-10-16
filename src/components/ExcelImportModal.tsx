@@ -29,7 +29,7 @@ interface ExcelImportModalProps {
 }
 
 export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onClose }) => {
-  const { importArticlesBulk, importLocationsBulk } = useInventory();
+  const { importArticlesBulk, importLocationsBulk, loadDemoSampleData } = useInventory();
   const [activeImportType, setActiveImportType] = useState<'articles' | 'emplacements'>('articles');
   
   const [file, setFile] = useState<File | null>(null);
@@ -490,12 +490,25 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
 
         {/* Footer Actions */}
         <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors"
-          >
-            Fermer
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              Fermer
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                loadDemoSampleData();
+                onClose();
+              }}
+              className="px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 rounded-xl transition-colors"
+              title="Charger un jeu de test de démonstration"
+            >
+              Charger exemple de démo
+            </button>
+          </div>
 
           {parsedData && !importSummary && (
             <button

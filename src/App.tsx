@@ -9,6 +9,7 @@ import { ScannerModal } from './components/ScannerModal';
 import { InventoryEntryModal } from './components/InventoryEntryModal';
 import { ExcelImportModal } from './components/ExcelImportModal';
 import { Article, InventoryEntry } from './types/inventory';
+import { ParsedScannedInfo } from './utils/scanParser';
 import {
   ScanLine,
   LayoutDashboard,
@@ -30,24 +31,28 @@ function InventoryApp() {
   const [selectedEntry, setSelectedEntry] = useState<InventoryEntry | null>(null);
 
   // When article is identified via QR or OCR
-  const handleSelectArticleFromScanner = (article: Article, scannedCode?: string) => {
+  const handleSelectArticleFromScanner = (
+    article: Article,
+    _scannedCode?: string,
+    existingEntry?: InventoryEntry
+  ) => {
     setSelectedArticle(article);
-    setSelectedEntry(null);
+    setSelectedEntry(existingEntry || null);
     setIsEntryModalOpen(true);
   };
 
-  // When code scanned is unknown
-  const handleCodeNotFound = (scannedCode: string) => {
+  // When code scanned is unknown or parsed as a new article
+  const handleCodeNotFound = (scannedCode: string, parsedData?: ParsedScannedInfo) => {
     const tempArticle: Article = {
-      id: `temp-${Date.now()}`,
-      code_article: scannedCode,
-      designation: `Nouvel article (${scannedCode})`,
-      reference: scannedCode,
-      famille: 'Général',
-      machine: 'Ligne Principale',
-      unite: 'Pièce',
-      emplacement: '',
-      quantite: 1
+      id: `art-new-${Date.now()}`,
+      code_article: parsedData?.code_article || scannedCode,
+      designation: parsedData?.designation || `Nouvel article (${parsedData?.code_article || scannedCode})`,
+      reference: parsedData?.reference || parsedData?.code_article || scannedCode,
+      famille: parsedData?.famille || 'Général',
+      machine: parsedData?.machine || 'Ligne Principale',
+      unite: parsedData?.unite || 'Pièce',
+      emplacement: parsedData?.emplacement || '',
+      quantite: parsedData?.quantite || 1
     };
     setSelectedArticle(tempArticle);
     setSelectedEntry(null);
