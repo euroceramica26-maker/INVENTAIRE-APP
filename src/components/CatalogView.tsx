@@ -310,13 +310,6 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                       <td className="py-3 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => onCountArticle(art)}
-                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1 transition-colors shadow-2xs"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Saisir</span>
-                          </button>
-                          <button
                             onClick={() => {
                               requestAdminAction(() => {
                                 setEditingArticle(art);

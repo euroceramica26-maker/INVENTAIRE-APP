@@ -401,15 +401,19 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       existingId?: string
     ): InventoryEntry => {
       let updatedEntry: InventoryEntry;
+      const now = new Date().toISOString();
 
       setEntries((prev) => {
-        const now = new Date().toISOString();
+        const codeMatch = (entryData.code_article || '').trim().toLowerCase();
+        const locMatch = (entryData.emplacement || '').trim().toLowerCase();
+
         if (existingId) {
           const index = prev.findIndex((e) => e.id === existingId);
           if (index >= 0) {
             updatedEntry = {
               ...prev[index],
               ...entryData,
+              status: 'saisi',
               timestamp: now,
               syncStatus: 'synced'
             };
@@ -423,14 +427,15 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Check if entry already exists for this article code & location
         const existingMatchIndex = prev.findIndex(
           (e) =>
-            e.code_article.toLowerCase() === entryData.code_article.toLowerCase() &&
-            e.emplacement.toLowerCase() === entryData.emplacement.toLowerCase()
+            (e.code_article || '').trim().toLowerCase() === codeMatch &&
+            (e.emplacement || '').trim().toLowerCase() === locMatch
         );
 
         if (existingMatchIndex >= 0 && !existingId) {
           updatedEntry = {
             ...prev[existingMatchIndex],
             ...entryData,
+            status: 'saisi',
             timestamp: now,
             syncStatus: 'synced'
           };
@@ -443,6 +448,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updatedEntry = {
           ...entryData,
           id: `entry-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          status: 'saisi',
           timestamp: now,
           syncStatus: 'synced'
         };

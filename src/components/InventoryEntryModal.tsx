@@ -183,7 +183,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
         qualite,
         notes: notes.trim(),
         operator: currentOperator || operator,
-        status: 'valide'
+        status: 'saisi'
       },
       existingEntry?.id
     );

@@ -12,11 +12,13 @@ import {
   Layers,
   Cpu,
   RotateCcw,
-  CheckCircle2
+  CheckCircle2,
+  Clock,
+  X
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
-import { Article, InventoryEntry } from '../types/inventory';
-import { QUALITE_LABELS } from '../utils/excelExport';
+import { Article, InventoryEntry, QualiteEtat } from '../types/inventory';
+import { QUALITE_LABELS, buildCombinedInventoryList } from '../utils/excelExport';
 import { exportFullJsonBackup } from '../utils/storage';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -48,11 +50,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     matchScannedArticle,
     clearEntireDatabase,
     isAdmin,
-    requestAdminAction
+    requestAdminAction,
+    activeInventory
   } = useInventory();
 
   // Search & filter state
   const [searchTerm, setSearchTerm] = useState('');
+  const [tableSearch, setTableSearch] = useState('');
+  const [displayMode, setDisplayMode] = useState<'saisis' | 'tous' | 'a_faire'>('saisis');
   const [selectedMachine, setSelectedMachine] = useState<string>('all');
   const [selectedFamille, setSelectedFamille] = useState<string>('all');
   const [selectedQualite, setSelectedQualite] = useState<string>('all');
@@ -81,25 +86,47 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return combined.slice(0, 6);
   }, [searchTerm, selectedMachine, selectedFamille, searchArticles, matchScannedArticle]);
 
-  // Filtered inventory entries
-  const filteredEntries = useMemo(() => {
-    return entries.filter(e => {
-      if (selectedMachine !== 'all' && e.machine !== selectedMachine) return false;
-      if (selectedFamille !== 'all' && e.famille !== selectedFamille) return false;
-      if (selectedQualite !== 'all' && e.qualite !== selectedQualite) return false;
+  // Combined full inventory list (both saisis and pending articles)
+  const combinedList = useMemo(() => {
+    return buildCombinedInventoryList(entries, articles);
+  }, [entries, articles]);
 
-      if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase().trim();
-        const matchesCode = e.code_article.toLowerCase().includes(q);
-        const matchesDesig = e.designation.toLowerCase().includes(q);
-        const matchesRef = e.reference.toLowerCase().includes(q);
-        const matchesLoc = e.emplacement.toLowerCase().includes(q);
+  const countPending = useMemo(() => {
+    return combinedList.filter((item) => item.statutInventaire !== 'Saisi').length;
+  }, [combinedList]);
+
+  // Filtered rows depending on active displayMode ('saisis' | 'tous' | 'a_faire')
+  const displayedRows = useMemo(() => {
+    return combinedList.filter((item) => {
+      // 1. Filter by display tab
+      if (displayMode === 'saisis' && item.statutInventaire !== 'Saisi') return false;
+      if (displayMode === 'a_faire' && item.statutInventaire === 'Saisi') return false;
+
+      // 2. Machine filter
+      if (selectedMachine !== 'all' && item.machine !== selectedMachine) return false;
+
+      // 3. Famille filter
+      if (selectedFamille !== 'all' && item.famille !== selectedFamille) return false;
+
+      // 4. Qualite filter (only if not 'all' and item is counted)
+      if (selectedQualite !== 'all') {
+        const selectedLabel = (QUALITE_LABELS as Record<string, string>)[selectedQualite] || selectedQualite;
+        if (item.qualite !== selectedLabel) return false;
+      }
+
+      // 5. Table text search
+      const q = tableSearch.toLowerCase().trim();
+      if (q) {
+        const matchesCode = (item.code_article || '').toLowerCase().includes(q);
+        const matchesDesig = (item.designation || '').toLowerCase().includes(q);
+        const matchesRef = (item.reference || '').toLowerCase().includes(q);
+        const matchesLoc = (item.emplacement || '').toLowerCase().includes(q);
         if (!matchesCode && !matchesDesig && !matchesRef && !matchesLoc) return false;
       }
 
       return true;
     });
-  }, [entries, selectedMachine, selectedFamille, selectedQualite, searchTerm]);
+  }, [combinedList, displayMode, selectedMachine, selectedFamille, selectedQualite, tableSearch]);
 
   // KPI Calculations (No ecart)
   const totalCountedLines = entries.length;
@@ -365,11 +392,111 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* 3. INVENTORY ENTRIES TABLE SECTION */}
+      {/* 3. INVENTORY BASE & ENTRIES TABLE SECTION */}
       <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs">
+        {/* Table Header & View Switcher */}
+        <div className="p-4 sm:p-5 border-b border-slate-200/80 bg-white">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900">
+                  Base d'Inventaire & Articles Saisis
+                </h3>
+                {activeInventory && (
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                    <span className="font-mono text-amber-700 font-bold">{activeInventory.code}</span>
+                    <span>·</span>
+                    <span className="truncate max-w-[150px]">{activeInventory.titre}</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Chaque article inventorié s'affiche automatiquement dans la base d'inventaire avec son statut (saisi) et ses quantités enregistrées.
+              </p>
+            </div>
+
+            {/* View Mode Switcher Tabs */}
+            <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/70 text-xs self-start md:self-auto">
+              <button
+                type="button"
+                onClick={() => setDisplayMode('saisis')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                  displayMode === 'saisis'
+                    ? 'bg-white text-emerald-700 shadow-xs font-bold border border-slate-200/60'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Articles Saisis</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  displayMode === 'saisis' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {entries.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDisplayMode('tous')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                  displayMode === 'tous'
+                    ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200/60'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-slate-600" />
+                <span>Base Complète</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  displayMode === 'tous' ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {combinedList.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDisplayMode('a_faire')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                  displayMode === 'a_faire'
+                    ? 'bg-white text-amber-800 shadow-xs font-bold border border-slate-200/60'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                <span>En attente</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  displayMode === 'a_faire' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {countPending}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Table Filter Toolbar */}
-        <div className="p-4 bg-slate-50/70 border-b border-slate-200/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="p-3 sm:p-4 bg-slate-50/70 border-b border-slate-200/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap flex-1">
+            {/* Live Search inside the Table */}
+            <div className="relative min-w-[200px] flex-1 max-w-sm">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={tableSearch}
+                onChange={(e) => setTableSearch(e.target.value)}
+                placeholder="Filtrer code, nom, réf, emplacement..."
+                className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
+              />
+              {tableSearch && (
+                <button
+                  onClick={() => setTableSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
             {/* Machine Filter Dropdown */}
             {machines.length > 0 && (
               <select
@@ -398,22 +525,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </select>
             )}
 
-            {/* Qualité Filter */}
-            <select
-              value={selectedQualite}
-              onChange={(e) => setSelectedQualite(e.target.value)}
-              className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700"
-            >
-              <option value="all">Toutes les qualités</option>
-              {Object.entries(QUALITE_LABELS).map(([k, label]) => (
-                <option key={k} value={k}>{label}</option>
-              ))}
-            </select>
+            {/* Qualité Filter (useful in saisis and tous) */}
+            {displayMode !== 'a_faire' && (
+              <select
+                value={selectedQualite}
+                onChange={(e) => setSelectedQualite(e.target.value)}
+                className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700"
+              >
+                <option value="all">Toutes les qualités</option>
+                {Object.entries(QUALITE_LABELS).map(([k, label]) => (
+                  <option key={k} value={k}>{label}</option>
+                ))}
+              </select>
+            )}
           </div>
 
-          <div className="flex items-center justify-between md:justify-end gap-3 text-xs text-slate-500">
+          <div className="flex items-center justify-between md:justify-end gap-3 text-xs text-slate-500 shrink-0">
             <span>
-              <strong>{filteredEntries.length}</strong> ligne(s) d'inventaire
+              <strong>{displayedRows.length}</strong> ligne(s) affichée(s)
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -443,18 +572,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Data Table */}
-        {filteredEntries.length === 0 ? (
+        {displayedRows.length === 0 ? (
           <div className="p-12 text-center">
             <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <h3 className="text-sm font-bold text-slate-800">
-              {entries.length === 0 ? "Base d'inventaire vide" : "Aucun article correspondant"}
+              {displayMode === 'saisis'
+                ? (entries.length === 0 ? "Aucun article inventorié pour le moment" : "Aucun article saisi ne correspond aux filtres")
+                : displayMode === 'a_faire'
+                ? (countPending === 0 ? "Félicitations ! 100% des articles sont inventoriés" : "Aucun article en attente ne correspond aux filtres")
+                : (combinedList.length === 0 ? "La base d'inventaire est actuellement vide" : "Aucun article ne correspond à votre recherche")}
             </h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
-              {entries.length === 0
-                ? "Vous pouvez importer votre fichier Excel d'articles ou scanner directement un code pour commencer."
-                : "Modifiez vos filtres ou termes de recherche."}
+              {displayMode === 'saisis' && entries.length === 0
+                ? "Scannez un code-barres ou lancez une saisie manuelle pour inventorier votre premier article. Il s'affichera immédiatement ici avec le statut (saisi)."
+                : "Modifiez vos termes de recherche ou sélectionnez un autre affichage."}
             </p>
             <div className="flex items-center justify-center gap-2 flex-wrap">
+              {displayMode === 'saisis' && combinedList.length > 0 && (
+                <button
+                  onClick={() => setDisplayMode('tous')}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"
+                >
+                  <Layers className="w-4 h-4" />
+                  <span>Afficher toute la base ({combinedList.length})</span>
+                </button>
+              )}
               <button
                 onClick={onOpenScanner}
                 className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"
@@ -505,113 +647,193 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <th className="py-3 px-4">Désignation</th>
                   <th className="py-3 px-4">Machine & Famille</th>
                   <th className="py-3 px-4">Emplacement</th>
-                  <th className="py-3 px-4 text-right">Quantité</th>
+                  <th className="py-3 px-4 text-right">Quantité Saisie</th>
                   <th className="py-3 px-4">Qualité Réelle</th>
                   <th className="py-3 px-4">Date / Opérateur</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {filteredEntries.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                    {/* Statut (saisi) */}
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        (saisi)
-                      </span>
-                    </td>
+                {displayedRows.map((item) => {
+                  const isSaisi = item.statutInventaire === 'Saisi';
+                  const matchingEntry = entries.find(
+                    (e) => (e.code_article || '').toLowerCase() === item.code_article.toLowerCase()
+                  );
 
-                    {/* Code Article */}
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
-                      {item.code_article}
-                    </td>
+                  return (
+                    <tr
+                      key={item.id}
+                      className={`transition-colors ${
+                        isSaisi ? 'bg-emerald-50/20 hover:bg-emerald-50/40' : 'hover:bg-slate-50/80'
+                      }`}
+                    >
+                      {/* Statut : (saisi) ou (À faire) */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {isSaisi ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            (saisi)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            À faire
+                          </span>
+                        )}
+                      </td>
 
-                    {/* Designation */}
-                    <td className="py-3 px-4 font-medium text-slate-800 max-w-[220px]">
-                      <div className="truncate font-semibold">{item.designation}</div>
-                      {item.reference && item.reference !== '-' && (
-                        <div className="text-[11px] text-slate-400 font-mono truncate">
-                          Réf: {item.reference}
+                      {/* Code Article */}
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
+                        {item.code_article}
+                      </td>
+
+                      {/* Designation & Reference */}
+                      <td className="py-3 px-4 font-medium text-slate-800 max-w-[220px]">
+                        <div className="truncate font-semibold">{item.designation}</div>
+                        {item.reference && item.reference !== '-' && (
+                          <div className="text-[11px] text-slate-400 font-mono truncate">
+                            Réf: {item.reference}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Machine & Famille */}
+                      <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
+                        <div className="font-medium text-slate-800 truncate max-w-[160px]">
+                          {item.machine}
                         </div>
-                      )}
-                    </td>
+                        <div className="text-[11px] text-slate-400 truncate max-w-[160px]">
+                          {item.famille}
+                        </div>
+                      </td>
 
-                    {/* Machine & Famille */}
-                    <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
-                      <div className="font-medium text-slate-800 truncate max-w-[160px]">
-                        {item.machine}
-                      </div>
-                      <div className="text-[11px] text-slate-400 truncate max-w-[160px]">
-                        {item.famille}
-                      </div>
-                    </td>
+                      {/* Emplacement */}
+                      <td className="py-3 px-4 font-mono text-slate-700 whitespace-nowrap">
+                        <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+                          {item.emplacement || 'Non assigné'}
+                        </span>
+                      </td>
 
-                    {/* Emplacement */}
-                    <td className="py-3 px-4 font-mono text-slate-700 whitespace-nowrap">
-                      <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
-                        {item.emplacement}
-                      </span>
-                    </td>
+                      {/* Quantité Saisie */}
+                      <td className="py-3 px-4 text-right font-mono tabular-nums font-bold whitespace-nowrap">
+                        {isSaisi ? (
+                          <>
+                            <span className="text-base text-amber-600">{item.quantite}</span>{' '}
+                            <span className="text-xs text-slate-500 font-normal">{item.unite}</span>
+                          </>
+                        ) : (
+                          <span className="text-slate-400 italic text-[11px]">Non saisi</span>
+                        )}
+                      </td>
 
-                    {/* Quantité Saisie */}
-                    <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                      <span className="text-base text-amber-600">{item.quantite}</span>{' '}
-                      <span className="text-xs text-slate-500 font-normal">{item.unite}</span>
-                    </td>
+                      {/* Qualité */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {isSaisi ? (
+                          <span
+                            className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                              item.qualite.includes('Conforme') || item.qualite.includes('Bon')
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                : item.qualite.includes('réparer') || item.qualite.includes('Dégradé')
+                                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                : 'bg-rose-50 text-rose-800 border-rose-200'
+                            }`}
+                          >
+                            {item.qualite}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">En attente</span>
+                        )}
+                      </td>
 
-                    {/* Qualité */}
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span
-                        className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
-                          item.qualite === 'conforme' || item.qualite === 'bon_etat'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : item.qualite === 'a_reparer' || item.qualite === 'degrade'
-                            ? 'bg-amber-50 text-amber-800 border-amber-200'
-                            : 'bg-rose-50 text-rose-800 border-rose-200'
-                        }`}
-                      >
-                        {QUALITE_LABELS[item.qualite] || item.qualite}
-                      </span>
-                    </td>
+                      {/* Date & Opérateur */}
+                      <td className="py-3 px-4 whitespace-nowrap text-slate-500 text-[11px]">
+                        {isSaisi ? (
+                          <>
+                            <div>{item.timestamp}</div>
+                            <div className="text-slate-400">{item.operator}</div>
+                          </>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
 
-                    {/* Date & Opérateur */}
-                    <td className="py-3 px-4 whitespace-nowrap text-slate-500 text-[11px]">
-                      <div>{new Date(item.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
-                      <div className="text-slate-400">{item.operator}</div>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3 px-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => {
-                            requestAdminAction(
-                              () => onEditEntry(item),
-                              "Seul l'administrateur (ouaradtech) a le droit de modifier une ligne de saisie d'inventaire."
-                            );
-                          }}
-                          className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          title={isAdmin ? "Modifier la saisie (Admin)" : "Modifier (Admin uniquement)"}
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            requestAdminAction(
-                              () => setEntryToDelete(item),
-                              "Seul l'administrateur (ouaradtech) a le droit de supprimer une ligne de saisie d'inventaire."
-                            );
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title={isAdmin ? "Supprimer la saisie (Admin)" : "Supprimer (Admin uniquement)"}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      {/* Actions */}
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        {isSaisi ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => {
+                                if (matchingEntry) {
+                                  requestAdminAction(
+                                    () => onEditEntry(matchingEntry),
+                                    "Seul l'administrateur (ouaradtech) a le droit de modifier une ligne de saisie d'inventaire."
+                                  );
+                                } else {
+                                  const art = articles.find(
+                                    (a) => a.code_article.toLowerCase() === item.code_article.toLowerCase()
+                                  );
+                                  if (art) {
+                                    requestAdminAction(
+                                      () => onSelectArticleToCount(art),
+                                      "Seul l'administrateur (ouaradtech) a le droit de modifier une ligne d'inventaire."
+                                    );
+                                  }
+                                }
+                              }}
+                              className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title={isAdmin ? "Modifier la saisie (Admin)" : "Modifier (Admin uniquement)"}
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (matchingEntry) {
+                                  requestAdminAction(
+                                    () => setEntryToDelete(matchingEntry),
+                                    "Seul l'administrateur (ouaradtech) a le droit de supprimer une ligne de saisie d'inventaire."
+                                  );
+                                }
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title={isAdmin ? "Supprimer la saisie (Admin)" : "Supprimer (Admin uniquement)"}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              const matchingArticle = articles.find(
+                                (a) => a.code_article.toLowerCase() === item.code_article.toLowerCase()
+                              );
+                              if (matchingArticle) {
+                                onSelectArticleToCount(matchingArticle);
+                              } else {
+                                onSelectArticleToCount({
+                                  id: item.id,
+                                  code_article: item.code_article,
+                                  designation: item.designation,
+                                  reference: item.reference !== '-' ? item.reference : '',
+                                  famille: item.famille,
+                                  machine: item.machine,
+                                  unite: item.unite,
+                                  emplacement: item.emplacement !== 'Non assigné' ? item.emplacement : '',
+                                  quantite: 1,
+                                  status: 'a_faire'
+                                });
+                              }
+                            }}
+                            className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 active:scale-98 text-slate-950 font-bold text-xs rounded-lg inline-flex items-center gap-1 shadow-xs transition-transform"
+                            title="Saisir et inventorier cet article maintenant"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Saisir</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
