@@ -1,5 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Article, InventoryEntry, EmplacementItem, SyncState } from '../types/inventory';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  Article,
+  InventoryEntry,
+  EmplacementItem,
+  SyncState,
+  QualiteEtat,
+  InventoryCampaign,
+  CreateInventoryOptions,
+  AdminAuthState
+} from '../types/inventory';
 import {
   getStoredArticles,
   saveStoredArticles,
@@ -18,26 +27,64 @@ import {
   getStoredLastLocation,
   saveStoredLastLocation,
   clearAllLocalDatabase,
-  subscribeToSyncChannel
+  subscribeToSyncChannel,
+  getStoredInventories,
+  saveStoredInventories,
+  getStoredActiveInventoryId,
+  saveStoredActiveInventoryId,
+  getStoredAdminAuth,
+  saveStoredAdminAuth,
+  clearStoredAdminAuth
 } from '../utils/storage';
 import { INITIAL_ARTICLES, INITIAL_EMPLACEMENTS, INITIAL_FAMILLES, INITIAL_MACHINES } from '../data/initialCatalog';
 import { syncService, RemoteServerState } from '../utils/syncService';
 import { matchScannedDataWithArticles, ScanMatchResult } from '../utils/scanParser';
 
 interface InventoryContextType {
+  // Articles & Entries Data
   articles: Article[];
   entries: InventoryEntry[];
   locations: EmplacementItem[];
   familles: string[];
   machines: string[];
   operator: string;
+  setOperator: (op: string) => void;
   lastLocation: string;
   setLastLocation: (loc: string) => void;
   syncState: SyncState;
-  setOperator: (op: string) => void;
+
+  // Admin Auth & Control Total
+  isAdmin: boolean;
+  adminUser: string | null;
+  loginAdmin: (login: string, mdp: string) => boolean;
+  logoutAdmin: () => void;
+  isAdminLoginModalOpen: boolean;
+  setIsAdminLoginModalOpen: (open: boolean) => void;
+  adminActionMessage: string;
+  setAdminActionMessage: (msg: string) => void;
+  requestAdminAction: (action: () => void, message?: string) => void;
+
+  // Multi-inventories Management
+  inventories: InventoryCampaign[];
+  activeInventoryId: string;
+  activeInventory: InventoryCampaign | undefined;
+  createInventory: (options: CreateInventoryOptions) => InventoryCampaign;
+  switchInventory: (id: string) => void;
+  updateInventory: (updated: Partial<InventoryCampaign> & { id: string }) => void;
+  deleteInventory: (id: string) => void;
+  closeInventory: (id: string) => void;
+  reopenInventory: (id: string) => void;
+
+  // Entries & Catalog Operations
   addOrUpdateEntry: (entryData: Omit<InventoryEntry, 'id' | 'timestamp' | 'syncStatus'>, existingId?: string) => InventoryEntry;
   deleteEntry: (id: string) => void;
   addArticle: (art: Omit<Article, 'id'>) => Article;
+  addManualArticle: (
+    art: Omit<Article, 'id'>,
+    quantite?: number,
+    qualite?: QualiteEtat,
+    notes?: string
+  ) => { article: Article; entry: InventoryEntry };
   updateArticle: (art: Article) => void;
   deleteArticle: (id: string) => void;
   importArticlesBulk: (newArticles: Article[], newMachines?: string[], newFamilles?: string[], newEmplacements?: string[]) => void;
@@ -77,6 +124,21 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     roomCode: getStoredRoomCode(),
     peerCount: 1
   });
+
+  // Multi-Inventories Campaigns State
+  const [inventories, setInventories] = useState<InventoryCampaign[]>(() => getStoredInventories());
+  const [activeInventoryId, setActiveInventoryId] = useState<string>(() => {
+    const storedId = getStoredActiveInventoryId();
+    const all = getStoredInventories();
+    if (storedId && all.some((i) => i.id === storedId)) return storedId;
+    return all[0]?.id || 'inv-default-01';
+  });
+
+  // Admin Auth State (login: ouaradtech, mdp: Ouaradtech26@)
+  const [adminAuth, setAdminAuth] = useState<AdminAuthState>(() => getStoredAdminAuth());
+  const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState(false);
+  const [adminActionMessage, setAdminActionMessage] = useState<string>('');
+  const pendingAdminActionRef = useRef<(() => void) | null>(null);
 
   const isRemoteUpdatingRef = useRef<boolean>(false);
 
@@ -210,158 +272,6 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [articles, entries, locations, familles, machines, lastLocation]);
 
-  const addOrUpdateEntry = useCallback(
-    (
-      entryData: Omit<InventoryEntry, 'id' | 'timestamp' | 'syncStatus'>,
-      existingId?: string
-    ): InventoryEntry => {
-      let updatedEntry: InventoryEntry;
-
-      setEntries((prev) => {
-        const now = new Date().toISOString();
-        if (existingId) {
-          const index = prev.findIndex((e) => e.id === existingId);
-          if (index >= 0) {
-            updatedEntry = {
-              ...prev[index],
-              ...entryData,
-              timestamp: now,
-              syncStatus: 'synced'
-            };
-            const next = [...prev];
-            next[index] = updatedEntry;
-            saveStoredEntries(next);
-            return next;
-          }
-        }
-
-        // Check if entry already exists for this article code & location
-        const existingMatchIndex = prev.findIndex(
-          (e) =>
-            e.code_article.toLowerCase() === entryData.code_article.toLowerCase() &&
-            e.emplacement.toLowerCase() === entryData.emplacement.toLowerCase()
-        );
-
-        if (existingMatchIndex >= 0 && !existingId) {
-          updatedEntry = {
-            ...prev[existingMatchIndex],
-            ...entryData,
-            timestamp: now,
-            syncStatus: 'synced'
-          };
-          const next = [...prev];
-          next[existingMatchIndex] = updatedEntry;
-          saveStoredEntries(next);
-          return next;
-        }
-
-        updatedEntry = {
-          ...entryData,
-          id: `entry-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          timestamp: now,
-          syncStatus: 'synced'
-        };
-        const next = [updatedEntry, ...prev];
-        saveStoredEntries(next);
-        return next;
-      });
-
-      if (entryData.emplacement && entryData.emplacement.trim()) {
-        setLastLocation(entryData.emplacement.trim());
-      }
-
-      // Broadcast to other devices in real-time
-      syncService.sendAction('ADD_ENTRY', updatedEntry!);
-
-      setSyncState((prev) => ({ ...prev, lastSyncedAt: new Date().toLocaleTimeString('fr-FR') }));
-      return updatedEntry!;
-    },
-    [setLastLocation]
-  );
-
-  const deleteEntry = useCallback((id: string) => {
-    setEntries((prev) => {
-      const next = prev.filter((e) => e.id !== id);
-      saveStoredEntries(next);
-      return next;
-    });
-    // Broadcast delete to other devices
-    syncService.sendAction('DELETE_ENTRY', id);
-  }, []);
-
-  const clearAllEntries = useCallback(() => {
-    setEntries([]);
-    saveStoredEntries([]);
-    syncService.sendAction('CLEAR_ENTRIES', null);
-  }, []);
-
-  const clearEntireDatabase = useCallback(() => {
-    clearAllLocalDatabase();
-    setArticles([]);
-    setEntries([]);
-    setLocations([]);
-    setFamilles([]);
-    setMachines([]);
-    setLastLocationState('');
-    syncService.sendAction('CLEAR_DATABASE', null);
-  }, []);
-
-  const loadDemoSampleData = useCallback(() => {
-    setArticles(INITIAL_ARTICLES);
-    saveStoredArticles(INITIAL_ARTICLES);
-    setLocations(INITIAL_EMPLACEMENTS);
-    saveStoredLocations(INITIAL_EMPLACEMENTS);
-    setFamilles(INITIAL_FAMILLES);
-    saveStoredFamilles(INITIAL_FAMILLES);
-    setMachines(INITIAL_MACHINES);
-    saveStoredMachines(INITIAL_MACHINES);
-
-    syncService.sendAction('LOAD_DEMO', {
-      articles: INITIAL_ARTICLES,
-      locations: INITIAL_EMPLACEMENTS,
-      familles: INITIAL_FAMILLES,
-      machines: INITIAL_MACHINES
-    });
-  }, []);
-
-  const addArticle = useCallback((artData: Omit<Article, 'id'>): Article => {
-    const newArt: Article = {
-      ...artData,
-      id: `art-${Date.now()}`
-    };
-    setArticles((prev) => {
-      const next = [newArt, ...prev];
-      saveStoredArticles(next);
-      return next;
-    });
-
-    if (artData.machine) addMachine(artData.machine);
-    if (artData.famille) addFamille(artData.famille);
-    if (artData.emplacement)
-      addLocation({ code: artData.emplacement, nom: artData.emplacement, zone: 'Général' });
-
-    syncService.sendAction('ADD_ARTICLE', newArt);
-    return newArt;
-  }, []);
-
-  const updateArticle = useCallback((updatedArt: Article) => {
-    setArticles((prev) => {
-      const next = prev.map((a) => (a.id === updatedArt.id ? updatedArt : a));
-      saveStoredArticles(next);
-      return next;
-    });
-    syncService.sendAction('UPDATE_ARTICLE', updatedArt);
-  }, []);
-
-  const deleteArticle = useCallback((id: string) => {
-    setArticles((prev) => {
-      const next = prev.filter((a) => a.id !== id);
-      saveStoredArticles(next);
-      return next;
-    });
-    syncService.sendAction('DELETE_ARTICLE', id);
-  }, []);
-
   const addMachine = useCallback((machine: string) => {
     const trimmed = machine.trim();
     if (!trimmed) return;
@@ -425,6 +335,287 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return next;
     });
     syncService.sendAction('DELETE_LOCATION', id);
+  }, []);
+
+  const addArticle = useCallback((artData: Omit<Article, 'id'>): Article => {
+    let savedArt: Article;
+    const artStatus = artData.status || 'saisi';
+
+    setArticles((prev) => {
+      const existingIdx = prev.findIndex(
+        (a) => a.code_article.toLowerCase() === artData.code_article.toLowerCase()
+      );
+      if (existingIdx >= 0) {
+        savedArt = {
+          ...prev[existingIdx],
+          ...artData,
+          status: artStatus
+        };
+        const next = [...prev];
+        next[existingIdx] = savedArt;
+        saveStoredArticles(next);
+        syncService.sendAction('UPDATE_ARTICLE', savedArt);
+        return next;
+      }
+
+      savedArt = {
+        ...artData,
+        status: artStatus,
+        id: `art-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      };
+      const next = [savedArt, ...prev];
+      saveStoredArticles(next);
+      syncService.sendAction('ADD_ARTICLE', savedArt);
+      return next;
+    });
+
+    if (artData.machine) addMachine(artData.machine);
+    if (artData.famille) addFamille(artData.famille);
+    if (artData.emplacement)
+      addLocation({ code: artData.emplacement, nom: artData.emplacement, zone: 'Général' });
+
+    return savedArt!;
+  }, [addMachine, addFamille, addLocation]);
+
+  const updateArticle = useCallback((updatedArt: Article) => {
+    setArticles((prev) => {
+      const next = prev.map((a) => (a.id === updatedArt.id ? updatedArt : a));
+      saveStoredArticles(next);
+      return next;
+    });
+    syncService.sendAction('UPDATE_ARTICLE', updatedArt);
+  }, []);
+
+  const deleteArticle = useCallback((id: string) => {
+    setArticles((prev) => {
+      const next = prev.filter((a) => a.id !== id);
+      saveStoredArticles(next);
+      return next;
+    });
+    syncService.sendAction('DELETE_ARTICLE', id);
+  }, []);
+
+  const addOrUpdateEntry = useCallback(
+    (
+      entryData: Omit<InventoryEntry, 'id' | 'timestamp' | 'syncStatus'>,
+      existingId?: string
+    ): InventoryEntry => {
+      let updatedEntry: InventoryEntry;
+
+      setEntries((prev) => {
+        const now = new Date().toISOString();
+        if (existingId) {
+          const index = prev.findIndex((e) => e.id === existingId);
+          if (index >= 0) {
+            updatedEntry = {
+              ...prev[index],
+              ...entryData,
+              timestamp: now,
+              syncStatus: 'synced'
+            };
+            const next = [...prev];
+            next[index] = updatedEntry;
+            saveStoredEntries(next);
+            return next;
+          }
+        }
+
+        // Check if entry already exists for this article code & location
+        const existingMatchIndex = prev.findIndex(
+          (e) =>
+            e.code_article.toLowerCase() === entryData.code_article.toLowerCase() &&
+            e.emplacement.toLowerCase() === entryData.emplacement.toLowerCase()
+        );
+
+        if (existingMatchIndex >= 0 && !existingId) {
+          updatedEntry = {
+            ...prev[existingMatchIndex],
+            ...entryData,
+            timestamp: now,
+            syncStatus: 'synced'
+          };
+          const next = [...prev];
+          next[existingMatchIndex] = updatedEntry;
+          saveStoredEntries(next);
+          return next;
+        }
+
+        updatedEntry = {
+          ...entryData,
+          id: `entry-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          timestamp: now,
+          syncStatus: 'synced'
+        };
+        const next = [updatedEntry, ...prev];
+        saveStoredEntries(next);
+        return next;
+      });
+
+      // Synchronize article in the articles list: add it if missing, and change status to 'saisi'
+      setArticles((prevArts) => {
+        const artIdx = prevArts.findIndex(
+          (a) => a.code_article.toLowerCase() === entryData.code_article.toLowerCase()
+        );
+        if (artIdx >= 0) {
+          const nextArts = [...prevArts];
+          const curr = nextArts[artIdx];
+          nextArts[artIdx] = {
+            ...curr,
+            designation: entryData.designation || curr.designation,
+            reference: entryData.reference || curr.reference,
+            famille: entryData.famille || curr.famille,
+            machine: entryData.machine || curr.machine,
+            unite: entryData.unite || curr.unite,
+            emplacement: entryData.emplacement || curr.emplacement,
+            status: 'saisi'
+          };
+          saveStoredArticles(nextArts);
+          syncService.sendAction('UPDATE_ARTICLE', nextArts[artIdx]);
+          return nextArts;
+        } else {
+          // If not in articles, add to articles list with status: 'saisi'
+          const newArt: Article = {
+            id: entryData.articleId || `art-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            code_article: entryData.code_article,
+            designation: entryData.designation || entryData.code_article,
+            reference: entryData.reference || '',
+            famille: entryData.famille || 'Général',
+            machine: entryData.machine || 'Standard',
+            unite: entryData.unite || 'Pièce',
+            emplacement: entryData.emplacement || '',
+            quantite: entryData.quantite,
+            status: 'saisi'
+          };
+          const nextArts = [newArt, ...prevArts];
+          saveStoredArticles(nextArts);
+          syncService.sendAction('ADD_ARTICLE', newArt);
+          return nextArts;
+        }
+      });
+
+      if (entryData.machine) addMachine(entryData.machine);
+      if (entryData.famille) addFamille(entryData.famille);
+      if (entryData.emplacement && entryData.emplacement.trim()) {
+        addLocation({ code: entryData.emplacement, nom: entryData.emplacement, zone: 'Général' });
+        setLastLocation(entryData.emplacement.trim());
+      }
+
+      // Broadcast to other devices in real-time
+      syncService.sendAction('ADD_ENTRY', updatedEntry!);
+
+      setSyncState((prev) => ({ ...prev, lastSyncedAt: new Date().toLocaleTimeString('fr-FR') }));
+      return updatedEntry!;
+    },
+    [setLastLocation, addMachine, addFamille, addLocation]
+  );
+
+  const addManualArticle = useCallback(
+    (
+      artData: Omit<Article, 'id'>,
+      quantite = 1,
+      qualite: QualiteEtat = 'conforme',
+      notes = 'Saisie manuelle'
+    ): { article: Article; entry: InventoryEntry } => {
+      // 1. Add/Update in articles list with status: 'saisi'
+      const savedArticle = addArticle({
+        ...artData,
+        status: 'saisi',
+        quantite: quantite
+      });
+
+      // 2. Add to entries list (saisis) with status: 'valide'
+      const entry = addOrUpdateEntry({
+        articleId: savedArticle.id,
+        code_article: savedArticle.code_article,
+        designation: savedArticle.designation,
+        reference: savedArticle.reference,
+        famille: savedArticle.famille || 'Général',
+        machine: savedArticle.machine || 'Standard',
+        unite: savedArticle.unite || 'Pièce',
+        emplacement: savedArticle.emplacement || lastLocation || 'Non assigné',
+        quantite: quantite,
+        qualite: qualite,
+        notes: notes,
+        operator: operator,
+        status: 'valide'
+      });
+
+      return { article: savedArticle, entry };
+    },
+    [addArticle, addOrUpdateEntry, lastLocation, operator]
+  );
+
+  const deleteEntry = useCallback((id: string) => {
+    setEntries((prev) => {
+      const targetEntry = prev.find((e) => e.id === id);
+      const next = prev.filter((e) => e.id !== id);
+      saveStoredEntries(next);
+
+      if (targetEntry) {
+        const remaining = next.some(
+          (e) => e.code_article.toLowerCase() === targetEntry.code_article.toLowerCase()
+        );
+        if (!remaining) {
+          setArticles((prevArts) => {
+            const artIdx = prevArts.findIndex(
+              (a) => a.code_article.toLowerCase() === targetEntry.code_article.toLowerCase()
+            );
+            if (artIdx >= 0) {
+              const nextArts = [...prevArts];
+              nextArts[artIdx] = { ...nextArts[artIdx], status: 'a_faire' };
+              saveStoredArticles(nextArts);
+              syncService.sendAction('UPDATE_ARTICLE', nextArts[artIdx]);
+              return nextArts;
+            }
+            return prevArts;
+          });
+        }
+      }
+      return next;
+    });
+    // Broadcast delete to other devices
+    syncService.sendAction('DELETE_ENTRY', id);
+  }, []);
+
+  const clearAllEntries = useCallback(() => {
+    setEntries([]);
+    saveStoredEntries([]);
+    // Update all articles status back to 'a_faire'
+    setArticles((prev) => {
+      const next = prev.map((a) => ({ ...a, status: 'a_faire' as const }));
+      saveStoredArticles(next);
+      return next;
+    });
+    syncService.sendAction('CLEAR_ENTRIES', null);
+  }, []);
+
+  const clearEntireDatabase = useCallback(() => {
+    clearAllLocalDatabase();
+    setArticles([]);
+    setEntries([]);
+    setLocations([]);
+    setFamilles([]);
+    setMachines([]);
+    setLastLocationState('');
+    syncService.sendAction('CLEAR_DATABASE', null);
+  }, []);
+
+  const loadDemoSampleData = useCallback(() => {
+    setArticles(INITIAL_ARTICLES);
+    saveStoredArticles(INITIAL_ARTICLES);
+    setLocations(INITIAL_EMPLACEMENTS);
+    saveStoredLocations(INITIAL_EMPLACEMENTS);
+    setFamilles(INITIAL_FAMILLES);
+    saveStoredFamilles(INITIAL_FAMILLES);
+    setMachines(INITIAL_MACHINES);
+    saveStoredMachines(INITIAL_MACHINES);
+
+    syncService.sendAction('LOAD_DEMO', {
+      articles: INITIAL_ARTICLES,
+      locations: INITIAL_EMPLACEMENTS,
+      familles: INITIAL_FAMILLES,
+      machines: INITIAL_MACHINES
+    });
   }, []);
 
   const importArticlesBulk = useCallback(
@@ -570,6 +761,240 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     [articles]
   );
 
+  // Derive active inventory
+  const activeInventory = useMemo(() => {
+    return inventories.find((i) => i.id === activeInventoryId) || inventories[0];
+  }, [inventories, activeInventoryId]);
+
+  // Synchronize current working state into active inventory campaign
+  useEffect(() => {
+    if (!activeInventoryId) return;
+    setInventories((prev) => {
+      const idx = prev.findIndex((i) => i.id === activeInventoryId);
+      if (idx === -1) return prev;
+      const current = prev[idx];
+      // Compare if anything changed
+      if (
+        current.articles === articles &&
+        current.entries === entries &&
+        current.locations === locations &&
+        current.familles === familles &&
+        current.machines === machines &&
+        current.lastLocation === lastLocation
+      ) {
+        return prev;
+      }
+      const updatedCampaign: InventoryCampaign = {
+        ...current,
+        articles,
+        entries,
+        locations,
+        familles,
+        machines,
+        lastLocation
+      };
+      const next = [...prev];
+      next[idx] = updatedCampaign;
+      saveStoredInventories(next);
+      return next;
+    });
+  }, [articles, entries, locations, familles, machines, lastLocation, activeInventoryId]);
+
+  // Admin authentication (login: ouaradtech, mdp: Ouaradtech26@)
+  const loginAdmin = useCallback((login: string, mdp: string): boolean => {
+    if (login.trim().toLowerCase() === 'ouaradtech' && mdp === 'Ouaradtech26@') {
+      const auth: AdminAuthState = {
+        isAdmin: true,
+        username: 'ouaradtech',
+        lastLogin: new Date().toISOString()
+      };
+      setAdminAuth(auth);
+      saveStoredAdminAuth(auth);
+      if (pendingAdminActionRef.current) {
+        const action = pendingAdminActionRef.current;
+        pendingAdminActionRef.current = null;
+        setTimeout(() => action(), 80);
+      }
+      return true;
+    }
+    return false;
+  }, []);
+
+  const logoutAdmin = useCallback(() => {
+    const auth: AdminAuthState = { isAdmin: false, username: null, lastLogin: null };
+    setAdminAuth(auth);
+    clearStoredAdminAuth();
+  }, []);
+
+  const requestAdminAction = useCallback(
+    (action: () => void, message?: string) => {
+      if (adminAuth.isAdmin) {
+        action();
+      } else {
+        setAdminActionMessage(
+          message || 'Contrôle total réservé à l\'administrateur (ouaradtech) pour toute modification ou suppression.'
+        );
+        pendingAdminActionRef.current = action;
+        setIsAdminLoginModalOpen(true);
+      }
+    },
+    [adminAuth.isAdmin]
+  );
+
+  // Multi-inventory campaigns management
+  const switchInventory = useCallback(
+    (id: string) => {
+      if (id === activeInventoryId) return;
+      const target = inventories.find((i) => i.id === id);
+      if (!target) return;
+
+      // 1. Flush current lists into old active inventory
+      const updatedInventories = inventories.map((inv) => {
+        if (inv.id === activeInventoryId) {
+          return {
+            ...inv,
+            articles,
+            entries,
+            locations,
+            familles,
+            machines,
+            lastLocation
+          };
+        }
+        return inv;
+      });
+      saveStoredInventories(updatedInventories);
+      setInventories(updatedInventories);
+
+      // 2. Set active inventory
+      setActiveInventoryId(target.id);
+      saveStoredActiveInventoryId(target.id);
+
+      // 3. Load target inventory's own separate lists
+      const loadedArticles = target.articles || [];
+      const loadedEntries = target.entries || [];
+      const loadedLocations = target.locations || [];
+      const loadedFamilles = target.familles || [];
+      const loadedMachines = target.machines || [];
+      const loadedLastLoc = target.lastLocation || '';
+
+      setArticles(loadedArticles);
+      saveStoredArticles(loadedArticles);
+      setEntries(loadedEntries);
+      saveStoredEntries(loadedEntries);
+      setLocations(loadedLocations);
+      saveStoredLocations(loadedLocations);
+      setFamilles(loadedFamilles);
+      saveStoredFamilles(loadedFamilles);
+      setMachines(loadedMachines);
+      saveStoredMachines(loadedMachines);
+      setLastLocationState(loadedLastLoc);
+      saveStoredLastLocation(loadedLastLoc);
+
+      syncService.sendAction('SWITCH_INVENTORY', { inventoryId: target.id });
+    },
+    [activeInventoryId, inventories, articles, entries, locations, familles, machines, lastLocation]
+  );
+
+  const createInventory = useCallback(
+    (options: CreateInventoryOptions): InventoryCampaign => {
+      const newId = `inv-${Date.now()}`;
+      // Initial articles list: if copyFromCatalog, clone with quantite=0 and status='a_faire'
+      const initialArticles = options.copyFromCatalog
+        ? articles.map((a) => ({ ...a, quantite: 0, status: 'a_faire' as const }))
+        : [];
+
+      const newCampaign: InventoryCampaign = {
+        id: newId,
+        titre: options.titre.trim(),
+        code: options.code.trim() || `INV-${String(inventories.length + 1).padStart(2, '0')}`,
+        description: options.description?.trim() || '',
+        dateCreation: new Date().toISOString(),
+        statut: 'en_cours',
+        responsable: options.responsable?.trim() || 'ouaradtech',
+        articles: initialArticles,
+        entries: [],
+        locations: [...locations],
+        familles: [...familles],
+        machines: [...machines],
+        lastLocation: lastLocation || ''
+      };
+
+      const nextList = [newCampaign, ...inventories];
+      setInventories(nextList);
+      saveStoredInventories(nextList);
+
+      if (options.switchToNew !== false) {
+        setActiveInventoryId(newId);
+        saveStoredActiveInventoryId(newId);
+        setArticles(newCampaign.articles);
+        saveStoredArticles(newCampaign.articles);
+        setEntries(newCampaign.entries);
+        saveStoredEntries(newCampaign.entries);
+      }
+
+      syncService.sendAction('CREATE_INVENTORY', newCampaign);
+      return newCampaign;
+    },
+    [articles, entries, locations, familles, machines, lastLocation, inventories]
+  );
+
+  const updateInventory = useCallback((updated: Partial<InventoryCampaign> & { id: string }) => {
+    setInventories((prev) => {
+      const next = prev.map((inv) => (inv.id === updated.id ? { ...inv, ...updated } : inv));
+      saveStoredInventories(next);
+      return next;
+    });
+    syncService.sendAction('UPDATE_INVENTORY', updated);
+  }, []);
+
+  const deleteInventory = useCallback(
+    (id: string) => {
+      setInventories((prev) => {
+        if (prev.length <= 1) {
+          return prev;
+        }
+        const next = prev.filter((inv) => inv.id !== id);
+        saveStoredInventories(next);
+
+        if (activeInventoryId === id) {
+          const fallback = next[0];
+          if (fallback) {
+            setActiveInventoryId(fallback.id);
+            saveStoredActiveInventoryId(fallback.id);
+            setArticles(fallback.articles || []);
+            saveStoredArticles(fallback.articles || []);
+            setEntries(fallback.entries || []);
+            saveStoredEntries(fallback.entries || []);
+          }
+        }
+        return next;
+      });
+      syncService.sendAction('DELETE_INVENTORY', id);
+    },
+    [activeInventoryId]
+  );
+
+  const closeInventory = useCallback((id: string) => {
+    setInventories((prev) => {
+      const next = prev.map((inv) =>
+        inv.id === id ? { ...inv, statut: 'cloture' as const, dateCloture: new Date().toISOString() } : inv
+      );
+      saveStoredInventories(next);
+      return next;
+    });
+  }, []);
+
+  const reopenInventory = useCallback((id: string) => {
+    setInventories((prev) => {
+      const next = prev.map((inv) =>
+        inv.id === id ? { ...inv, statut: 'en_cours' as const, dateCloture: undefined } : inv
+      );
+      saveStoredInventories(next);
+      return next;
+    });
+  }, []);
+
   return (
     <InventoryContext.Provider
       value={{
@@ -583,9 +1008,34 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setLastLocation,
         syncState,
         setOperator,
+
+        // Admin Auth & Control
+        isAdmin: adminAuth.isAdmin,
+        adminUser: adminAuth.username,
+        loginAdmin,
+        logoutAdmin,
+        isAdminLoginModalOpen,
+        setIsAdminLoginModalOpen,
+        adminActionMessage,
+        setAdminActionMessage,
+        requestAdminAction,
+
+        // Multi-Inventories Campaigns
+        inventories,
+        activeInventoryId,
+        activeInventory,
+        createInventory,
+        switchInventory,
+        updateInventory,
+        deleteInventory,
+        closeInventory,
+        reopenInventory,
+
+        // Data Operations
         addOrUpdateEntry,
         deleteEntry,
         addArticle,
+        addManualArticle,
         updateArticle,
         deleteArticle,
         importArticlesBulk,

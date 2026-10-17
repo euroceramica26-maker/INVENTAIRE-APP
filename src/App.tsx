@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { InventoryProvider } from './context/InventoryContext';
+import { InventoryProvider, useInventory } from './context/InventoryContext';
 import { Header, ActiveTab } from './components/Header';
 import { DashboardView } from './components/DashboardView';
 import { CatalogView } from './components/CatalogView';
 import { LocationsMachinesView } from './components/LocationsMachinesView';
 import { ExportView } from './components/ExportView';
+import { AdminView } from './components/AdminView';
+import { AdminLoginModal } from './components/AdminLoginModal';
 import { ScannerModal } from './components/ScannerModal';
 import { InventoryEntryModal } from './components/InventoryEntryModal';
 import { ExcelImportModal } from './components/ExcelImportModal';
@@ -16,11 +18,18 @@ import {
   FileSpreadsheet,
   Settings,
   Download,
+  Shield,
   Plus
 } from 'lucide-react';
 
 function InventoryApp() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const {
+    isAdminLoginModalOpen,
+    setIsAdminLoginModalOpen,
+    adminActionMessage,
+    isAdmin
+  } = useInventory();
 
   // Modals state
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -52,7 +61,8 @@ function InventoryApp() {
       machine: parsedData?.machine || 'Ligne Principale',
       unite: parsedData?.unite || 'Pièce',
       emplacement: parsedData?.emplacement || '',
-      quantite: parsedData?.quantite || 1
+      quantite: parsedData?.quantite || 1,
+      status: 'saisi'
     };
     setSelectedArticle(tempArticle);
     setSelectedEntry(null);
@@ -61,6 +71,24 @@ function InventoryApp() {
 
   const handleCountArticle = (article: Article) => {
     setSelectedArticle(article);
+    setSelectedEntry(null);
+    setIsEntryModalOpen(true);
+  };
+
+  const handleOpenManualEntry = (initialCodeOrName = '') => {
+    const tempArticle: Article = {
+      id: `manual-${Date.now()}`,
+      code_article: initialCodeOrName.trim(),
+      designation: initialCodeOrName.trim(),
+      reference: '',
+      famille: 'Général',
+      machine: 'Standard',
+      unite: 'Pièce',
+      emplacement: '',
+      quantite: 1,
+      status: 'saisi'
+    };
+    setSelectedArticle(tempArticle);
     setSelectedEntry(null);
     setIsEntryModalOpen(true);
   };
@@ -98,6 +126,7 @@ function InventoryApp() {
             onOpenExport={() => setActiveTab('export')}
             onSelectArticleToCount={handleCountArticle}
             onEditEntry={handleEditEntry}
+            onOpenManualEntry={handleOpenManualEntry}
           />
         )}
 
@@ -117,11 +146,15 @@ function InventoryApp() {
         {activeTab === 'export' && (
           <ExportView />
         )}
+
+        {activeTab === 'admin' && (
+          <AdminView />
+        )}
       </main>
 
-      {/* Mobile Ergonomic Bottom Tab Bar (Pattern 1 from Mobile Touch Apps skill) */}
+      {/* Mobile Ergonomic Bottom Tab Bar (5 tabs) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200">
-        <div className="grid grid-cols-4 items-center h-16 max-w-md mx-auto">
+        <div className="grid grid-cols-5 items-center h-16 max-w-md mx-auto">
           {/* Tab 1 */}
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -165,6 +198,20 @@ function InventoryApp() {
             <Download className="w-5 h-5" />
             <span className="text-[10px] mt-1">Exports</span>
           </button>
+
+          {/* Tab 5: Admin */}
+          <button
+            onClick={() => setActiveTab('admin')}
+            className={`min-h-[44px] flex flex-col items-center justify-center transition-colors relative ${
+              activeTab === 'admin' ? 'text-amber-600 font-bold' : 'text-slate-500'
+            }`}
+          >
+            <Shield className="w-5 h-5" />
+            <span className="text-[10px] mt-1">Admin</span>
+            {isAdmin && (
+              <span className="absolute top-2 right-4 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+            )}
+          </button>
         </div>
       </div>
 
@@ -198,6 +245,13 @@ function InventoryApp() {
       <ExcelImportModal
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
+      />
+
+      {/* Admin Login Modal for Total Control & Restricting Modifications / Deletions */}
+      <AdminLoginModal
+        isOpen={isAdminLoginModalOpen}
+        onClose={() => setIsAdminLoginModalOpen(false)}
+        message={adminActionMessage}
       />
     </div>
   );

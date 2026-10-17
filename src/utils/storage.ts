@@ -1,4 +1,4 @@
-import { Article, InventoryEntry, EmplacementItem } from '../types/inventory';
+import { Article, InventoryEntry, EmplacementItem, InventoryCampaign } from '../types/inventory';
 
 const STORAGE_KEYS = {
   ARTICLES: 'inventaire_articles_v4',
@@ -8,8 +8,101 @@ const STORAGE_KEYS = {
   MACHINES: 'inventaire_machines_v4',
   OPERATOR: 'inventaire_operator_v4',
   ROOM_CODE: 'inventaire_sync_room_v4',
-  LAST_LOCATION: 'inventaire_last_location_v4'
+  LAST_LOCATION: 'inventaire_last_location_v4',
+  INVENTORIES: 'inventaire_campaigns_v5',
+  ACTIVE_INVENTORY_ID: 'inventaire_active_id_v5',
+  ADMIN_AUTH: 'inventaire_admin_auth_v5'
 };
+
+export function getStoredAdminAuth(): { isAdmin: boolean; username: string | null; lastLogin: string | null } {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.ADMIN_AUTH);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    // ignore
+  }
+  return { isAdmin: false, username: null, lastLogin: null };
+}
+
+export function saveStoredAdminAuth(auth: { isAdmin: boolean; username: string | null; lastLogin: string | null }): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, JSON.stringify(auth));
+    notifySyncChannel('ADMIN_AUTH_UPDATED', auth);
+  } catch (e) {
+    // ignore
+  }
+}
+
+export function clearStoredAdminAuth(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+    notifySyncChannel('ADMIN_AUTH_UPDATED', { isAdmin: false, username: null, lastLogin: null });
+  } catch (e) {
+    // ignore
+  }
+}
+
+export function getStoredInventories(): InventoryCampaign[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.INVENTORIES);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    // fallback
+  }
+
+  // Initial default campaign
+  const defaultInv: InventoryCampaign = {
+    id: 'inv-default-01',
+    titre: 'Inventaire Principal 2026',
+    code: 'INV-2026-01',
+    description: 'Campagne principale d\'inventaire initial',
+    dateCreation: new Date().toISOString(),
+    statut: 'en_cours',
+    responsable: 'ouaradtech',
+    articles: getStoredArticles(),
+    entries: getStoredEntries(),
+    locations: getStoredLocations(),
+    familles: getStoredFamilles(),
+    machines: getStoredMachines(),
+    lastLocation: getStoredLastLocation()
+  };
+  saveStoredInventories([defaultInv]);
+  saveStoredActiveInventoryId(defaultInv.id);
+  return [defaultInv];
+}
+
+export function saveStoredInventories(inventories: InventoryCampaign[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.INVENTORIES, JSON.stringify(inventories));
+    notifySyncChannel('INVENTORIES_UPDATED', inventories);
+  } catch (e) {
+    console.error('Erreur sauvegarde inventaires:', e);
+  }
+}
+
+export function getStoredActiveInventoryId(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.ACTIVE_INVENTORY_ID) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+export function saveStoredActiveInventoryId(id: string): void {
+  try {
+    if (id) {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_INVENTORY_ID, id);
+      notifySyncChannel('ACTIVE_INVENTORY_CHANGED', id);
+    }
+  } catch (e) {
+    // ignore
+  }
+}
 
 export function getStoredLastLocation(): string {
   try {

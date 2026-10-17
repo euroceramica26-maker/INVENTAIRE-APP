@@ -11,7 +11,8 @@ import {
   Package,
   Layers,
   Cpu,
-  RotateCcw
+  RotateCcw,
+  CheckCircle2
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { Article, InventoryEntry } from '../types/inventory';
@@ -25,6 +26,7 @@ interface DashboardViewProps {
   onOpenExport: () => void;
   onSelectArticleToCount: (article: Article) => void;
   onEditEntry: (entry: InventoryEntry) => void;
+  onOpenManualEntry?: (initialCodeOrName?: string) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -32,17 +34,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenImport,
   onOpenExport,
   onSelectArticleToCount,
-  onEditEntry
+  onEditEntry,
+  onOpenManualEntry
 }) => {
   const {
     entries,
     articles,
     machines,
     familles,
+    lastLocation,
     deleteEntry,
     searchArticles,
     matchScannedArticle,
-    clearEntireDatabase
+    clearEntireDatabase,
+    isAdmin,
+    requestAdminAction
   } = useInventory();
 
   // Search & filter state
@@ -125,6 +131,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span>Scanner QR / OCR</span>
             </button>
             <button
+              onClick={() => {
+                if (onOpenManualEntry) {
+                  onOpenManualEntry();
+                } else {
+                  onSelectArticleToCount({
+                    id: `manual-${Date.now()}`,
+                    code_article: '',
+                    designation: '',
+                    reference: '',
+                    famille: familles[0] || 'Général',
+                    machine: machines[0] || 'Standard',
+                    unite: 'Pièce',
+                    emplacement: lastLocation || '',
+                    quantite: 1,
+                    status: 'saisi'
+                  });
+                }
+              }}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-sm transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Saisie Manuelle</span>
+            </button>
+            <button
               onClick={onOpenImport}
               className="px-3.5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl flex items-center gap-2 shadow-2xs transition-colors"
             >
@@ -150,12 +180,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && searchResults.length > 0) {
-                  onSelectArticleToCount(searchResults[0]);
-                  setSearchTerm('');
+                if (e.key === 'Enter') {
+                  if (searchResults.length > 0) {
+                    onSelectArticleToCount(searchResults[0]);
+                    setSearchTerm('');
+                  } else if (searchTerm.trim()) {
+                    const term = searchTerm.trim();
+                    setSearchTerm('');
+                    if (onOpenManualEntry) {
+                      onOpenManualEntry(term);
+                    } else {
+                      onSelectArticleToCount({
+                        id: `manual-${Date.now()}`,
+                        code_article: term,
+                        designation: term,
+                        reference: '',
+                        famille: familles[0] || 'Général',
+                        machine: machines[0] || 'Standard',
+                        unite: 'Pièce',
+                        emplacement: lastLocation || '',
+                        quantite: 1,
+                        status: 'saisi'
+                      });
+                    }
+                  }
                 }
               }}
-              placeholder="Rechercher ou scanner code article, désignation, référence..."
+              placeholder="Rechercher ou saisir un article par code, désignation ou référence..."
               className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300/80 rounded-xl text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-amber-500 focus:outline-none transition-all"
             />
             {searchTerm && (
@@ -169,41 +220,87 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Autocomplete Dropdown if typing search term */}
-          {searchResults.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-20 space-y-1">
-              <div className="text-[11px] font-bold text-slate-400 px-3 py-1 uppercase tracking-wider">
-                Articles trouvés dans le catalogue ({searchResults.length})
-              </div>
-              {searchResults.map((art) => (
-                <div
-                  key={art.id}
-                  className="flex items-center justify-between p-2.5 hover:bg-amber-50/70 rounded-lg transition-colors group cursor-pointer"
-                  onClick={() => {
-                    onSelectArticleToCount(art);
-                    setSearchTerm('');
-                  }}
-                >
-                  <div className="min-w-0 pr-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">
-                        {art.code_article}
-                      </span>
-                      <span className="text-xs font-medium text-slate-800 truncate">
-                        {art.designation}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
-                      Machine : <strong>{art.machine}</strong> · Emplacement : <strong>{art.emplacement}</strong>
+          {searchTerm.trim().length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-20 space-y-1.5">
+              {/* Manual Entry Quick Action Shortcut */}
+              <div
+                className="flex items-center justify-between p-2.5 bg-amber-50 hover:bg-amber-100/90 border border-amber-200/90 rounded-lg transition-colors cursor-pointer"
+                onClick={() => {
+                  const term = searchTerm.trim();
+                  setSearchTerm('');
+                  if (onOpenManualEntry) {
+                    onOpenManualEntry(term);
+                  } else {
+                    onSelectArticleToCount({
+                      id: `manual-${Date.now()}`,
+                      code_article: term,
+                      designation: term,
+                      reference: '',
+                      famille: familles[0] || 'Général',
+                      machine: machines[0] || 'Standard',
+                      unite: 'Pièce',
+                      emplacement: lastLocation || '',
+                      quantite: 1,
+                      status: 'saisi'
+                    });
+                  }
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-amber-500 text-slate-950 flex items-center justify-center font-bold text-xs shrink-0">
+                    +
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-amber-950">
+                      Saisie manuelle : Ajouter & inventorier "{searchTerm.trim()}"
+                    </span>
+                    <div className="text-[10px] text-amber-800">
+                      Sera ajouté à la liste des articles et dans la liste des saisis avec le statut (saisi)
                     </div>
                   </div>
-                  <button
-                    className="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-lg group-hover:bg-amber-600 transition-colors shrink-0 flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Saisir</span>
-                  </button>
                 </div>
-              ))}
+                <span className="text-[10px] font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-300 shrink-0">
+                  Statut : (saisi)
+                </span>
+              </div>
+
+              {searchResults.length > 0 && (
+                <div className="pt-1">
+                  <div className="text-[11px] font-bold text-slate-400 px-3 py-1 uppercase tracking-wider">
+                    Articles correspondants dans la base ({searchResults.length})
+                  </div>
+                  {searchResults.map((art) => (
+                    <div
+                      key={art.id}
+                      className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-lg transition-colors group cursor-pointer"
+                      onClick={() => {
+                        onSelectArticleToCount(art);
+                        setSearchTerm('');
+                      }}
+                    >
+                      <div className="min-w-0 pr-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {art.code_article}
+                          </span>
+                          <span className="text-xs font-medium text-slate-800 truncate">
+                            {art.designation}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          Machine : <strong>{art.machine}</strong> · Emplacement : <strong>{art.emplacement}</strong>
+                        </div>
+                      </div>
+                      <button
+                        className="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-lg group-hover:bg-amber-600 transition-colors shrink-0 flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Saisir</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -328,9 +425,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button>
               {(entries.length > 0 || articles.length > 0) && (
                 <button
-                  onClick={() => setIsConfirmClearOpen(true)}
+                  onClick={() => {
+                    requestAdminAction(
+                      () => setIsConfirmClearOpen(true),
+                      "Seul l'administrateur (ouaradtech) a le droit de vider ou réinitialiser la base de données."
+                    );
+                  }}
                   className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1 text-xs"
-                  title="Vider toute la base de données (remise à zéro)"
+                  title={isAdmin ? "Vider toute la base (Admin)" : "Vider la base (Admin uniquement)"}
                 >
                   <Trash2 className="w-4 h-4" />
                   <span className="hidden sm:inline font-medium">Vider la base</span>
@@ -352,13 +454,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 ? "Vous pouvez importer votre fichier Excel d'articles ou scanner directement un code pour commencer."
                 : "Modifiez vos filtres ou termes de recherche."}
             </p>
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
               <button
                 onClick={onOpenScanner}
                 className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"
               >
                 <ScanLine className="w-4 h-4" />
                 <span>Scanner un code</span>
+              </button>
+              <button
+                onClick={() => {
+                  if (onOpenManualEntry) {
+                    onOpenManualEntry();
+                  } else {
+                    onSelectArticleToCount({
+                      id: `manual-${Date.now()}`,
+                      code_article: '',
+                      designation: '',
+                      reference: '',
+                      famille: familles[0] || 'Général',
+                      machine: machines[0] || 'Standard',
+                      unite: 'Pièce',
+                      emplacement: lastLocation || '',
+                      quantite: 1,
+                      status: 'saisi'
+                    });
+                  }
+                }}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Saisie manuelle</span>
               </button>
               <button
                 onClick={onOpenImport}
@@ -374,6 +500,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <table className="w-full text-left text-xs divide-y divide-slate-100">
               <thead className="bg-slate-50 text-slate-600 font-semibold">
                 <tr>
+                  <th className="py-3 px-4">Statut</th>
                   <th className="py-3 px-4">Code Article</th>
                   <th className="py-3 px-4">Désignation</th>
                   <th className="py-3 px-4">Machine & Famille</th>
@@ -387,6 +514,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {filteredEntries.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                    {/* Statut (saisi) */}
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        (saisi)
+                      </span>
+                    </td>
+
                     {/* Code Article */}
                     <td className="py-3 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
                       {item.code_article}
@@ -450,16 +585,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <td className="py-3 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => onEditEntry(item)}
+                          onClick={() => {
+                            requestAdminAction(
+                              () => onEditEntry(item),
+                              "Seul l'administrateur (ouaradtech) a le droit de modifier une ligne de saisie d'inventaire."
+                            );
+                          }}
                           className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          title="Modifier"
+                          title={isAdmin ? "Modifier la saisie (Admin)" : "Modifier (Admin uniquement)"}
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => setEntryToDelete(item)}
+                          onClick={() => {
+                            requestAdminAction(
+                              () => setEntryToDelete(item),
+                              "Seul l'administrateur (ouaradtech) a le droit de supprimer une ligne de saisie d'inventaire."
+                            );
+                          }}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Supprimer la saisie"
+                          title={isAdmin ? "Supprimer la saisie (Admin)" : "Supprimer (Admin uniquement)"}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

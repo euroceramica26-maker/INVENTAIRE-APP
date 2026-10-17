@@ -1,6 +1,8 @@
-import { Article, InventoryEntry, EmplacementItem } from '../types/inventory';
+import { Article, InventoryEntry, EmplacementItem, InventoryCampaign } from '../types/inventory';
 
 export interface RemoteServerState {
+  inventories?: InventoryCampaign[];
+  activeInventoryId?: string;
   articles: Article[];
   entries: InventoryEntry[];
   locations: EmplacementItem[];

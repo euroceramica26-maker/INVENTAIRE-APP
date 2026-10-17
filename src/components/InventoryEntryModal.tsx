@@ -10,7 +10,9 @@ import {
   User,
   ScanLine,
   Save,
-  Package
+  Package,
+  Edit3,
+  CheckCircle2
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { Article, InventoryEntry, QualiteEtat } from '../types/inventory';
@@ -57,6 +59,9 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
   const [currentOperator, setCurrentOperator] = useState<string>(operator);
 
   // Quick new item creation state
+  const [codeArticleInput, setCodeArticleInput] = useState('');
+  const [designationInput, setDesignationInput] = useState('');
+  const [referenceInput, setReferenceInput] = useState('');
   const [isAddingNewMachine, setIsAddingNewMachine] = useState(false);
   const [newMachineInput, setNewMachineInput] = useState('');
   const [isAddingNewFamille, setIsAddingNewFamille] = useState(false);
@@ -66,6 +71,9 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
 
   useEffect(() => {
     if (existingEntry) {
+      setCodeArticleInput(existingEntry.code_article || '');
+      setDesignationInput(existingEntry.designation || '');
+      setReferenceInput(existingEntry.reference || '');
       setQuantite(existingEntry.quantite);
       setQualite(existingEntry.qualite);
       setEmplacement(existingEntry.emplacement);
@@ -75,6 +83,9 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       setNotes(existingEntry.notes || '');
       setCurrentOperator(existingEntry.operator || operator);
     } else if (article) {
+      setCodeArticleInput(article.code_article || '');
+      setDesignationInput(article.designation || '');
+      setReferenceInput(article.reference || '');
       setQuantite(article.quantite && article.quantite > 0 ? article.quantite : 1);
       setQualite('conforme');
       // Mémoriser le dernier emplacement saisi : si présent, il est repris automatiquement
@@ -100,6 +111,10 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
     unite: existingEntry?.unite || 'Pièce',
     emplacement: existingEntry?.emplacement || ''
   };
+
+  const isKnownArticle = articles.some(
+    (a) => a.code_article.toLowerCase() === (codeArticleInput || currentArticle.code_article).trim().toLowerCase()
+  );
 
   const handleAdjustQty = (delta: number) => {
     setQuantite(prev => Math.max(0, Math.round((prev + delta) * 100) / 100));
@@ -134,29 +149,32 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
   };
 
   const handleSave = (continueScanning = false) => {
-    // If this article is new and not in the catalog database, save it to the base
-    const isKnownArticle = articles.some(
-      (a) => a.code_article.toLowerCase() === currentArticle.code_article.toLowerCase()
-    );
-    if (!isKnownArticle && currentArticle.code_article) {
-      addArticle({
-        code_article: currentArticle.code_article,
-        designation: currentArticle.designation || currentArticle.code_article,
-        reference: currentArticle.reference || currentArticle.code_article,
-        famille: famille || currentArticle.famille || 'Général',
-        machine: machine || currentArticle.machine || 'Standard',
-        unite: unite || currentArticle.unite || 'Pièce',
-        emplacement: emplacement || currentArticle.emplacement || lastLocation || '',
-        quantite: quantite
-      });
-    }
+    const finalCode = (codeArticleInput.trim() || currentArticle.code_article).trim();
+    const finalDesig = (designationInput.trim() || currentArticle.designation).trim() || finalCode;
+    const finalRef = (referenceInput.trim() || currentArticle.reference).trim();
 
+    if (!finalCode) return;
+
+    // 1. Ajouter à la liste des articles avec le statut (saisi)
+    addArticle({
+      code_article: finalCode,
+      designation: finalDesig,
+      reference: finalRef,
+      famille: famille || currentArticle.famille || 'Général',
+      machine: machine || currentArticle.machine || 'Standard',
+      unite: unite || currentArticle.unite || 'Pièce',
+      emplacement: emplacement || currentArticle.emplacement || lastLocation || 'Non assigné',
+      quantite: quantite,
+      status: 'saisi'
+    });
+
+    // 2. Ajouter dans la liste des saisis (entries) et changer le statut par (saisi)
     addOrUpdateEntry(
       {
         articleId: currentArticle.id,
-        code_article: currentArticle.code_article,
-        designation: currentArticle.designation,
-        reference: currentArticle.reference,
+        code_article: finalCode,
+        designation: finalDesig,
+        reference: finalRef,
         famille: famille || currentArticle.famille || 'Général',
         machine: machine || currentArticle.machine || 'Standard',
         unite: unite || currentArticle.unite || 'Pièce',
@@ -193,30 +211,28 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-xs font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
-                  {currentArticle.code_article}
+                  {codeArticleInput || currentArticle.code_article || 'Saisie Manuelle'}
                 </span>
-                {currentArticle.reference && currentArticle.reference !== '-' && (
+                {(referenceInput || currentArticle.reference) && (referenceInput || currentArticle.reference) !== '-' && (
                   <>
                     <span className="text-xs text-slate-400">·</span>
                     <span className="text-xs text-slate-500 font-mono">
-                      Réf: {currentArticle.reference}
+                      Réf: {referenceInput || currentArticle.reference}
                     </span>
                   </>
                 )}
-                {articles.some(
-                  (a) => a.code_article.toLowerCase() === currentArticle.code_article.toLowerCase()
-                ) ? (
+                {isKnownArticle ? (
                   <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                    ✓ Rechargé de la Base
+                    ✓ Article Répertorié (Saisi)
                   </span>
                 ) : (
-                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                    Nouvel Article Détecté
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-300">
+                    Saisie Manuelle · Sera Ajouté & Saisi
                   </span>
                 )}
               </div>
               <h2 className="text-base font-bold text-slate-900 leading-tight mt-0.5 truncate max-w-md">
-                {currentArticle.designation}
+                {designationInput || currentArticle.designation || 'Nouvel Article'}
               </h2>
             </div>
           </div>
@@ -230,6 +246,70 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
 
         {/* Form Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Manual Entry Article Details (Code, Désignation, Référence) */}
+          {(!isKnownArticle || currentArticle.id?.startsWith('manual')) && (
+            <div className="p-4 bg-amber-50/60 rounded-2xl border border-amber-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                  <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                  Informations Article (Saisie Manuelle)
+                </span>
+                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded-md">
+                  Statut : (saisi)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Code Article <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={codeArticleInput}
+                    onChange={(e) => setCodeArticleInput(e.target.value.toUpperCase())}
+                    placeholder="Ex: ART-001"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-mono text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-500"
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Désignation <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={designationInput}
+                    onChange={(e) => setDesignationInput(e.target.value)}
+                    placeholder="Nom ou description de l'article"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-amber-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Référence Fabricant
+                </label>
+                <input
+                  type="text"
+                  value={referenceInput}
+                  onChange={(e) => setReferenceInput(e.target.value)}
+                  placeholder="Ex: SKF-6204, SIEMENS-3RV..."
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>
+                  Cet article sera ajouté à la liste des articles et dans la liste des saisis avec le statut <strong>(saisi)</strong>.
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* 1. QUANTITY COUNTER */}
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
             <div className="flex items-center justify-between mb-3">

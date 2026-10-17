@@ -19,6 +19,7 @@ export interface Article {
   prix_unitaire?: number;
   qr_code?: string;
   notes?: string;
+  status?: 'saisi' | 'a_faire';
 }
 
 export interface InventoryEntry {
@@ -36,7 +37,7 @@ export interface InventoryEntry {
   notes: string;
   timestamp: string; // ISO format
   operator: string;
-  status: 'valide' | 'a_verifier' | 'brouillon';
+  status: 'valide' | 'a_verifier' | 'brouillon' | 'saisi';
   syncStatus: 'synced' | 'pending' | 'local';
 }
 
@@ -96,4 +97,38 @@ export interface SyncState {
   pendingCount: number;
   roomCode: string;
   peerCount: number;
+}
+
+export type InventoryStatus = 'en_cours' | 'cloture' | 'archive';
+
+export interface InventoryCampaign {
+  id: string;
+  titre: string;
+  code: string;
+  description?: string;
+  dateCreation: string;
+  dateCloture?: string;
+  statut: InventoryStatus;
+  responsable: string;
+  articles: Article[];
+  entries: InventoryEntry[];
+  locations: EmplacementItem[];
+  familles: string[];
+  machines: string[];
+  lastLocation?: string;
+}
+
+export interface AdminAuthState {
+  isAdmin: boolean;
+  username: string | null;
+  lastLogin: string | null;
+}
+
+export interface CreateInventoryOptions {
+  titre: string;
+  code: string;
+  description?: string;
+  responsable?: string;
+  copyFromCatalog?: boolean;
+  switchToNew?: boolean;
 }

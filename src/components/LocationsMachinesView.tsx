@@ -30,7 +30,9 @@ export const LocationsMachinesView: React.FC<LocationsMachinesViewProps> = ({ on
     addFamille,
     deleteFamille,
     addLocation,
-    deleteLocation
+    deleteLocation,
+    isAdmin,
+    requestAdminAction
   } = useInventory();
 
   const [activeTab, setActiveTab] = useState<'machines' | 'familles' | 'locations'>('machines');
@@ -39,6 +41,17 @@ export const LocationsMachinesView: React.FC<LocationsMachinesViewProps> = ({ on
     id: string;
     name: string;
   } | null>(null);
+
+  const promptDeleteItem = (item: {
+    type: 'machine' | 'famille' | 'location';
+    id: string;
+    name: string;
+  }) => {
+    requestAdminAction(
+      () => setItemToDelete(item),
+      "Seul l'administrateur (ouaradtech) a le droit de supprimer des machines, familles ou emplacements."
+    );
+  };
 
   // Input states for adding
   const [newMachine, setNewMachine] = useState('');
@@ -235,9 +248,9 @@ export const LocationsMachinesView: React.FC<LocationsMachinesViewProps> = ({ on
                           {entryCount} / {articleCount}
                         </span>
                         <button
-                          onClick={() => setItemToDelete({ type: 'machine', id: m, name: m })}
+                          onClick={() => promptDeleteItem({ type: 'machine', id: m, name: m })}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Supprimer la machine"
+                          title={isAdmin ? "Supprimer la machine (Admin)" : "Supprimer la machine (Admin uniquement)"}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -327,9 +340,9 @@ export const LocationsMachinesView: React.FC<LocationsMachinesViewProps> = ({ on
                           {entryCount} / {articleCount}
                         </span>
                         <button
-                          onClick={() => setItemToDelete({ type: 'famille', id: f, name: f })}
+                          onClick={() => promptDeleteItem({ type: 'famille', id: f, name: f })}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Supprimer la famille"
+                          title={isAdmin ? "Supprimer la famille (Admin)" : "Supprimer la famille (Admin uniquement)"}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -448,9 +461,9 @@ export const LocationsMachinesView: React.FC<LocationsMachinesViewProps> = ({ on
                           {entryCount} articles comptés
                         </span>
                         <button
-                          onClick={() => setItemToDelete({ type: 'location', id: loc.id, name: `${loc.code} (${loc.nom})` })}
+                          onClick={() => promptDeleteItem({ type: 'location', id: loc.id, name: `${loc.code} (${loc.nom})` })}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Supprimer l'emplacement"
+                          title={isAdmin ? "Supprimer l'emplacement (Admin)" : "Supprimer l'emplacement (Admin uniquement)"}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

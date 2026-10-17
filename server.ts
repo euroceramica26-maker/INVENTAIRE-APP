@@ -14,6 +14,8 @@ const DB_FILE = path.resolve(DATA_DIR, 'inventory-database.json');
 
 // Interface for server database state
 interface ServerDatabase {
+  inventories: any[];
+  activeInventoryId: string;
   articles: any[];
   entries: any[];
   locations: any[];
@@ -25,6 +27,8 @@ interface ServerDatabase {
 
 // Initial state : completely blank on first boot as requested
 const emptyDatabase: ServerDatabase = {
+  inventories: [],
+  activeInventoryId: 'inv-principal',
   articles: [],
   entries: [],
   locations: [],
@@ -47,13 +51,47 @@ function loadDatabase(): ServerDatabase {
     if (fs.existsSync(DB_FILE)) {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
+
+      const arts = Array.isArray(parsed.articles) ? parsed.articles : [];
+      const ents = Array.isArray(parsed.entries) ? parsed.entries : [];
+      const locs = Array.isArray(parsed.locations) ? parsed.locations : [];
+      const fams = Array.isArray(parsed.familles) ? parsed.familles : [];
+      const machs = Array.isArray(parsed.machines) ? parsed.machines : [];
+      const lastLoc = typeof parsed.lastLocation === 'string' ? parsed.lastLocation : '';
+
+      let inventories = Array.isArray(parsed.inventories) ? parsed.inventories : [];
+      let activeInvId = typeof parsed.activeInventoryId === 'string' && parsed.activeInventoryId ? parsed.activeInventoryId : 'inv-principal';
+
+      if (inventories.length === 0) {
+        inventories = [
+          {
+            id: 'inv-principal',
+            titre: 'Inventaire Principal',
+            code: 'INV-01',
+            description: 'Campagne principale d\'inventaire',
+            dateCreation: new Date().toISOString(),
+            statut: 'en_cours',
+            responsable: 'ouaradtech',
+            articles: arts,
+            entries: ents,
+            locations: locs,
+            familles: fams,
+            machines: machs,
+            lastLocation: lastLoc
+          }
+        ];
+        activeInvId = 'inv-principal';
+      }
+
       return {
-        articles: Array.isArray(parsed.articles) ? parsed.articles : [],
-        entries: Array.isArray(parsed.entries) ? parsed.entries : [],
-        locations: Array.isArray(parsed.locations) ? parsed.locations : [],
-        familles: Array.isArray(parsed.familles) ? parsed.familles : [],
-        machines: Array.isArray(parsed.machines) ? parsed.machines : [],
-        lastLocation: typeof parsed.lastLocation === 'string' ? parsed.lastLocation : '',
+        inventories,
+        activeInventoryId: activeInvId,
+        articles: arts,
+        entries: ents,
+        locations: locs,
+        familles: fams,
+        machines: machs,
+        lastLocation: lastLoc,
         updatedAt: parsed.updatedAt || new Date().toISOString()
       };
     }
@@ -63,8 +101,24 @@ function loadDatabase(): ServerDatabase {
   return { ...emptyDatabase };
 }
 
+function syncActiveInventoryInList(): void {
+  const idx = db.inventories.findIndex((inv) => inv.id === db.activeInventoryId);
+  if (idx >= 0) {
+    db.inventories[idx] = {
+      ...db.inventories[idx],
+      articles: db.articles,
+      entries: db.entries,
+      locations: db.locations,
+      familles: db.familles,
+      machines: db.machines,
+      lastLocation: db.lastLocation
+    };
+  }
+}
+
 function saveDatabase(): void {
   try {
+    syncActiveInventoryInList();
     db.updatedAt = new Date().toISOString();
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
   } catch (err) {
@@ -108,12 +162,95 @@ function applyAction(actionType: string, payload: any): boolean {
   switch (actionType) {
     case 'SYNC_STATE': {
       if (payload) {
+        if (Array.isArray(payload.inventories)) db.inventories = payload.inventories;
+        if (typeof payload.activeInventoryId === 'string' && payload.activeInventoryId) {
+          db.activeInventoryId = payload.activeInventoryId;
+        }
         if (Array.isArray(payload.articles)) db.articles = payload.articles;
         if (Array.isArray(payload.entries)) db.entries = payload.entries;
         if (Array.isArray(payload.locations)) db.locations = payload.locations;
         if (Array.isArray(payload.familles)) db.familles = payload.familles;
         if (Array.isArray(payload.machines)) db.machines = payload.machines;
         if (typeof payload.lastLocation === 'string') db.lastLocation = payload.lastLocation;
+      }
+      break;
+    }
+
+    case 'CREATE_INVENTORY': {
+      const newInv = payload;
+      if (!newInv || !newInv.id) return false;
+      const existingIdx = db.inventories.findIndex((i) => i.id === newInv.id);
+      if (existingIdx >= 0) {
+        db.inventories[existingIdx] = newInv;
+      } else {
+        db.inventories.unshift(newInv);
+      }
+      if (payload.switchToNew) {
+        syncActiveInventoryInList();
+        db.activeInventoryId = newInv.id;
+        db.articles = Array.isArray(newInv.articles) ? newInv.articles : [];
+        db.entries = Array.isArray(newInv.entries) ? newInv.entries : [];
+        db.locations = Array.isArray(newInv.locations) ? newInv.locations : [];
+        db.familles = Array.isArray(newInv.familles) ? newInv.familles : [];
+        db.machines = Array.isArray(newInv.machines) ? newInv.machines : [];
+        db.lastLocation = newInv.lastLocation || '';
+      }
+      break;
+    }
+
+    case 'SWITCH_INVENTORY': {
+      const targetId = typeof payload === 'string' ? payload : payload?.id;
+      if (!targetId) return false;
+      syncActiveInventoryInList();
+      const target = db.inventories.find((i) => i.id === targetId);
+      if (target) {
+        db.activeInventoryId = target.id;
+        db.articles = Array.isArray(target.articles) ? target.articles : [];
+        db.entries = Array.isArray(target.entries) ? target.entries : [];
+        db.locations = Array.isArray(target.locations) ? target.locations : [];
+        db.familles = Array.isArray(target.familles) ? target.familles : [];
+        db.machines = Array.isArray(target.machines) ? target.machines : [];
+        db.lastLocation = target.lastLocation || '';
+      }
+      break;
+    }
+
+    case 'UPDATE_INVENTORY': {
+      const updatedInv = payload;
+      if (!updatedInv || !updatedInv.id) return false;
+      const idx = db.inventories.findIndex((i) => i.id === updatedInv.id);
+      if (idx >= 0) {
+        db.inventories[idx] = { ...db.inventories[idx], ...updatedInv };
+        if (db.activeInventoryId === updatedInv.id) {
+          if (Array.isArray(updatedInv.articles)) db.articles = updatedInv.articles;
+          if (Array.isArray(updatedInv.entries)) db.entries = updatedInv.entries;
+        }
+      }
+      break;
+    }
+
+    case 'DELETE_INVENTORY': {
+      const targetId = typeof payload === 'string' ? payload : payload?.id;
+      if (!targetId) return false;
+      db.inventories = db.inventories.filter((i) => i.id !== targetId);
+      if (db.activeInventoryId === targetId) {
+        if (db.inventories.length > 0) {
+          const nextInv = db.inventories[0];
+          db.activeInventoryId = nextInv.id;
+          db.articles = nextInv.articles || [];
+          db.entries = nextInv.entries || [];
+          db.locations = nextInv.locations || [];
+          db.familles = nextInv.familles || [];
+          db.machines = nextInv.machines || [];
+          db.lastLocation = nextInv.lastLocation || '';
+        } else {
+          db.articles = [];
+          db.entries = [];
+          db.locations = [];
+          db.familles = [];
+          db.machines = [];
+          db.lastLocation = '';
+        }
       }
       break;
     }

@@ -41,6 +41,7 @@ export function buildCombinedInventoryList(
   // 2. Add all catalog articles that have NOT been inventoried yet (À faire)
   articles.forEach((art) => {
     if (!accountedArticleCodes.has(art.code_article.toLowerCase())) {
+      const isSaisi = art.status === 'saisi';
       combined.push({
         id: `missing-${art.id}`,
         code_article: art.code_article,
@@ -50,12 +51,12 @@ export function buildCombinedInventoryList(
         machine: art.machine || 'Standard',
         emplacement: art.emplacement || 'Non assigné',
         unite: art.unite || 'Pièce',
-        quantite: '', // Non saisi
-        qualite: 'En attente d\'inventaire',
-        statutInventaire: 'À faire (Non inventorié)',
+        quantite: isSaisi ? (art.quantite || 1) : '',
+        qualite: isSaisi ? 'Conforme / Neuf' : 'En attente d\'inventaire',
+        statutInventaire: isSaisi ? 'Saisi' : 'À faire (Non inventorié)',
         timestamp: '-',
         operator: '-',
-        notes: 'Article non inventorié'
+        notes: isSaisi ? 'Article saisi manuellement' : 'Article non inventorié'
       });
     }
   });
