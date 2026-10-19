@@ -1,4 +1,4 @@
-import { Article, InventoryEntry, EmplacementItem, InventoryCampaign } from '../types/inventory';
+import { Article, InventoryEntry, EmplacementItem, InventoryCampaign, AppUser } from '../types/inventory';
 
 const STORAGE_KEYS = {
   ARTICLES: 'inventaire_articles_v4',
@@ -11,8 +11,107 @@ const STORAGE_KEYS = {
   LAST_LOCATION: 'inventaire_last_location_v4',
   INVENTORIES: 'inventaire_campaigns_v5',
   ACTIVE_INVENTORY_ID: 'inventaire_active_id_v5',
-  ADMIN_AUTH: 'inventaire_admin_auth_v5'
+  ADMIN_AUTH: 'inventaire_admin_auth_v5',
+  USERS: 'inventaire_users_v5',
+  CURRENT_USER: 'inventaire_current_user_session_v5'
 };
+
+export const DEFAULT_USERS: AppUser[] = [
+  {
+    id: 'usr-admin-01',
+    username: 'ouaradtech',
+    nom: 'Mohamed Ouarad (Admin)',
+    motDePasse: 'Ouaradtech26@',
+    role: 'admin',
+    actif: true,
+    dateCreation: '2026-01-01T08:00:00.000Z'
+  },
+  {
+    id: 'usr-op-01',
+    username: 'saisie1',
+    nom: 'Opérateur 1 (Atelier)',
+    motDePasse: '1234',
+    role: 'operateur',
+    actif: true,
+    dateCreation: '2026-01-01T08:00:00.000Z'
+  },
+  {
+    id: 'usr-op-02',
+    username: 'saisie2',
+    nom: 'Opérateur 2 (Magasin)',
+    motDePasse: '1234',
+    role: 'operateur',
+    actif: true,
+    dateCreation: '2026-01-01T08:00:00.000Z'
+  }
+];
+
+export function getStoredUsers(): AppUser[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.USERS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Ensure ouaradtech admin is always present and active
+        const hasAdmin = parsed.some((u) => u.username?.toLowerCase() === 'ouaradtech');
+        if (!hasAdmin) {
+          const merged = [DEFAULT_USERS[0], ...parsed];
+          saveStoredUsers(merged);
+          return merged;
+        }
+        return parsed;
+      }
+    }
+  } catch (e) {
+    // fallback
+  }
+  saveStoredUsers(DEFAULT_USERS);
+  return DEFAULT_USERS;
+}
+
+export function saveStoredUsers(users: AppUser[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  } catch (e) {
+    // ignore
+  }
+}
+
+export function getStoredCurrentUser(): AppUser | null {
+  try {
+    // Session storage ensures login is required at startup
+    const raw = sessionStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.id && parsed.username) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
+export function saveStoredCurrentUser(user: AppUser | null): void {
+  try {
+    if (user) {
+      sessionStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+    } else {
+      sessionStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+export function clearStoredCurrentUser(): void {
+  try {
+    sessionStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+  } catch (e) {
+    // ignore
+  }
+}
 
 export function getStoredAdminAuth(): { isAdmin: boolean; username: string | null; lastLogin: string | null } {
   try {

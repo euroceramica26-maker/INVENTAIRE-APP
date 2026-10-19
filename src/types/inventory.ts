@@ -71,6 +71,7 @@ export interface ExportFilters {
   emplacement: string; // 'all' or specific
   qualite: string; // 'all' or specific
   statusFilter: 'all' | 'saisi' | 'a_faire'; // 'all' or 'saisi' or 'a_faire'
+  operator?: string; // 'all' or specific operator
 }
 
 export interface ExportCombinedItem {
@@ -122,6 +123,20 @@ export interface AdminAuthState {
   isAdmin: boolean;
   username: string | null;
   lastLogin: string | null;
+}
+
+export type UserRole = 'admin' | 'operateur';
+
+export interface AppUser {
+  id: string;
+  username: string;
+  nom: string;
+  motDePasse: string;
+  role: UserRole;
+  actif: boolean;
+  dateCreation: string;
+  lastLogin?: string;
+  telephone?: string;
 }
 
 export interface CreateInventoryOptions {

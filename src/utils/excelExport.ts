@@ -105,6 +105,15 @@ export function filterCombinedInventory(
       }
     }
 
+    // Filter by operator
+    if (filters.operator && filters.operator !== 'all') {
+      const opLower = (item.operator || '').toLowerCase();
+      const targetOp = filters.operator.toLowerCase();
+      if (opLower !== targetOp && !opLower.includes(targetOp)) {
+        return false;
+      }
+    }
+
     // Filter by code article search
     if (filters.codeSearch.trim()) {
       const q = filters.codeSearch.toLowerCase().trim();

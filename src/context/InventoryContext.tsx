@@ -7,7 +7,8 @@ import {
   QualiteEtat,
   InventoryCampaign,
   CreateInventoryOptions,
-  AdminAuthState
+  AdminAuthState,
+  AppUser
 } from '../types/inventory';
 import {
   getStoredArticles,
@@ -34,7 +35,12 @@ import {
   saveStoredActiveInventoryId,
   getStoredAdminAuth,
   saveStoredAdminAuth,
-  clearStoredAdminAuth
+  clearStoredAdminAuth,
+  getStoredUsers,
+  saveStoredUsers,
+  getStoredCurrentUser,
+  saveStoredCurrentUser,
+  clearStoredCurrentUser
 } from '../utils/storage';
 import { INITIAL_ARTICLES, INITIAL_EMPLACEMENTS, INITIAL_FAMILLES, INITIAL_MACHINES } from '../data/initialCatalog';
 import { syncService, RemoteServerState } from '../utils/syncService';
@@ -52,6 +58,16 @@ interface InventoryContextType {
   lastLocation: string;
   setLastLocation: (loc: string) => void;
   syncState: SyncState;
+
+  // Session & User Authentication (Mandatory at startup)
+  currentUser: AppUser | null;
+  users: AppUser[];
+  loginUser: (username: string, motDePasse: string) => { success: boolean; message?: string };
+  logoutUser: () => void;
+  createUser: (userData: Omit<AppUser, 'id' | 'dateCreation'>) => { success: boolean; message?: string; user?: AppUser };
+  updateUser: (userData: AppUser) => { success: boolean; message?: string };
+  deleteUser: (userId: string) => { success: boolean; message?: string };
+  toggleUserActive: (userId: string) => void;
 
   // Admin Auth & Control Total
   isAdmin: boolean;
@@ -139,6 +155,26 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState(false);
   const [adminActionMessage, setAdminActionMessage] = useState<string>('');
   const pendingAdminActionRef = useRef<(() => void) | null>(null);
+
+  // User Accounts & Mandatory Session State
+  const [users, setUsers] = useState<AppUser[]>(() => getStoredUsers());
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(() => getStoredCurrentUser());
+
+  // Keep operator and admin state in sync with currentUser
+  useEffect(() => {
+    if (currentUser) {
+      const opName = currentUser.nom || currentUser.username;
+      setOperatorState(opName);
+      saveStoredOperator(opName);
+      if (currentUser.role === 'admin') {
+        setAdminAuth({
+          isAdmin: true,
+          username: currentUser.username,
+          lastLogin: new Date().toISOString()
+        });
+      }
+    }
+  }, [currentUser]);
 
   const isRemoteUpdatingRef = useRef<boolean>(false);
 
@@ -402,6 +438,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     ): InventoryEntry => {
       let updatedEntry: InventoryEntry;
       const now = new Date().toISOString();
+      const finalOperator = entryData.operator || currentUser?.nom || currentUser?.username || operator || 'Opérateur';
 
       setEntries((prev) => {
         const codeMatch = (entryData.code_article || '').trim().toLowerCase();
@@ -413,6 +450,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             updatedEntry = {
               ...prev[index],
               ...entryData,
+              operator: finalOperator,
               status: 'saisi',
               timestamp: now,
               syncStatus: 'synced'
@@ -435,6 +473,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           updatedEntry = {
             ...prev[existingMatchIndex],
             ...entryData,
+            operator: finalOperator,
             status: 'saisi',
             timestamp: now,
             syncStatus: 'synced'
@@ -448,6 +487,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updatedEntry = {
           ...entryData,
           id: `entry-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          operator: finalOperator,
           status: 'saisi',
           timestamp: now,
           syncStatus: 'synced'
@@ -542,13 +582,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         quantite: quantite,
         qualite: qualite,
         notes: notes,
-        operator: operator,
+        operator: currentUser?.nom || currentUser?.username || operator || 'Opérateur',
         status: 'valide'
       });
 
       return { article: savedArticle, entry };
     },
-    [addArticle, addOrUpdateEntry, lastLocation, operator]
+    [addArticle, addOrUpdateEntry, lastLocation, operator, currentUser]
   );
 
   const deleteEntry = useCallback((id: string) => {
@@ -806,30 +846,201 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   }, [articles, entries, locations, familles, machines, lastLocation, activeInventoryId]);
 
-  // Admin authentication (login: ouaradtech, mdp: Ouaradtech26@)
-  const loginAdmin = useCallback((login: string, mdp: string): boolean => {
-    if (login.trim().toLowerCase() === 'ouaradtech' && mdp === 'Ouaradtech26@') {
+  // User Authentication & Session Login (Mandatory at startup)
+  const loginUser = useCallback((username: string, motDePasse: string): { success: boolean; message?: string } => {
+    const trimmedUser = username.trim().toLowerCase();
+    const trimmedPwd = motDePasse.trim();
+
+    // Check in users list (case-insensitive username)
+    const allUsers = getStoredUsers();
+    let foundUser = allUsers.find((u) => u.username.toLowerCase() === trimmedUser);
+
+    // Fallback for hardcoded admin credentials if ever desynced
+    if (!foundUser && trimmedUser === 'ouaradtech' && trimmedPwd === 'Ouaradtech26@') {
+      foundUser = {
+        id: 'usr-admin-01',
+        username: 'ouaradtech',
+        nom: 'Mohamed Ouarad (Admin)',
+        motDePasse: 'Ouaradtech26@',
+        role: 'admin',
+        actif: true,
+        dateCreation: '2026-01-01T08:00:00.000Z'
+      };
+    }
+
+    if (!foundUser) {
+      return { success: false, message: "Nom d'utilisateur introuvable." };
+    }
+
+    if (foundUser.motDePasse !== trimmedPwd) {
+      return { success: false, message: "Mot de passe incorrect." };
+    }
+
+    if (!foundUser.actif) {
+      return { success: false, message: "Ce compte utilisateur est désactivé. Veuillez contacter l'administrateur." };
+    }
+
+    // Success! Update last login
+    const updatedUser: AppUser = {
+      ...foundUser,
+      lastLogin: new Date().toISOString()
+    };
+
+    setUsers((prev) => {
+      const next = prev.map((u) => (u.id === updatedUser.id ? updatedUser : u));
+      saveStoredUsers(next);
+      return next;
+    });
+
+    setCurrentUser(updatedUser);
+    saveStoredCurrentUser(updatedUser);
+
+    const displayName = updatedUser.nom || updatedUser.username;
+    setOperatorState(displayName);
+    saveStoredOperator(displayName);
+
+    if (updatedUser.role === 'admin' || updatedUser.username.toLowerCase() === 'ouaradtech') {
       const auth: AdminAuthState = {
         isAdmin: true,
-        username: 'ouaradtech',
+        username: updatedUser.username,
         lastLogin: new Date().toISOString()
       };
       setAdminAuth(auth);
       saveStoredAdminAuth(auth);
-      if (pendingAdminActionRef.current) {
-        const action = pendingAdminActionRef.current;
-        pendingAdminActionRef.current = null;
-        setTimeout(() => action(), 80);
-      }
-      return true;
+    } else {
+      const auth: AdminAuthState = { isAdmin: false, username: null, lastLogin: null };
+      setAdminAuth(auth);
+      saveStoredAdminAuth(auth);
     }
-    return false;
+
+    if (pendingAdminActionRef.current && (updatedUser.role === 'admin' || updatedUser.username.toLowerCase() === 'ouaradtech')) {
+      const action = pendingAdminActionRef.current;
+      pendingAdminActionRef.current = null;
+      setTimeout(() => action(), 80);
+    }
+
+    return { success: true };
   }, []);
 
-  const logoutAdmin = useCallback(() => {
+  const logoutUser = useCallback(() => {
+    setCurrentUser(null);
+    clearStoredCurrentUser();
     const auth: AdminAuthState = { isAdmin: false, username: null, lastLogin: null };
     setAdminAuth(auth);
     clearStoredAdminAuth();
+  }, []);
+
+  // Admin authentication helper (for inline password prompt modals)
+  const loginAdmin = useCallback((login: string, mdp: string): boolean => {
+    const res = loginUser(login, mdp);
+    if (res.success) {
+      const all = getStoredUsers();
+      const user = all.find((u) => u.username.toLowerCase() === login.trim().toLowerCase());
+      return user?.role === 'admin' || login.trim().toLowerCase() === 'ouaradtech';
+    }
+    return false;
+  }, [loginUser]);
+
+  const logoutAdmin = useCallback(() => {
+    logoutUser();
+  }, [logoutUser]);
+
+  // User Management CRUD (for Administrator)
+  const createUser = useCallback((userData: Omit<AppUser, 'id' | 'dateCreation'>): { success: boolean; message?: string; user?: AppUser } => {
+    const trimmedUsername = userData.username.trim().toLowerCase();
+    if (!trimmedUsername) {
+      return { success: false, message: "L'identifiant est requis." };
+    }
+    if (!userData.motDePasse || userData.motDePasse.length < 2) {
+      return { success: false, message: "Le mot de passe doit contenir au moins 2 caractères." };
+    }
+
+    let created: AppUser | undefined;
+    let errorMsg: string | undefined;
+
+    setUsers((prev) => {
+      if (prev.some((u) => u.username.toLowerCase() === trimmedUsername)) {
+        errorMsg = `L'identifiant "${userData.username}" est déjà utilisé.`;
+        return prev;
+      }
+
+      created = {
+        ...userData,
+        id: `usr-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        username: trimmedUsername,
+        nom: userData.nom.trim() || trimmedUsername,
+        motDePasse: userData.motDePasse.trim(),
+        role: userData.role || 'operateur',
+        actif: userData.actif !== false,
+        dateCreation: new Date().toISOString()
+      };
+
+      const next = [...prev, created];
+      saveStoredUsers(next);
+      return next;
+    });
+
+    if (errorMsg) {
+      return { success: false, message: errorMsg };
+    }
+
+    return { success: true, user: created };
+  }, []);
+
+  const updateUser = useCallback((userData: AppUser): { success: boolean; message?: string } => {
+    let errorMsg: string | undefined;
+
+    setUsers((prev) => {
+      const duplicate = prev.some(
+        (u) => u.id !== userData.id && u.username.toLowerCase() === userData.username.trim().toLowerCase()
+      );
+      if (duplicate) {
+        errorMsg = `L'identifiant "${userData.username}" est déjà utilisé par un autre utilisateur.`;
+        return prev;
+      }
+
+      const next = prev.map((u) => (u.id === userData.id ? { ...userData, username: userData.username.trim().toLowerCase() } : u));
+      saveStoredUsers(next);
+
+      if (currentUser && currentUser.id === userData.id) {
+        setCurrentUser(userData);
+        saveStoredCurrentUser(userData);
+      }
+
+      return next;
+    });
+
+    if (errorMsg) {
+      return { success: false, message: errorMsg };
+    }
+    return { success: true };
+  }, [currentUser]);
+
+  const deleteUser = useCallback((userId: string): { success: boolean; message?: string } => {
+    const target = users.find((u) => u.id === userId);
+    if (target?.username.toLowerCase() === 'ouaradtech') {
+      return { success: false, message: "Impossible de supprimer l'administrateur principal (ouaradtech)." };
+    }
+
+    setUsers((prev) => {
+      const next = prev.filter((u) => u.id !== userId);
+      saveStoredUsers(next);
+      return next;
+    });
+
+    return { success: true };
+  }, [users]);
+
+  const toggleUserActive = useCallback((userId: string) => {
+    setUsers((prev) => {
+      const target = prev.find((u) => u.id === userId);
+      if (target?.username.toLowerCase() === 'ouaradtech') {
+        return prev;
+      }
+      const next = prev.map((u) => (u.id === userId ? { ...u, actif: !u.actif } : u));
+      saveStoredUsers(next);
+      return next;
+    });
   }, []);
 
   const requestAdminAction = useCallback(
@@ -1014,6 +1225,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setLastLocation,
         syncState,
         setOperator,
+
+        // User Accounts & Mandatory Session
+        currentUser,
+        users,
+        loginUser,
+        logoutUser,
+        createUser,
+        updateUser,
+        deleteUser,
+        toggleUserActive,
 
         // Admin Auth & Control
         isAdmin: adminAuth.isAdmin,

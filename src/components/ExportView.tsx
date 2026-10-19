@@ -9,7 +9,8 @@ import {
   Cpu,
   FolderTree,
   MapPin,
-  AlertCircle
+  AlertCircle,
+  User
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { ExportFilters } from '../types/inventory';
@@ -21,7 +22,7 @@ import {
 } from '../utils/excelExport';
 
 export const ExportView: React.FC = () => {
-  const { entries, articles, machines, familles, locations } = useInventory();
+  const { entries, articles, machines, familles, locations, users } = useInventory();
 
   // Combine entries and uncounted catalog articles
   const allCombined = useMemo(() => {
@@ -36,6 +37,18 @@ export const ExportView: React.FC = () => {
     return Array.from(set);
   }, [allCombined]);
 
+  const distinctOperators = useMemo(() => {
+    const set = new Set<string>();
+    users.forEach((u) => {
+      if (u.nom) set.add(u.nom);
+      if (u.username) set.add(u.username);
+    });
+    allCombined.forEach((item) => {
+      if (item.operator && item.operator !== '-') set.add(item.operator);
+    });
+    return Array.from(set).sort();
+  }, [users, allCombined]);
+
   const [filters, setFilters] = useState<ExportFilters>({
     famille: 'all',
     machine: 'all',
@@ -45,7 +58,8 @@ export const ExportView: React.FC = () => {
     unite: 'all',
     emplacement: 'all',
     qualite: 'all',
-    statusFilter: 'all'
+    statusFilter: 'all',
+    operator: 'all'
   });
 
   const [lastExportMessage, setLastExportMessage] = useState<string | null>(null);
@@ -91,7 +105,8 @@ export const ExportView: React.FC = () => {
       unite: 'all',
       emplacement: 'all',
       qualite: 'all',
-      statusFilter: 'all'
+      statusFilter: 'all',
+      operator: 'all'
     });
   };
 
@@ -326,6 +341,26 @@ export const ExportView: React.FC = () => {
               ))}
             </select>
           </div>
+
+          {/* 9. Opérateur de Saisie */}
+          <div>
+            <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1">
+              <User className="w-3.5 h-3.5 text-emerald-600" />
+              Opérateur de saisie
+            </label>
+            <select
+              value={filters.operator || 'all'}
+              onChange={(e) => setFilters({ ...filters, operator: e.target.value })}
+              className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-medium"
+            >
+              <option value="all">Tous les opérateurs ({distinctOperators.length})</option>
+              {distinctOperators.map((op) => (
+                <option key={op} value={op}>
+                  {op}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -389,6 +424,7 @@ export const ExportView: React.FC = () => {
                   <th className="py-2.5 px-3">Emplacement</th>
                   <th className="py-2.5 px-3 text-right">Quantité</th>
                   <th className="py-2.5 px-3">Qualité / État</th>
+                  <th className="py-2.5 px-3">Opérateur</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -467,6 +503,18 @@ export const ExportView: React.FC = () => {
                           <span>{item.qualite}</span>
                         ) : (
                           <span className="text-slate-400 italic">En attente</span>
+                        )}
+                      </td>
+
+                      {/* Opérateur */}
+                      <td className="py-2.5 px-3 whitespace-nowrap text-[11px] text-slate-600">
+                        {isSaisi && item.operator && item.operator !== '-' ? (
+                          <span className="inline-flex items-center gap-1 font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            <User className="w-3 h-3 text-emerald-600" />
+                            <span>{item.operator}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic">-</span>
                         )}
                       </td>
                     </tr>

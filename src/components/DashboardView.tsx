@@ -14,7 +14,8 @@ import {
   RotateCcw,
   CheckCircle2,
   Clock,
-  X
+  X,
+  User
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { Article, InventoryEntry, QualiteEtat } from '../types/inventory';
@@ -51,7 +52,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     clearEntireDatabase,
     isAdmin,
     requestAdminAction,
-    activeInventory
+    activeInventory,
+    users
   } = useInventory();
 
   // Search & filter state
@@ -61,6 +63,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [selectedMachine, setSelectedMachine] = useState<string>('all');
   const [selectedFamille, setSelectedFamille] = useState<string>('all');
   const [selectedQualite, setSelectedQualite] = useState<string>('all');
+  const [selectedOperator, setSelectedOperator] = useState<string>('all');
 
   // Deletion modals state
   const [entryToDelete, setEntryToDelete] = useState<InventoryEntry | null>(null);
@@ -95,6 +98,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return combinedList.filter((item) => item.statutInventaire !== 'Saisi').length;
   }, [combinedList]);
 
+  // Distinct operators list for filtering
+  const distinctOperators = useMemo(() => {
+    const set = new Set<string>();
+    users.forEach((u) => {
+      if (u.nom) set.add(u.nom);
+      if (u.username) set.add(u.username);
+    });
+    entries.forEach((e) => {
+      if (e.operator && e.operator !== '-') set.add(e.operator);
+    });
+    return Array.from(set).sort();
+  }, [users, entries]);
+
   // Filtered rows depending on active displayMode ('saisis' | 'tous' | 'a_faire')
   const displayedRows = useMemo(() => {
     return combinedList.filter((item) => {
@@ -108,13 +124,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       // 3. Famille filter
       if (selectedFamille !== 'all' && item.famille !== selectedFamille) return false;
 
-      // 4. Qualite filter (only if not 'all' and item is counted)
+      // 4. Operator filter
+      if (selectedOperator !== 'all') {
+        const itemOp = (item.operator || '').toLowerCase();
+        const sel = selectedOperator.toLowerCase();
+        if (itemOp !== sel && !itemOp.includes(sel)) return false;
+      }
+
+      // 5. Qualite filter (only if not 'all' and item is counted)
       if (selectedQualite !== 'all') {
         const selectedLabel = (QUALITE_LABELS as Record<string, string>)[selectedQualite] || selectedQualite;
         if (item.qualite !== selectedLabel) return false;
       }
 
-      // 5. Table text search
+      // 6. Table text search
       const q = tableSearch.toLowerCase().trim();
       if (q) {
         const matchesCode = (item.code_article || '').toLowerCase().includes(q);
@@ -126,7 +149,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       return true;
     });
-  }, [combinedList, displayMode, selectedMachine, selectedFamille, selectedQualite, tableSearch]);
+  }, [combinedList, displayMode, selectedMachine, selectedFamille, selectedOperator, selectedQualite, tableSearch]);
 
   // KPI Calculations (No ecart)
   const totalCountedLines = entries.length;
@@ -538,6 +561,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 ))}
               </select>
             )}
+
+            {/* Operator Filter Dropdown */}
+            {displayMode !== 'a_faire' && distinctOperators.length > 0 && (
+              <select
+                value={selectedOperator}
+                onChange={(e) => setSelectedOperator(e.target.value)}
+                className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700"
+              >
+                <option value="all">Tous les opérateurs ({distinctOperators.length})</option>
+                {distinctOperators.map((op) => (
+                  <option key={op} value={op}>
+                    Opérateur : {op}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="flex items-center justify-between md:justify-end gap-3 text-xs text-slate-500 shrink-0">
@@ -748,10 +787,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {/* Date & Opérateur */}
                       <td className="py-3 px-4 whitespace-nowrap text-slate-500 text-[11px]">
                         {isSaisi ? (
-                          <>
-                            <div>{item.timestamp}</div>
-                            <div className="text-slate-400">{item.operator}</div>
-                          </>
+                          <div className="space-y-1">
+                            <div className="text-slate-600 font-mono text-[10px]">{item.timestamp}</div>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOperator(item.operator)}
+                              title={`Filtrer par cet opérateur (${item.operator})`}
+                              className="inline-flex items-center gap-1 font-semibold text-slate-800 bg-slate-100 hover:bg-amber-100/80 hover:text-amber-900 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] transition-colors cursor-pointer"
+                            >
+                              <User className="w-2.5 h-2.5 text-emerald-600" />
+                              <span className="truncate max-w-[120px]">{item.operator}</span>
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-slate-400">-</span>
                         )}

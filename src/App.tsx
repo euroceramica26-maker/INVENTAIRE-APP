@@ -10,6 +10,7 @@ import { AdminLoginModal } from './components/AdminLoginModal';
 import { ScannerModal } from './components/ScannerModal';
 import { InventoryEntryModal } from './components/InventoryEntryModal';
 import { ExcelImportModal } from './components/ExcelImportModal';
+import { LoginScreen } from './components/LoginScreen';
 import { Article, InventoryEntry } from './types/inventory';
 import { ParsedScannedInfo } from './utils/scanParser';
 import {
@@ -28,8 +29,14 @@ function InventoryApp() {
     isAdminLoginModalOpen,
     setIsAdminLoginModalOpen,
     adminActionMessage,
-    isAdmin
+    isAdmin,
+    currentUser
   } = useInventory();
+
+  // If no user is logged in, show mandatory login screen on startup
+  if (!currentUser) {
+    return <LoginScreen />;
+  }
 
   // Modals state
   const [isScannerOpen, setIsScannerOpen] = useState(false);
