@@ -33,18 +33,18 @@ function InventoryApp() {
     currentUser
   } = useInventory();
 
-  // If no user is logged in, show mandatory login screen on startup
-  if (!currentUser) {
-    return <LoginScreen />;
-  }
-
-  // Modals state
+  // Modals state (declared before any conditional return to obey Rules of Hooks)
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<InventoryEntry | null>(null);
+
+  // If no user is logged in, show mandatory login screen on startup
+  if (!currentUser) {
+    return <LoginScreen />;
+  }
 
   // When article is identified via QR or OCR
   const handleSelectArticleFromScanner = (
