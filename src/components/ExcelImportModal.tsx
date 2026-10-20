@@ -37,15 +37,19 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
   const [error, setError] = useState<string | null>(null);
   const [parsedData, setParsedData] = useState<ParsedExcelResult | null>(null);
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
-    code_article: '',
+    famille: '',
+    sous_famille: '',
+    depart: '',
+    position: '',
     designation: '',
     reference: '',
-    famille: '',
-    machine: '',
+    code_article: '',
     unite: '',
-    emplacement: '',
+    gere_nn: '',
     quantite: '',
-    prix_unitaire: ''
+    prix_unitaire: '',
+    machine: '',
+    emplacement: ''
   });
 
   const [importSummary, setImportSummary] = useState<{
@@ -123,7 +127,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto max-h-[92vh]">
+      <div className="relative w-full max-w-5xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white">
           <div className="flex items-center gap-3">
@@ -261,15 +265,39 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
                 </span>
               </label>
 
-              <div className="mt-8 pt-6 border-t border-slate-200 text-left text-xs text-slate-500 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="mt-8 pt-6 border-t border-slate-200 text-left text-xs space-y-4">
                 <div>
-                  <span className="font-bold text-slate-700 block mb-1">
-                    Colonnes détectées pour les Articles :
-                  </span>
-                  <p>Code Article, Désignation, Référence, Famille, Machine, Emplacement, Unité, Quantité, Prix.</p>
+                  <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                    <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                      <FileSpreadsheet className="w-4 h-4 text-orange-600" />
+                      <span>Colonnes détectées pour les Articles (Format 9 colonnes) :</span>
+                    </span>
+                    <span className="text-[10px] bg-orange-100 text-orange-800 font-bold px-2.5 py-0.5 rounded-full border border-orange-200">
+                      Conforme à votre modèle
+                    </span>
+                  </div>
+
+                  {/* Modèle visuel fidèle à l'image fournie par l'utilisateur */}
+                  <div className="overflow-x-auto rounded-xl border border-orange-400/80 shadow-xs">
+                    <div className="grid grid-cols-9 bg-[#f28e2b] text-white text-[11px] font-bold text-center divide-x divide-orange-300/60 min-w-[720px]">
+                      <div className="py-2.5 px-2">Famaille</div>
+                      <div className="py-2.5 px-2">S.famaille</div>
+                      <div className="py-2.5 px-2">Départ</div>
+                      <div className="py-2.5 px-2">Position</div>
+                      <div className="py-2.5 px-3">Désignation</div>
+                      <div className="py-2.5 px-2">Référence manuel</div>
+                      <div className="py-2.5 px-2">Code magasin</div>
+                      <div className="py-2.5 px-2">Unité</div>
+                      <div className="py-2.5 px-2">Géré /nn</div>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2">
+                    L'application reconnaît automatiquement ces 9 colonnes et leurs variantes lors du chargement de votre fichier.
+                  </p>
                 </div>
-                <div>
-                  <span className="font-bold text-slate-700 block mb-1">
+
+                <div className="pt-2 border-t border-slate-100 text-slate-500">
+                  <span className="font-bold text-slate-700 block mb-0.5">
                     Colonnes pour les Emplacements :
                   </span>
                   <p>Code Emplacement (ex: MAG-A-01), Nom Emplacement, Zone / Secteur.</p>
@@ -295,149 +323,364 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
               </div>
 
               {activeImportType === 'articles' ? (
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
-                    Associer les colonnes Excel aux champs de l'application
-                  </h4>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Code Article */}
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <label className="block text-xs font-bold text-slate-800 mb-1">
-                        Code Article <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={columnMapping.code_article}
-                        onChange={(e) => setColumnMapping({ ...columnMapping, code_article: e.target.value })}
-                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg"
-                      >
-                        <option value="">-- Sélectionner une colonne --</option>
-                        {parsedData.headers.map((h) => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
-                      </select>
+                <div className="space-y-5">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                        <FileSpreadsheet className="w-4 h-4 text-orange-600" />
+                        <span>Colonnes détectées pour les Articles (Format 9 colonnes) :</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Chaque colonne de votre fichier Excel est automatiquement associée à la forme demandée :
+                      </p>
                     </div>
 
-                    {/* Désignation */}
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <label className="block text-xs font-bold text-slate-800 mb-1">
-                        Désignation / Nom <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={columnMapping.designation}
-                        onChange={(e) => setColumnMapping({ ...columnMapping, designation: e.target.value })}
-                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg"
-                      >
-                        <option value="">-- Sélectionner une colonne --</option>
-                        {parsedData.headers.map((h) => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
-                      </select>
+                    {/* Badge de conformité */}
+                    {(() => {
+                      const detectedCount = [
+                        columnMapping.famille,
+                        columnMapping.sous_famille,
+                        columnMapping.depart || columnMapping.machine,
+                        columnMapping.position || columnMapping.emplacement,
+                        columnMapping.designation,
+                        columnMapping.reference,
+                        columnMapping.code_article,
+                        columnMapping.unite,
+                        columnMapping.gere_nn
+                      ].filter(Boolean).length;
+
+                      return (
+                        <span className="text-[11px] bg-emerald-50 text-emerald-800 font-bold px-3 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{detectedCount}/9 colonnes reconnues</span>
+                        </span>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Tableau interactif de mappage des 9 colonnes (Forme fidèle à l'image utilisateur) */}
+                  <div className="overflow-x-auto rounded-xl border border-orange-400 shadow-xs bg-white">
+                    <table className="w-full text-left text-xs min-w-[850px] border-collapse">
+                      {/* En-tête ORANGE fidèle à l'image fournie par l'utilisateur */}
+                      <thead>
+                        <tr className="bg-[#f28e2b] text-white font-bold text-center divide-x divide-orange-300/60 shadow-xs">
+                          <th className="py-2.5 px-2.5 text-xs">Famaille</th>
+                          <th className="py-2.5 px-2.5 text-xs">S.famaille</th>
+                          <th className="py-2.5 px-2.5 text-xs">Départ</th>
+                          <th className="py-2.5 px-2.5 text-xs">Position</th>
+                          <th className="py-2.5 px-3 text-xs min-w-[140px]">Désignation *</th>
+                          <th className="py-2.5 px-2.5 text-xs">Référence manuel</th>
+                          <th className="py-2.5 px-2.5 text-xs min-w-[130px]">Code magasin *</th>
+                          <th className="py-2.5 px-2 text-xs">Unité</th>
+                          <th className="py-2.5 px-2 text-xs">Géré /nn</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-orange-50/20">
+                        {/* Ligne des sélecteurs de correspondance */}
+                        <tr className="divide-x divide-slate-200/80 align-top">
+                          {/* 1. Famaille */}
+                          <td className="p-2">
+                            <div className="space-y-1">
+                              <span className={`block text-[10px] font-semibold truncate ${
+                                columnMapping.famille ? 'text-emerald-700 font-bold' : 'text-slate-400'
+                              }`}>
+                                {columnMapping.famille ? `✓ ${columnMapping.famille}` : 'Non spécifié'}
+                              </span>
+                              <select
+                                value={columnMapping.famille}
+                                onChange={(e) => setColumnMapping({ ...columnMapping, famille: e.target.value })}
+                                className="w-full text-[11px] p-1.5 bg-white border border-slate-300 rounded-md focus:border-orange-500 focus:outline-hidden"
+                              >
+                                <option value="">-- Général --</option>
+                                {parsedData.headers.map((h) => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* 2. S.famaille */}
+                          <td className="p-2">
+                            <div className="space-y-1">
+                              <span className={`block text-[10px] font-semibold truncate ${
+                                columnMapping.sous_famille ? 'text-emerald-700 font-bold' : 'text-slate-400'
+                              }`}>
+                                {columnMapping.sous_famille ? `✓ ${columnMapping.sous_famille}` : 'Optionnel'}
+                              </span>
+                              <select
+                                value={columnMapping.sous_famille}
+                                onChange={(e) => setColumnMapping({ ...columnMapping, sous_famille: e.target.value })}
+                                className="w-full text-[11px] p-1.5 bg-white border border-slate-300 rounded-md focus:border-orange-500 focus:outline-hidden"
+                              >
+                                <option value="">-- Aucun --</option>
+                                {parsedData.headers.map((h) => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* 3. Départ */}
+                          <td className="p-2">
+                            <div className="space-y-1">
+                              <span className={`block text-[10px] font-semibold truncate ${
+                                (columnMapping.depart || columnMapping.machine) ? 'text-emerald-700 font-bold' : 'text-slate-400'
+                              }`}>
+                                {(columnMapping.depart || columnMapping.machine) ? `✓ ${columnMapping.depart || columnMapping.machine}` : 'Standard'}
+                              </span>
+                              <select
+                                value={columnMapping.depart || columnMapping.machine}
+                                onChange={(e) => setColumnMapping({ ...columnMapping, depart: e.target.value, machine: e.target.value })}
+                                className="w-full text-[11px] p-1.5 bg-white border border-slate-300 rounded-md focus:border-orange-500 focus:outline-hidden"
+                              >
+                                <option value="">-- Standard --</option>
+                                {parsedData.headers.map((h) => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* 4. Position */}
+                          <td className="p-2">
+                            <div className="space-y-1">
+                              <span className={`block text-[10px] font-semibold truncate ${
+                                (columnMapping.position || columnMapping.emplacement) ? 'text-emerald-700 font-bold' : 'text-slate-400'
+                              }`}>
+                                {(columnMapping.position || columnMapping.emplacement) ? `✓ ${columnMapping.position || columnMapping.emplacement}` : 'Optionnel'}
+                              </span>
+                              <select
+                                value={columnMapping.position || columnMapping.emplacement}
+                                onChange={(e) => setColumnMapping({ ...columnMapping, position: e.target.value, emplacement: e.target.value })}
+                                className="w-full text-[11px] p-1.5 bg-white border border-slate-300 rounded-md focus:border-orange-500 focus:outline-hidden"
+                              >
+                                <option value="">-- Aucun --</option>
+                                {parsedData.headers.map((h) => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* 5. Désignation */}
+                          <td className="p-2 bg-orange-50/40">
+                            <div className="space-y-1">
+                              <span className={`block text-[10px] font-semibold truncate ${
+                                columnMapping.designation ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'
+                              }`}>
+                                {columnMapping.designation ? `✓ ${columnMapping.designation}` : 'Requis *'}
+                              </span>
+                              <select
+                                value={columnMapping.designation}
+                                onChange={(e) => setColumnMapping({ ...columnMapping, designation: e.target.value })}
+                                className="w-full text-[11px] p-1.5 bg-white border border-orange-400 rounded-md font-medium focus:ring-1 focus:ring-orange-500 focus:outline-hidden"
+                              >
+                                <option value="">-- Sélectionner --</option>
+                                {parsedData.headers.map((h) => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* 6. Référence manuel */}
+                          <td className="p-2">
+                            <div className="space-y-1">
+                              <span className={`block text-[10px] font-semibold truncate ${
+                                columnMapping.reference ? 'text-emerald-700 font-bold' : 'text-slate-400'
+                              }`}>
+                                {columnMapping.reference ? `✓ ${columnMapping.reference}` : 'Optionnel'}
+                              </span>
+                              <select
+                                value={columnMapping.reference}
+                                onChange={(e) => setColumnMapping({ ...columnMapping, reference: e.target.value })}
+                                className="w-full text-[11px] p-1.5 bg-white border border-slate-300 rounded-md focus:border-orange-500 focus:outline-hidden"
+                              >
+                                <option value="">-- Aucun --</option>
+                                {parsedData.headers.map((h) => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* 7. Code magasin */}
+                          <td className="p-2 bg-orange-50/40">
+                            <div className="space-y-1">
+                              <span className={`block text-[10px] font-semibold truncate ${
+                                columnMapping.code_article ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'
+                              }`}>
+                                {columnMapping.code_article ? `✓ ${columnMapping.code_article}` : 'Requis *'}
+                              </span>
+                              <select
+                                value={columnMapping.code_article}
+                                onChange={(e) => setColumnMapping({ ...columnMapping, code_article: e.target.value })}
+                                className="w-full text-[11px] p-1.5 bg-white border border-orange-400 rounded-md font-mono font-medium focus:ring-1 focus:ring-orange-500 focus:outline-hidden"
+                              >
+                                <option value="">-- Sélectionner --</option>
+                                {parsedData.headers.map((h) => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* 8. Unité */}
+                          <td className="p-2">
+                            <div className="space-y-1">
+                              <span className={`block text-[10px] font-semibold truncate ${
+                                columnMapping.unite ? 'text-emerald-700 font-bold' : 'text-slate-400'
+                              }`}>
+                                {columnMapping.unite ? `✓ ${columnMapping.unite}` : 'Pièce'}
+                              </span>
+                              <select
+                                value={columnMapping.unite}
+                                onChange={(e) => setColumnMapping({ ...columnMapping, unite: e.target.value })}
+                                className="w-full text-[11px] p-1.5 bg-white border border-slate-300 rounded-md focus:border-orange-500 focus:outline-hidden"
+                              >
+                                <option value="">-- Pièce --</option>
+                                {parsedData.headers.map((h) => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* 9. Géré /nn */}
+                          <td className="p-2">
+                            <div className="space-y-1">
+                              <span className={`block text-[10px] font-semibold truncate ${
+                                columnMapping.gere_nn ? 'text-emerald-700 font-bold' : 'text-slate-400'
+                              }`}>
+                                {columnMapping.gere_nn ? `✓ ${columnMapping.gere_nn}` : 'G'}
+                              </span>
+                              <select
+                                value={columnMapping.gere_nn}
+                                onChange={(e) => setColumnMapping({ ...columnMapping, gere_nn: e.target.value })}
+                                className="w-full text-[11px] p-1.5 bg-white border border-slate-300 rounded-md focus:border-orange-500 focus:outline-hidden"
+                              >
+                                <option value="">-- G --</option>
+                                {parsedData.headers.map((h) => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Optionnel: Quantité initiale */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                    <span className="text-slate-600">
+                      <strong>Optionnel :</strong> Colonne Quantité en stock initial / théorique :
+                    </span>
+                    <select
+                      value={columnMapping.quantite}
+                      onChange={(e) => setColumnMapping({ ...columnMapping, quantite: e.target.value })}
+                      className="text-xs p-1.5 bg-white border border-slate-300 rounded-lg min-w-[200px]"
+                    >
+                      <option value="">-- Non spécifié (1 par défaut) --</option>
+                      {parsedData.headers.map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Aperçu fidèle sous la forme des 9 colonnes (Modèle utilisateur) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span>Aperçu direct de vos données sous la forme des 9 colonnes :</span>
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Affichage des 4 premières lignes du fichier
+                      </span>
                     </div>
 
-                    {/* Référence */}
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <label className="block text-xs font-bold text-slate-800 mb-1">
-                        Référence Fabricant
-                      </label>
-                      <select
-                        value={columnMapping.reference}
-                        onChange={(e) => setColumnMapping({ ...columnMapping, reference: e.target.value })}
-                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg"
-                      >
-                        <option value="">-- Non spécifié --</option>
-                        {parsedData.headers.map((h) => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <div className="overflow-x-auto rounded-xl border border-orange-400 shadow-xs">
+                      <table className="w-full text-left text-xs min-w-[850px] border-collapse">
+                        <thead>
+                          <tr className="bg-[#f28e2b] text-white font-bold text-center divide-x divide-orange-300/60 shadow-xs">
+                            <th className="py-2 px-2.5 text-xs whitespace-nowrap">Famaille</th>
+                            <th className="py-2 px-2.5 text-xs whitespace-nowrap">S.famaille</th>
+                            <th className="py-2 px-2.5 text-xs whitespace-nowrap">Départ</th>
+                            <th className="py-2 px-2.5 text-xs whitespace-nowrap">Position</th>
+                            <th className="py-2 px-3 text-xs min-w-[160px] text-left">Désignation</th>
+                            <th className="py-2 px-2.5 text-xs whitespace-nowrap">Référence manuel</th>
+                            <th className="py-2 px-2.5 text-xs whitespace-nowrap">Code magasin</th>
+                            <th className="py-2 px-2 text-xs text-center whitespace-nowrap">Unité</th>
+                            <th className="py-2 px-2 text-xs text-center whitespace-nowrap">Géré /nn</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
+                          {parsedData.rawRows.slice(0, 4).map((row, idx) => {
+                            const departKey = (columnMapping.depart || columnMapping.machine || '').trim();
+                            const positionKey = (columnMapping.position || columnMapping.emplacement || '').trim();
 
-                    {/* Famille */}
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
-                        <FolderTree className="w-3.5 h-3.5 text-emerald-600" />
-                        Famille
-                      </label>
-                      <select
-                        value={columnMapping.famille}
-                        onChange={(e) => setColumnMapping({ ...columnMapping, famille: e.target.value })}
-                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg"
-                      >
-                        <option value="">-- Non spécifié --</option>
-                        {parsedData.headers.map((h) => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
-                      </select>
-                    </div>
+                            const valFamille = columnMapping.famille ? String(row[columnMapping.famille] || '') : 'Général';
+                            const valSousFamille = columnMapping.sous_famille ? String(row[columnMapping.sous_famille] || '') : '-';
+                            const valDepart = departKey ? String(row[departKey] || '') : 'Standard';
+                            const valPosition = positionKey ? String(row[positionKey] || '') : '-';
+                            const valDesignation = columnMapping.designation
+                              ? String(row[columnMapping.designation] || '')
+                              : '-';
+                            const valReference = columnMapping.reference
+                              ? String(row[columnMapping.reference] || '')
+                              : '-';
+                            const valCode = columnMapping.code_article
+                              ? String(row[columnMapping.code_article] || '')
+                              : '-';
+                            const valUnite = columnMapping.unite
+                              ? String(row[columnMapping.unite] || '')
+                              : 'Pièce';
+                            const valGere = columnMapping.gere_nn
+                              ? String(row[columnMapping.gere_nn] || '')
+                              : 'G';
 
-                    {/* Machine */}
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
-                        <Cpu className="w-3.5 h-3.5 text-blue-600" />
-                        Machine / Équipement
-                      </label>
-                      <select
-                        value={columnMapping.machine}
-                        onChange={(e) => setColumnMapping({ ...columnMapping, machine: e.target.value })}
-                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg"
-                      >
-                        <option value="">-- Non spécifié --</option>
-                        {parsedData.headers.map((h) => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Emplacement */}
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-amber-600" />
-                        Emplacement
-                      </label>
-                      <select
-                        value={columnMapping.emplacement}
-                        onChange={(e) => setColumnMapping({ ...columnMapping, emplacement: e.target.value })}
-                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg"
-                      >
-                        <option value="">-- Non spécifié --</option>
-                        {parsedData.headers.map((h) => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Quantité */}
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <label className="block text-xs font-bold text-slate-800 mb-1">
-                        Quantité (facultatif)
-                      </label>
-                      <select
-                        value={columnMapping.quantite}
-                        onChange={(e) => setColumnMapping({ ...columnMapping, quantite: e.target.value })}
-                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg"
-                      >
-                        <option value="">-- Non spécifié (1 par défaut) --</option>
-                        {parsedData.headers.map((h) => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Unité */}
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <label className="block text-xs font-bold text-slate-800 mb-1">
-                        Unité (Pièce, Litre, Kg...)
-                      </label>
-                      <select
-                        value={columnMapping.unite}
-                        onChange={(e) => setColumnMapping({ ...columnMapping, unite: e.target.value })}
-                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg"
-                      >
-                        <option value="">-- Non spécifié (Pièce par défaut) --</option>
-                        {parsedData.headers.map((h) => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
-                      </select>
+                            return (
+                              <tr key={idx} className="hover:bg-amber-50/40 divide-x divide-slate-100/80 transition-colors">
+                                <td className="py-2 px-2.5 whitespace-nowrap font-medium text-slate-700">
+                                  {valFamille || 'Général'}
+                                </td>
+                                <td className="py-2 px-2.5 whitespace-nowrap text-slate-500">
+                                  {valSousFamille || '-'}
+                                </td>
+                                <td className="py-2 px-2.5 whitespace-nowrap font-semibold text-slate-800">
+                                  <span className="bg-slate-100 px-2 py-0.5 rounded text-[11px] border border-slate-200">
+                                    {valDepart || 'Standard'}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-2.5 whitespace-nowrap font-mono text-slate-700">
+                                  <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded text-[11px] font-semibold border border-amber-200">
+                                    {valPosition || '-'}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-3 font-semibold text-slate-900 max-w-[220px]">
+                                  <div className="truncate">{valDesignation || '-'}</div>
+                                </td>
+                                <td className="py-2 px-2.5 font-mono text-slate-600 whitespace-nowrap">
+                                  {valReference || '-'}
+                                </td>
+                                <td className="py-2 px-2.5 font-mono font-bold text-slate-900 whitespace-nowrap">
+                                  <span className="bg-slate-100 text-slate-900 px-2 py-0.5 rounded font-mono font-bold text-[11px] border border-slate-300">
+                                    {valCode || '-'}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-2 text-center whitespace-nowrap text-slate-600">
+                                  {valUnite || 'Pièce'}
+                                </td>
+                                <td className="py-2 px-2 text-center whitespace-nowrap">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    {valGere || 'G'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
@@ -453,37 +696,6 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
                   </div>
                 </div>
               )}
-
-              {/* Preview table (first 3 rows) */}
-              <div>
-                <span className="text-xs font-bold text-slate-700 block mb-2">
-                  Aperçu des 3 premières lignes :
-                </span>
-                <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-700 font-semibold">
-                      <tr>
-                        {parsedData.headers.slice(0, 6).map((h) => (
-                          <th key={h} className="p-2 border-b border-slate-200 whitespace-nowrap">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-600">
-                      {parsedData.rawRows.slice(0, 3).map((row, i) => (
-                        <tr key={i}>
-                          {parsedData.headers.slice(0, 6).map((h) => (
-                            <td key={h} className="p-2 whitespace-nowrap">
-                              {String(row[h] || '-')}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </div>
           )}
         </div>

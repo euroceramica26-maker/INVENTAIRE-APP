@@ -413,32 +413,35 @@ export const ExportView: React.FC = () => {
         ) : (
           <div className="overflow-x-auto max-h-[460px]">
             <table className="w-full text-left text-xs divide-y divide-slate-100">
-              <thead className="bg-slate-100 text-slate-700 font-semibold sticky top-0">
-                <tr>
-                  <th className="py-2.5 px-3">Statut Inventaire</th>
-                  <th className="py-2.5 px-3">Code Article</th>
-                  <th className="py-2.5 px-3">Désignation</th>
-                  <th className="py-2.5 px-3">Référence</th>
-                  <th className="py-2.5 px-3">Machine</th>
-                  <th className="py-2.5 px-3">Famille</th>
-                  <th className="py-2.5 px-3">Emplacement</th>
-                  <th className="py-2.5 px-3 text-right">Quantité</th>
-                  <th className="py-2.5 px-3">Qualité / État</th>
-                  <th className="py-2.5 px-3">Opérateur</th>
+              <thead className="bg-[#f28e2b] text-white font-bold sticky top-0 shadow-xs">
+                <tr className="divide-x divide-orange-300/60">
+                  <th className="py-2.5 px-3 whitespace-nowrap text-center">Statut</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Famaille</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">S.famaille</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Départ</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Position</th>
+                  <th className="py-2.5 px-3 min-w-[170px]">Désignation</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Référence manuel</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Code magasin</th>
+                  <th className="py-2.5 px-2 text-center whitespace-nowrap">Unité</th>
+                  <th className="py-2.5 px-2 text-center whitespace-nowrap">Géré /nn</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Quantité</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Qualité</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Opérateur</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
+              <tbody className="divide-y divide-slate-100 text-slate-700 bg-white">
                 {filteredData.map((item) => {
                   const isSaisi = item.statutInventaire === 'Saisi';
                   return (
                     <tr
                       key={item.id}
-                      className={`hover:bg-slate-50/70 ${
-                        !isSaisi ? 'bg-amber-50/30' : ''
+                      className={`hover:bg-amber-50/40 divide-x divide-slate-100/70 transition-colors ${
+                        !isSaisi ? 'bg-amber-50/20' : ''
                       }`}
                     >
                       {/* Statut Inventaire */}
-                      <td className="py-2.5 px-3 whitespace-nowrap">
+                      <td className="py-2.5 px-3 whitespace-nowrap text-center">
                         {isSaisi ? (
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md border border-emerald-300">
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -447,48 +450,69 @@ export const ExportView: React.FC = () => {
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-300">
                             <Clock className="w-3 h-3 text-amber-600" />
-                            À faire (Non inventorié)
+                            À faire
                           </span>
                         )}
                       </td>
 
-                      {/* Code */}
-                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
-                        {item.code_article}
+                      {/* 1. Famaille */}
+                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap truncate max-w-[130px]">
+                        {item.famille || 'Général'}
                       </td>
 
-                      {/* Designation */}
+                      {/* 2. S.famaille */}
+                      <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap truncate max-w-[120px]">
+                        {item.sous_famille || '-'}
+                      </td>
+
+                      {/* 3. Départ */}
+                      <td className="py-2.5 px-3 text-slate-800 whitespace-nowrap truncate max-w-[130px] font-semibold">
+                        <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+                          {item.depart || item.machine || 'Standard'}
+                        </span>
+                      </td>
+
+                      {/* 4. Position */}
+                      <td className="py-2.5 px-3 font-mono text-slate-700 whitespace-nowrap">
+                        <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200 text-[11px] font-semibold">
+                          {item.position || item.emplacement || '-'}
+                        </span>
+                      </td>
+
+                      {/* 5. Désignation */}
                       <td className="py-2.5 px-3 font-medium max-w-[200px] truncate">
                         {item.designation}
                       </td>
 
-                      {/* Reference */}
-                      <td className="py-2.5 px-3 font-mono text-slate-500 whitespace-nowrap">
+                      {/* 6. Référence manuel */}
+                      <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">
                         {item.reference || '-'}
                       </td>
 
-                      {/* Machine */}
-                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap truncate max-w-[150px]">
-                        {item.machine}
+                      {/* 7. Code magasin */}
+                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
+                        <span className="bg-slate-100 text-slate-900 px-2 py-0.5 rounded font-mono font-bold text-[11px] border border-slate-300">
+                          {item.code_article}
+                        </span>
                       </td>
 
-                      {/* Famille */}
-                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap truncate max-w-[140px]">
-                        {item.famille}
+                      {/* 8. Unité */}
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap text-slate-600">
+                        {item.unite || 'Pièce'}
                       </td>
 
-                      {/* Emplacement */}
-                      <td className="py-2.5 px-3 font-mono text-slate-700 whitespace-nowrap">
-                        <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
-                          {item.emplacement}
+                      {/* 9. Géré /nn */}
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          {item.gere_nn || 'G'}
                         </span>
                       </td>
 
                       {/* Quantité */}
                       <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
                         {isSaisi ? (
-                          <span className="text-amber-600">
-                            {item.quantite} {item.unite}
+                          <span className="text-amber-600 font-bold">
+                            {item.quantite}
                           </span>
                         ) : (
                           <span className="text-slate-400 font-normal italic">

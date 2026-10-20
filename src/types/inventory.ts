@@ -8,13 +8,17 @@ export type QualiteEtat =
 
 export interface Article {
   id: string;
-  code_article: string;
-  designation: string;
-  reference: string;
-  famille: string;
-  machine: string;
-  unite: string;
-  emplacement: string;
+  code_article: string; // Code magasin
+  designation: string; // Désignation
+  reference: string; // Référence manuel
+  famille: string; // Famaille / Famille
+  sous_famille?: string; // S.famaille / Sous-famille
+  depart?: string; // Départ
+  machine: string; // Machine / Départ
+  position?: string; // Position
+  emplacement: string; // Position / Emplacement
+  unite: string; // Unité
+  gere_nn?: string; // Géré /nn
   quantite?: number;
   prix_unitaire?: number;
   qr_code?: string;
@@ -25,13 +29,17 @@ export interface Article {
 export interface InventoryEntry {
   id: string;
   articleId?: string;
-  code_article: string;
-  designation: string;
-  reference: string;
-  famille: string;
-  machine: string;
-  unite: string;
-  emplacement: string;
+  code_article: string; // Code magasin
+  designation: string; // Désignation
+  reference: string; // Référence manuel
+  famille: string; // Famaille / Famille
+  sous_famille?: string; // S.famaille
+  depart?: string; // Départ
+  machine: string; // Machine / Départ
+  position?: string; // Position
+  emplacement: string; // Position / Emplacement
+  unite: string; // Unité
+  gere_nn?: string; // Géré /nn
   quantite: number;
   qualite: QualiteEtat;
   notes: string;
@@ -50,15 +58,20 @@ export interface EmplacementItem {
 }
 
 export interface ColumnMapping {
-  code_article: string;
-  designation: string;
-  reference: string;
-  famille: string;
-  machine: string;
-  unite: string;
-  emplacement: string;
-  quantite: string;
-  prix_unitaire: string;
+  // Ordre exact des 9 colonnes détectées (voir modèle utilisateur)
+  famille: string; // 1. Famaille
+  sous_famille: string; // 2. S.famaille
+  depart: string; // 3. Départ
+  position: string; // 4. Position
+  designation: string; // 5. Désignation
+  reference: string; // 6. Référence manuel
+  code_article: string; // 7. Code magasin
+  unite: string; // 8. Unité
+  gere_nn: string; // 9. Géré /nn
+  quantite: string; // Quantité optionnelle
+  prix_unitaire: string; // Prix unitaire optionnel
+  machine?: string; // Alias rétrocompatibilité
+  emplacement?: string; // Alias rétrocompatibilité
 }
 
 export interface ExportFilters {
@@ -80,9 +93,13 @@ export interface ExportCombinedItem {
   designation: string;
   reference: string;
   famille: string;
+  sous_famille?: string;
+  depart?: string;
   machine: string;
+  position?: string;
   emplacement: string;
   unite: string;
+  gere_nn?: string;
   quantite: number | '';
   qualite: string;
   statutInventaire: 'Saisi' | 'À faire (Non inventorié)';

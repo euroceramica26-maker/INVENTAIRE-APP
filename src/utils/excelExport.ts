@@ -20,15 +20,22 @@ export function buildCombinedInventoryList(
   // 1. Add all inventoried entries (Saisi)
   entries.forEach((entry) => {
     accountedArticleCodes.add(entry.code_article.toLowerCase());
+    const departVal = entry.depart || entry.machine || 'Standard';
+    const positionVal = entry.position || entry.emplacement || 'Non assigné';
+
     combined.push({
       id: entry.id,
       code_article: entry.code_article,
       designation: entry.designation,
       reference: entry.reference || '-',
       famille: entry.famille || 'Général',
-      machine: entry.machine || 'Standard',
-      emplacement: entry.emplacement || 'Non assigné',
+      sous_famille: entry.sous_famille || '',
+      depart: departVal,
+      machine: departVal,
+      position: positionVal,
+      emplacement: positionVal,
       unite: entry.unite || 'Pièce',
+      gere_nn: entry.gere_nn || 'G',
       quantite: entry.quantite,
       qualite: QUALITE_LABELS[entry.qualite] || entry.qualite,
       statutInventaire: 'Saisi',
@@ -42,15 +49,22 @@ export function buildCombinedInventoryList(
   articles.forEach((art) => {
     if (!accountedArticleCodes.has(art.code_article.toLowerCase())) {
       const isSaisi = art.status === 'saisi';
+      const departVal = art.depart || art.machine || 'Standard';
+      const positionVal = art.position || art.emplacement || 'Non assigné';
+
       combined.push({
         id: `missing-${art.id}`,
         code_article: art.code_article,
         designation: art.designation,
         reference: art.reference || '-',
         famille: art.famille || 'Général',
-        machine: art.machine || 'Standard',
-        emplacement: art.emplacement || 'Non assigné',
+        sous_famille: art.sous_famille || '',
+        depart: departVal,
+        machine: departVal,
+        position: positionVal,
+        emplacement: positionVal,
         unite: art.unite || 'Pièce',
+        gere_nn: art.gere_nn || 'G',
         quantite: isSaisi ? (art.quantite || 1) : '',
         qualite: isSaisi ? 'Conforme / Neuf' : 'En attente d\'inventaire',
         statutInventaire: isSaisi ? 'Saisi' : 'À faire (Non inventorié)',
@@ -157,13 +171,15 @@ export function exportInventoryToExcel(
   const rowsGlobal = filtered.map((item, idx) => ({
     'N°': idx + 1,
     'Statut Inventaire': item.statutInventaire,
-    'Code Article': item.code_article,
+    'Famaille': item.famille || 'Général',
+    'S.famaille': item.sous_famille || '',
+    'Départ': item.depart || item.machine || 'Standard',
+    'Position': item.position || item.emplacement || 'Non assigné',
     'Désignation': item.designation,
-    'Référence Fabricant': item.reference,
-    'Famille': item.famille,
-    'Machine': item.machine,
-    'Emplacement': item.emplacement,
+    'Référence manuel': item.reference,
+    'Code magasin': item.code_article,
     'Unité': item.unite,
+    'Géré /nn': item.gere_nn || 'G',
     'Quantité Saisie': item.quantite === '' ? 'Non saisi' : item.quantite,
     'Qualité / État Réel': item.qualite,
     'Date & Heure': item.timestamp,
@@ -175,14 +191,16 @@ export function exportInventoryToExcel(
 
   wsGlobal['!cols'] = [
     { wch: 6 },  // N°
-    { wch: 24 }, // Statut Inventaire
-    { wch: 18 }, // Code Article
-    { wch: 35 }, // Désignation
-    { wch: 22 }, // Référence
-    { wch: 24 }, // Famille
-    { wch: 30 }, // Machine
-    { wch: 20 }, // Emplacement
+    { wch: 22 }, // Statut Inventaire
+    { wch: 18 }, // Famaille
+    { wch: 18 }, // S.famaille
+    { wch: 18 }, // Départ
+    { wch: 16 }, // Position
+    { wch: 38 }, // Désignation
+    { wch: 22 }, // Référence manuel
+    { wch: 18 }, // Code magasin
     { wch: 10 }, // Unité
+    { wch: 12 }, // Géré /nn
     { wch: 16 }, // Quantité
     { wch: 26 }, // Qualité
     { wch: 20 }, // Date
@@ -197,13 +215,15 @@ export function exportInventoryToExcel(
   if (aFaireItems.length > 0) {
     const rowsAFaire = aFaireItems.map((item, idx) => ({
       'N°': idx + 1,
-      'Code Article': item.code_article,
+      'Famaille': item.famille || 'Général',
+      'S.famaille': item.sous_famille || '',
+      'Départ': item.depart || item.machine || 'Standard',
+      'Position': item.position || item.emplacement || 'Non assigné',
       'Désignation': item.designation,
-      'Référence Fabricant': item.reference,
-      'Famille': item.famille,
-      'Machine': item.machine,
-      'Emplacement Répertoire': item.emplacement,
+      'Référence manuel': item.reference,
+      'Code magasin': item.code_article,
       'Unité': item.unite,
+      'Géré /nn': item.gere_nn || 'G',
       'Statut': 'À FAIRE (NON INVENTORIÉ)'
     }));
 
@@ -211,12 +231,14 @@ export function exportInventoryToExcel(
     wsAFaire['!cols'] = [
       { wch: 6 },
       { wch: 18 },
-      { wch: 35 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 38 },
       { wch: 22 },
-      { wch: 24 },
-      { wch: 30 },
-      { wch: 22 },
+      { wch: 18 },
       { wch: 10 },
+      { wch: 12 },
       { wch: 28 }
     ];
     XLSX.utils.book_append_sheet(wb, wsAFaire, 'Articles_À_Faire_Contrôle');
