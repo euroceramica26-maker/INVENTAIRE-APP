@@ -1,21 +1,18 @@
 import React, { useState } from 'react';
 import {
-  Shield,
   Lock,
   User,
   Eye,
   EyeOff,
   AlertCircle,
   ScanLine,
-  ArrowRight,
-  CheckCircle2,
-  Users
+  ArrowRight
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 
 export const LoginScreen: React.FC = () => {
-  const { loginUser, users } = useInventory();
-  const [username, setUsername] = useState('ouaradtech');
+  const { loginUser } = useInventory();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,12 +39,6 @@ export const LoginScreen: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleFillDemo = (userLogin: string, userPwd: string) => {
-    setUsername(userLogin);
-    setPassword(userPwd);
-    setError(null);
   };
 
   return (
@@ -140,66 +131,11 @@ export const LoginScreen: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick User Selection Panel */}
-          <div className="pt-4 border-t border-slate-800/80">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-slate-400" />
-                <span>Sélection rapide du compte :</span>
-              </span>
-              <span className="text-[10px] text-slate-500 font-mono">
-                {users.filter(u => u.actif).length} actif(s)
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left max-h-48 overflow-y-auto pr-1">
-              {users
-                .filter((u) => u.actif)
-                .map((u) => {
-                  const isSelected = username.toLowerCase() === u.username.toLowerCase();
-                  return (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => handleFillDemo(u.username, u.motDePasse)}
-                      className={`p-2.5 rounded-xl border text-left transition-all group cursor-pointer ${
-                        isSelected
-                          ? 'bg-slate-800 border-amber-500 ring-1 ring-amber-500/30'
-                          : 'bg-slate-950/60 hover:bg-slate-800/80 border-slate-800 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 font-bold text-xs truncate">
-                          {u.role === 'admin' ? (
-                            <Shield className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                          ) : (
-                            <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          )}
-                          <span className={u.role === 'admin' ? 'text-amber-400 truncate' : 'text-emerald-400 truncate'}>
-                            {u.nom || u.username}
-                          </span>
-                        </div>
-                        <span className="text-[9px] text-slate-500 group-hover:text-amber-400 shrink-0 ml-1">
-                          Sélectionner
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-300 font-mono mt-1 truncate">
-                        Login: {u.username}
-                      </div>
-                      <div className="text-[10px] text-slate-500 truncate">
-                        {u.role === 'admin' ? 'Administrateur (Contrôle total)' : 'Opérateur de saisie'}
-                      </div>
-                    </button>
-                  );
-                })}
-            </div>
-          </div>
         </div>
 
         {/* Footer info */}
         <div className="mt-6 text-center text-xs text-slate-500 space-y-1">
-          <p>L'administrateur peut créer et gérer les comptes utilisateurs dans le menu Administration.</p>
+          <p>L'administrateur peut créer et gérer les comptes utilisateurs dans le menu Utilisateurs / Administration.</p>
           <p className="text-[11px] text-slate-600">Version 5.2 · Traçabilité par opérateur certifiée</p>
         </div>
       </div>

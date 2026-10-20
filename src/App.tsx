@@ -11,6 +11,7 @@ import { ScannerModal } from './components/ScannerModal';
 import { InventoryEntryModal } from './components/InventoryEntryModal';
 import { ExcelImportModal } from './components/ExcelImportModal';
 import { LoginScreen } from './components/LoginScreen';
+import { UserManagementView } from './components/UserManagementView';
 import { Article, InventoryEntry } from './types/inventory';
 import { ParsedScannedInfo } from './utils/scanParser';
 import {
@@ -20,31 +21,26 @@ import {
   Settings,
   Download,
   Shield,
-  Plus
+  Plus,
+  Users
 } from 'lucide-react';
 
-function InventoryApp() {
+function AuthenticatedApp() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const {
     isAdminLoginModalOpen,
     setIsAdminLoginModalOpen,
     adminActionMessage,
-    isAdmin,
-    currentUser
+    isAdmin
   } = useInventory();
 
-  // Modals state (declared before any conditional return to obey Rules of Hooks)
+  // Modals state
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<InventoryEntry | null>(null);
-
-  // If no user is logged in, show mandatory login screen on startup
-  if (!currentUser) {
-    return <LoginScreen />;
-  }
 
   // When article is identified via QR or OCR
   const handleSelectArticleFromScanner = (
@@ -154,69 +150,84 @@ function InventoryApp() {
           <ExportView />
         )}
 
+        {activeTab === 'users' && (
+          <UserManagementView onNavigateToTab={(tab) => setActiveTab(tab as ActiveTab)} />
+        )}
+
         {activeTab === 'admin' && (
           <AdminView />
         )}
       </main>
 
-      {/* Mobile Ergonomic Bottom Tab Bar (5 tabs) */}
+      {/* Mobile Ergonomic Bottom Tab Bar (6 tabs) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200">
-        <div className="grid grid-cols-5 items-center h-16 max-w-md mx-auto">
-          {/* Tab 1 */}
+        <div className="grid grid-cols-6 items-center h-16 max-w-lg mx-auto px-1">
+          {/* Tab 1: Saisie */}
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
               activeTab === 'dashboard' ? 'text-amber-600 font-bold' : 'text-slate-500'
             }`}
           >
-            <LayoutDashboard className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Comptage</span>
+            <LayoutDashboard className="w-4 h-4" />
+            <span className="text-[9px] mt-1 font-medium">Saisie</span>
           </button>
 
-          {/* Tab 2 */}
+          {/* Tab 2: Articles */}
           <button
             onClick={() => setActiveTab('catalog')}
             className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
               activeTab === 'catalog' ? 'text-amber-600 font-bold' : 'text-slate-500'
             }`}
           >
-            <FileSpreadsheet className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Articles</span>
+            <FileSpreadsheet className="w-4 h-4" />
+            <span className="text-[9px] mt-1 font-medium">Articles</span>
           </button>
 
-          {/* Tab 3 */}
+          {/* Tab 3: Machines */}
           <button
             onClick={() => setActiveTab('locations')}
             className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
               activeTab === 'locations' ? 'text-amber-600 font-bold' : 'text-slate-500'
             }`}
           >
-            <Settings className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Machines</span>
+            <Settings className="w-4 h-4" />
+            <span className="text-[9px] mt-1 font-medium">Machines</span>
           </button>
 
-          {/* Tab 4 */}
+          {/* Tab 4: Exports */}
           <button
             onClick={() => setActiveTab('export')}
             className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
               activeTab === 'export' ? 'text-amber-600 font-bold' : 'text-slate-500'
             }`}
           >
-            <Download className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Exports</span>
+            <Download className="w-4 h-4" />
+            <span className="text-[9px] mt-1 font-medium">Exports</span>
           </button>
 
-          {/* Tab 5: Admin */}
+          {/* Tab 5: Utilisateurs */}
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
+              activeTab === 'users' ? 'text-amber-600 font-bold' : 'text-slate-500'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span className="text-[9px] mt-1 font-medium">Utilisateurs</span>
+          </button>
+
+          {/* Tab 6: Admin */}
           <button
             onClick={() => setActiveTab('admin')}
             className={`min-h-[44px] flex flex-col items-center justify-center transition-colors relative ${
               activeTab === 'admin' ? 'text-amber-600 font-bold' : 'text-slate-500'
             }`}
           >
-            <Shield className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Admin</span>
+            <Shield className="w-4 h-4" />
+            <span className="text-[9px] mt-1 font-medium">Admin</span>
             {isAdmin && (
-              <span className="absolute top-2 right-4 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+              <span className="absolute top-2 right-3 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
             )}
           </button>
         </div>
@@ -262,6 +273,17 @@ function InventoryApp() {
       />
     </div>
   );
+}
+
+function InventoryApp() {
+  const { currentUser } = useInventory();
+
+  // If no user is logged in, show mandatory login screen on startup
+  if (!currentUser) {
+    return <LoginScreen />;
+  }
+
+  return <AuthenticatedApp />;
 }
 
 export default function App() {

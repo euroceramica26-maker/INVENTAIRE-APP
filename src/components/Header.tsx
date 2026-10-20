@@ -11,12 +11,13 @@ import {
   Layers,
   CheckCircle2,
   Unlock,
-  LogOut
+  LogOut,
+  Users
 } from 'lucide-react';
 import { SyncStatusBadge } from './SyncStatusBadge';
 import { useInventory } from '../context/InventoryContext';
 
-export type ActiveTab = 'dashboard' | 'catalog' | 'locations' | 'export' | 'admin';
+export type ActiveTab = 'dashboard' | 'catalog' | 'locations' | 'export' | 'users' | 'admin';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -204,6 +205,17 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               Exports Excel
+            </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`whitespace-nowrap shrink-0 transition-colors py-1 flex items-center gap-1.5 ${
+                activeTab === 'users'
+                  ? 'text-amber-600 font-bold border-b-2 border-amber-500'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Users className="w-4 h-4 text-slate-400" />
+              <span>Utilisateurs</span>
             </button>
             <button
               onClick={() => setActiveTab('admin')}
