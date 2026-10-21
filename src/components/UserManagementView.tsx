@@ -562,7 +562,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = () => {
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                             <User className="w-3 h-3 text-emerald-600" />
-                            Opérateur de saisie
+                            Comptage & Saisie
                           </span>
                         )}
                       </td>
@@ -824,7 +824,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = () => {
                       <span>Opérateur</span>
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1">
-                      Saisie, comptage & scan QR
+                      Comptage & Saisie uniquement (aucun accès gestion/admin)
                     </div>
                   </button>
 

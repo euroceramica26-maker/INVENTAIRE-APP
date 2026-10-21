@@ -163,15 +163,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Saisie d'Inventaire
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                {isAdmin ? "Saisie & Suivi d'Inventaire" : "Poste de Comptage & Saisie"}
+              </h1>
+              {!isAdmin && (
+                <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Comptage & Saisie
+                </span>
+              )}
+            </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Scannez le QR/Code-barres, photographiez l'étiquette (OCR) ou saisissez directement
+              {isAdmin 
+                ? "Scannez le QR/Code-barres, photographiez l'étiquette (OCR) ou saisissez directement"
+                : "Scannez les articles et saisissez vos comptages d'inventaire"}
             </p>
           </div>
 
-          {/* Quick Action Buttons */}
+          {/* Quick Action Buttons (Comptage & Saisie pour utilisateurs, Actions supplémentaires pour Admin) */}
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <button
               onClick={onOpenScanner}
@@ -204,20 +213,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <Plus className="w-4 h-4" />
               <span>Saisie Manuelle</span>
             </button>
-            <button
-              onClick={onOpenImport}
-              className="px-3.5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl flex items-center gap-2 shadow-2xs transition-colors"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Importer Base Excel</span>
-            </button>
-            <button
-              onClick={onOpenExport}
-              className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl flex items-center gap-2 shadow-2xs transition-colors"
-            >
-              <Download className="w-4 h-4 text-amber-400" />
-              <span>Exporter en Excel</span>
-            </button>
+
+            {isAdmin && (
+              <>
+                <button
+                  onClick={onOpenImport}
+                  className="px-3.5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl flex items-center gap-2 shadow-2xs transition-colors"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span>Importer Base Excel</span>
+                </button>
+                <button
+                  onClick={onOpenExport}
+                  className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl flex items-center gap-2 shadow-2xs transition-colors"
+                >
+                  <Download className="w-4 h-4 text-amber-400" />
+                  <span>Exporter en Excel</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -583,30 +597,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>
               <strong>{displayedRows.length}</strong> ligne(s) affichée(s)
             </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => exportFullJsonBackup()}
-                className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-lg"
-                title="Sauvegarder une copie locale JSON"
-              >
-                <HardDrive className="w-4 h-4" />
-              </button>
-              {(entries.length > 0 || articles.length > 0) && (
+            {isAdmin && (
+              <div className="flex items-center gap-1">
                 <button
-                  onClick={() => {
-                    requestAdminAction(
-                      () => setIsConfirmClearOpen(true),
-                      "Seul l'administrateur (ouaradtech) a le droit de vider ou réinitialiser la base de données."
-                    );
-                  }}
-                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1 text-xs"
-                  title={isAdmin ? "Vider toute la base (Admin)" : "Vider la base (Admin uniquement)"}
+                  onClick={() => exportFullJsonBackup()}
+                  className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-lg"
+                  title="Sauvegarder une copie locale JSON"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  <span className="hidden sm:inline font-medium">Vider la base</span>
+                  <HardDrive className="w-4 h-4" />
                 </button>
-              )}
-            </div>
+                {(entries.length > 0 || articles.length > 0) && (
+                  <button
+                    onClick={() => {
+                      requestAdminAction(
+                        () => setIsConfirmClearOpen(true),
+                        "Seul l'administrateur (ouaradtech) a le droit de vider ou réinitialiser la base de données."
+                      );
+                    }}
+                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1 text-xs"
+                    title="Vider toute la base (Admin)"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="hidden sm:inline font-medium">Vider la base</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -667,13 +683,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <Plus className="w-4 h-4" />
                 <span>Saisie manuelle</span>
               </button>
-              <button
-                onClick={onOpenImport}
-                className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl inline-flex items-center gap-1.5"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                <span>Importer Excel</span>
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={onOpenImport}
+                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl inline-flex items-center gap-1.5"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span>Importer Excel</span>
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -807,46 +825,44 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {/* Actions */}
                       <td className="py-3 px-4 text-right whitespace-nowrap">
                         {isSaisi ? (
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => {
-                                if (matchingEntry) {
-                                  requestAdminAction(
-                                    () => onEditEntry(matchingEntry),
-                                    "Seul l'administrateur (ouaradtech) a le droit de modifier une ligne de saisie d'inventaire."
-                                  );
-                                } else {
-                                  const art = articles.find(
-                                    (a) => a.code_article.toLowerCase() === item.code_article.toLowerCase()
-                                  );
-                                  if (art) {
-                                    requestAdminAction(
-                                      () => onSelectArticleToCount(art),
-                                      "Seul l'administrateur (ouaradtech) a le droit de modifier une ligne d'inventaire."
+                          isAdmin ? (
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => {
+                                  if (matchingEntry) {
+                                    onEditEntry(matchingEntry);
+                                  } else {
+                                    const art = articles.find(
+                                      (a) => a.code_article.toLowerCase() === item.code_article.toLowerCase()
                                     );
+                                    if (art) {
+                                      onSelectArticleToCount(art);
+                                    }
                                   }
-                                }
-                              }}
-                              className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                              title={isAdmin ? "Modifier la saisie (Admin)" : "Modifier (Admin uniquement)"}
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (matchingEntry) {
-                                  requestAdminAction(
-                                    () => setEntryToDelete(matchingEntry),
-                                    "Seul l'administrateur (ouaradtech) a le droit de supprimer une ligne de saisie d'inventaire."
-                                  );
-                                }
-                              }}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                              title={isAdmin ? "Supprimer la saisie (Admin)" : "Supprimer (Admin uniquement)"}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                                }}
+                                className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                title="Modifier la saisie (Admin)"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (matchingEntry) {
+                                    setEntryToDelete(matchingEntry);
+                                  }
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                title="Supprimer la saisie (Admin)"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>Enregistré</span>
+                            </span>
+                          )
                         ) : (
                           <button
                             onClick={() => {

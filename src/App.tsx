@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InventoryProvider, useInventory } from './context/InventoryContext';
 import { Header, ActiveTab } from './components/Header';
 import { DashboardView } from './components/DashboardView';
@@ -33,6 +33,13 @@ function AuthenticatedApp() {
     adminActionMessage,
     isAdmin
   } = useInventory();
+
+  // Strict route guard: standard user accounts ONLY have the right to Comptage & Saisie
+  useEffect(() => {
+    if (!isAdmin && activeTab !== 'dashboard') {
+      setActiveTab('dashboard');
+    }
+  }, [isAdmin, activeTab]);
 
   // Modals state
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -110,8 +117,15 @@ function AuthenticatedApp() {
     }, 200);
   };
 
+  // Strict Role Guard: Les comptes utilisateurs ont SEULEMENT le droit Comptage & Saisie
+  useEffect(() => {
+    if (!isAdmin && activeTab !== 'dashboard') {
+      setActiveTab('dashboard');
+    }
+  }, [isAdmin, activeTab]);
+
   return (
-    <div className="min-h-screen bg-slate-100/70 text-slate-900 pb-20 md:pb-8 flex flex-col">
+    <div className={`min-h-screen bg-slate-100/70 text-slate-900 ${isAdmin ? 'pb-20 md:pb-8' : 'pb-8'} flex flex-col`}>
       {/* Top Bar Header */}
       <Header
         activeTab={activeTab}
@@ -120,7 +134,7 @@ function AuthenticatedApp() {
         onOpenImport={() => setIsImportOpen(true)}
       />
 
-      {/* Main Content Area */}
+      {/* Main Content Area (Comptage & Saisie pour utilisateurs, Vues complètes pour Admin) */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6">
         {activeTab === 'dashboard' && (
           <DashboardView
@@ -133,35 +147,36 @@ function AuthenticatedApp() {
           />
         )}
 
-        {activeTab === 'catalog' && (
+        {isAdmin && activeTab === 'catalog' && (
           <CatalogView
             onOpenImport={() => setIsImportOpen(true)}
             onCountArticle={handleCountArticle}
           />
         )}
 
-        {activeTab === 'locations' && (
+        {isAdmin && activeTab === 'locations' && (
           <LocationsMachinesView
             onOpenImport={() => setIsImportOpen(true)}
           />
         )}
 
-        {activeTab === 'export' && (
+        {isAdmin && activeTab === 'export' && (
           <ExportView />
         )}
 
-        {activeTab === 'users' && (
+        {isAdmin && activeTab === 'users' && (
           <UserManagementView onNavigateToTab={(tab) => setActiveTab(tab as ActiveTab)} />
         )}
 
-        {activeTab === 'admin' && (
+        {isAdmin && activeTab === 'admin' && (
           <AdminView />
         )}
       </main>
 
-      {/* Mobile Ergonomic Bottom Tab Bar (6 tabs) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200">
-        <div className="grid grid-cols-6 items-center h-16 max-w-lg mx-auto px-1">
+      {/* Mobile Ergonomic Bottom Tab Bar: Uniquement visible pour l'administrateur */}
+      {isAdmin && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200">
+          <div className="grid grid-cols-6 items-center h-16 max-w-lg mx-auto px-1">
           {/* Tab 1: Saisie */}
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -232,6 +247,7 @@ function AuthenticatedApp() {
           </button>
         </div>
       </div>
+      )}
 
       {/* Floating Center Scan Button on Mobile */}
       <div className="md:hidden fixed bottom-5 right-5 z-40">

@@ -147,93 +147,102 @@ export const Header: React.FC<HeaderProps> = ({
                     })}
                   </div>
 
-                  <div className="pt-2 px-2 border-t border-slate-100">
-                    <button
-                      onClick={() => {
-                        setIsCampaignDropdownOpen(false);
-                        setActiveTab('admin');
-                      }}
-                      className="w-full py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
-                    >
-                      <FolderPlus className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Gérer & Créer un Inventaire (Admin)</span>
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="pt-2 px-2 border-t border-slate-100">
+                      <button
+                        onClick={() => {
+                          setIsCampaignDropdownOpen(false);
+                          setActiveTab('admin');
+                        }}
+                        className="w-full py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+                      >
+                        <FolderPlus className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Gérer & Créer un Inventaire (Admin)</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Zone 2: Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-5 text-sm font-medium">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
-                activeTab === 'dashboard'
-                  ? 'text-amber-600 font-semibold border-b-2 border-amber-500'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Comptage & Saisie
-            </button>
-            <button
-              onClick={() => setActiveTab('catalog')}
-              className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
-                activeTab === 'catalog'
-                  ? 'text-amber-600 font-semibold border-b-2 border-amber-500'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Base Articles Excel
-            </button>
-            <button
-              onClick={() => setActiveTab('locations')}
-              className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
-                activeTab === 'locations'
-                  ? 'text-amber-600 font-semibold border-b-2 border-amber-500'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Machines & Emplacements
-            </button>
-            <button
-              onClick={() => setActiveTab('export')}
-              className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
-                activeTab === 'export'
-                  ? 'text-amber-600 font-semibold border-b-2 border-amber-500'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Exports Excel
-            </button>
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`whitespace-nowrap shrink-0 transition-colors py-1 flex items-center gap-1.5 ${
-                activeTab === 'users'
-                  ? 'text-amber-600 font-bold border-b-2 border-amber-500'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Users className="w-4 h-4 text-slate-400" />
-              <span>Utilisateurs</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('admin')}
-              className={`whitespace-nowrap shrink-0 transition-colors py-1 flex items-center gap-1.5 ${
-                activeTab === 'admin'
-                  ? 'text-amber-600 font-bold border-b-2 border-amber-500'
-                  : 'text-slate-700 hover:text-slate-950 font-semibold'
-              }`}
-            >
-              <Shield className={`w-4 h-4 ${isAdmin ? 'text-amber-500' : 'text-slate-400'}`} />
-              <span>Administration</span>
-              {isAdmin && (
+          {/* Zone 2: Navigation Links (Comptage & Saisie UNIQUEMENT pour les comptes utilisateurs) */}
+          {isAdmin ? (
+            <nav className="hidden lg:flex items-center gap-5 text-sm font-medium">
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
+                  activeTab === 'dashboard'
+                    ? 'text-amber-600 font-semibold border-b-2 border-amber-500'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Comptage & Saisie
+              </button>
+              <button
+                onClick={() => setActiveTab('catalog')}
+                className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
+                  activeTab === 'catalog'
+                    ? 'text-amber-600 font-semibold border-b-2 border-amber-500'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Base Articles Excel
+              </button>
+              <button
+                onClick={() => setActiveTab('locations')}
+                className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
+                  activeTab === 'locations'
+                    ? 'text-amber-600 font-semibold border-b-2 border-amber-500'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Machines & Emplacements
+              </button>
+              <button
+                onClick={() => setActiveTab('export')}
+                className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
+                  activeTab === 'export'
+                    ? 'text-amber-600 font-semibold border-b-2 border-amber-500'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Exports Excel
+              </button>
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`whitespace-nowrap shrink-0 transition-colors py-1 flex items-center gap-1.5 ${
+                  activeTab === 'users'
+                    ? 'text-amber-600 font-bold border-b-2 border-amber-500'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Users className="w-4 h-4 text-slate-400" />
+                <span>Utilisateurs</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('admin')}
+                className={`whitespace-nowrap shrink-0 transition-colors py-1 flex items-center gap-1.5 ${
+                  activeTab === 'admin'
+                    ? 'text-amber-600 font-bold border-b-2 border-amber-500'
+                    : 'text-slate-700 hover:text-slate-950 font-semibold'
+                }`}
+              >
+                <Shield className="w-4 h-4 text-amber-500" />
+                <span>Administration</span>
                 <span className="text-[9px] bg-amber-500 text-slate-950 px-1.5 py-0.2 rounded-full font-black uppercase">
                   Total
                 </span>
-              )}
-            </button>
-          </nav>
+              </button>
+            </nav>
+          ) : (
+            <div className="hidden lg:flex items-center gap-2">
+              <span className="px-3.5 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-950 text-xs font-bold rounded-xl flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Poste Comptage & Saisie</span>
+              </span>
+            </div>
+          )}
 
           {/* Zone 3: Primary Action, Admin & Sync */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -263,7 +272,7 @@ export const Header: React.FC<HeaderProps> = ({
                       currentUser.role === 'admin' ? 'text-amber-700' : 'text-emerald-700'
                     }`}
                   >
-                    {currentUser.role === 'admin' ? 'Admin (Total)' : 'Opérateur'}
+                    {currentUser.role === 'admin' ? 'Admin (Total)' : 'Comptage & Saisie'}
                   </span>
                 </div>
 
@@ -281,15 +290,17 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Cloud & Local storage state */}
             <SyncStatusBadge />
 
-            {/* Excel Import button */}
-            <button
-              onClick={onOpenImport}
-              className="hidden md:flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors shadow-2xs whitespace-nowrap shrink-0"
-              title="Importer un fichier Excel"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Import Excel</span>
-            </button>
+            {/* Excel Import button (Admin uniquement) */}
+            {isAdmin && (
+              <button
+                onClick={onOpenImport}
+                className="hidden md:flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors shadow-2xs whitespace-nowrap shrink-0"
+                title="Importer un fichier Excel"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <span>Import Excel</span>
+              </button>
+            )}
 
             {/* Primary Action Button: Scanner QR / OCR */}
             <button
