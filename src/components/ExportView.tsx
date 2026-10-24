@@ -420,6 +420,12 @@ export const ExportView: React.FC = () => {
                   <th className="py-2.5 px-3 whitespace-nowrap">S.famaille</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">Départ</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">Position</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-amber-100" />
+                      <span>Emplacement</span>
+                    </div>
+                  </th>
                   <th className="py-2.5 px-3 min-w-[170px]">Désignation</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">Référence manuel</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">Code magasin</th>
@@ -474,8 +480,16 @@ export const ExportView: React.FC = () => {
 
                       {/* 4. Position */}
                       <td className="py-2.5 px-3 font-mono text-slate-700 whitespace-nowrap">
-                        <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200 text-[11px] font-semibold">
-                          {item.position || item.emplacement || '-'}
+                        <span className="bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+                          {item.position || '-'}
+                        </span>
+                      </td>
+
+                      {/* 4b. Emplacement */}
+                      <td className="py-2.5 px-3 font-mono text-slate-700 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200 text-[11px] font-semibold">
+                          <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                          {item.emplacement || item.position || 'Non assigné'}
                         </span>
                       </td>
 

@@ -30,6 +30,11 @@ export const SyncStatusBadge: React.FC = () => {
   };
 
   const peerCount = syncState.peerCount || 1;
+  const isPendingSync =
+    syncState.isSyncing ||
+    syncState.pendingCount > 0 ||
+    !syncState.isOnline ||
+    entries.some((e) => e.syncStatus === 'pending');
 
   return (
     <div className="relative">
@@ -49,8 +54,8 @@ export const SyncStatusBadge: React.FC = () => {
           className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
             !syncState.isOnline
               ? 'bg-rose-50 border-rose-200 text-rose-800'
-              : syncState.isSyncing
-              ? 'bg-blue-50 border-blue-200 text-blue-800'
+              : isPendingSync
+              ? 'bg-amber-50 border-amber-200 text-amber-800'
               : peerCount > 1
               ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs hover:bg-emerald-100'
               : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
@@ -58,24 +63,27 @@ export const SyncStatusBadge: React.FC = () => {
           title="Cliquez pour voir l'état multi-appareils et synchroniser"
         >
           <div className="flex items-center gap-1.5">
-            {syncState.isSyncing ? (
-              <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
-            ) : syncState.isOnline ? (
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
+            {!syncState.isOnline ? (
+              <WifiOff className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+            ) : isPendingSync ? (
+              <span
+                className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse shrink-0"
+                title="Synchronisation en attente"
+              />
             ) : (
-              <WifiOff className="w-3.5 h-3.5 text-rose-600" />
+              <span
+                className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"
+                title="Synchronisé avec le cloud"
+              />
             )}
             <span className="font-semibold">
-              {syncState.isSyncing
-                ? 'Synchro...'
-                : syncState.isOnline
-                ? peerCount > 1
-                  ? `${peerCount} appareils connectés`
-                  : 'Temps Réel Actif'
-                : 'Déconnecté'}
+              {!syncState.isOnline
+                ? 'Déconnecté'
+                : isPendingSync
+                ? 'En attente...'
+                : peerCount > 1
+                ? `${peerCount} appareils connectés`
+                : 'Synchronisé'}
             </span>
           </div>
 

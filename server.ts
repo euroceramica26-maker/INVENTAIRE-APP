@@ -22,10 +22,41 @@ interface ServerDatabase {
   familles: string[];
   machines: string[];
   lastLocation: string;
+  users: any[];
   updatedAt: string;
 }
 
-// Initial state : completely blank on first boot as requested
+const DEFAULT_USERS = [
+  {
+    id: 'usr-admin-01',
+    username: 'ouaradtech',
+    nom: 'Mohamed Ouarad (Admin)',
+    motDePasse: 'Ouaradtech26@',
+    role: 'admin',
+    actif: true,
+    dateCreation: '2026-01-01T08:00:00.000Z'
+  },
+  {
+    id: 'usr-op-01',
+    username: 'saisie1',
+    nom: 'Opérateur 1 (Atelier)',
+    motDePasse: '1234',
+    role: 'operateur',
+    actif: true,
+    dateCreation: '2026-01-01T08:00:00.000Z'
+  },
+  {
+    id: 'usr-op-02',
+    username: 'saisie2',
+    nom: 'Opérateur 2 (Magasin)',
+    motDePasse: '1234',
+    role: 'operateur',
+    actif: true,
+    dateCreation: '2026-01-01T08:00:00.000Z'
+  }
+];
+
+// Initial state : clean start
 const emptyDatabase: ServerDatabase = {
   inventories: [],
   activeInventoryId: 'inv-principal',
@@ -35,6 +66,7 @@ const emptyDatabase: ServerDatabase = {
   familles: [],
   machines: [],
   lastLocation: '',
+  users: DEFAULT_USERS,
   updatedAt: new Date().toISOString()
 };
 
@@ -58,6 +90,11 @@ function loadDatabase(): ServerDatabase {
       const fams = Array.isArray(parsed.familles) ? parsed.familles : [];
       const machs = Array.isArray(parsed.machines) ? parsed.machines : [];
       const lastLoc = typeof parsed.lastLocation === 'string' ? parsed.lastLocation : '';
+
+      let users = Array.isArray(parsed.users) && parsed.users.length > 0 ? parsed.users : [...DEFAULT_USERS];
+      if (!users.some((u: any) => u.username?.toLowerCase() === 'ouaradtech')) {
+        users.unshift(DEFAULT_USERS[0]);
+      }
 
       let inventories = Array.isArray(parsed.inventories) ? parsed.inventories : [];
       let activeInvId = typeof parsed.activeInventoryId === 'string' && parsed.activeInventoryId ? parsed.activeInventoryId : 'inv-principal';
@@ -92,6 +129,7 @@ function loadDatabase(): ServerDatabase {
         familles: fams,
         machines: machs,
         lastLocation: lastLoc,
+        users,
         updatedAt: parsed.updatedAt || new Date().toISOString()
       };
     }
@@ -171,6 +209,7 @@ function applyAction(actionType: string, payload: any): boolean {
         if (Array.isArray(payload.locations)) db.locations = payload.locations;
         if (Array.isArray(payload.familles)) db.familles = payload.familles;
         if (Array.isArray(payload.machines)) db.machines = payload.machines;
+        if (Array.isArray(payload.users)) db.users = payload.users;
         if (typeof payload.lastLocation === 'string') db.lastLocation = payload.lastLocation;
       }
       break;
@@ -255,7 +294,8 @@ function applyAction(actionType: string, payload: any): boolean {
       break;
     }
 
-    case 'ADD_ENTRY': {
+    case 'ADD_ENTRY':
+    case 'UPDATE_ENTRY': {
       const entry = payload;
       if (!entry) return false;
       const index = db.entries.findIndex((e) => e.id === entry.id);
@@ -277,17 +317,40 @@ function applyAction(actionType: string, payload: any): boolean {
       if (entry.emplacement && entry.emplacement.trim()) {
         db.lastLocation = entry.emplacement.trim();
       }
+
+      // Update status in db.articles if found
+      const artIdx = db.articles.findIndex((a) => a.code_article.toLowerCase() === entry.code_article.toLowerCase());
+      if (artIdx >= 0) {
+        db.articles[artIdx] = {
+          ...db.articles[artIdx],
+          status: 'saisi',
+          quantite: entry.quantite,
+          emplacement: entry.emplacement || db.articles[artIdx].emplacement
+        };
+      }
       break;
     }
 
     case 'DELETE_ENTRY': {
       const id = payload?.id || payload;
+      const targetEntry = db.entries.find((e) => e.id === id);
       db.entries = db.entries.filter((e) => e.id !== id);
+
+      if (targetEntry) {
+        const remaining = db.entries.some((e) => e.code_article.toLowerCase() === targetEntry.code_article.toLowerCase());
+        if (!remaining) {
+          const artIdx = db.articles.findIndex((a) => a.code_article.toLowerCase() === targetEntry.code_article.toLowerCase());
+          if (artIdx >= 0) {
+            db.articles[artIdx] = { ...db.articles[artIdx], status: 'a_faire' };
+          }
+        }
+      }
       break;
     }
 
     case 'CLEAR_ENTRIES': {
       db.entries = [];
+      db.articles = db.articles.map((a) => ({ ...a, status: 'a_faire' }));
       break;
     }
 
@@ -298,6 +361,24 @@ function applyAction(actionType: string, payload: any): boolean {
       db.familles = [];
       db.machines = [];
       db.lastLocation = '';
+      db.inventories = [
+        {
+          id: 'inv-principal',
+          titre: 'Inventaire Principal',
+          code: 'INV-01',
+          description: "Campagne principale d'inventaire",
+          dateCreation: new Date().toISOString(),
+          statut: 'en_cours',
+          responsable: 'ouaradtech',
+          articles: [],
+          entries: [],
+          locations: [],
+          familles: [],
+          machines: [],
+          lastLocation: ''
+        }
+      ];
+      db.activeInventoryId = 'inv-principal';
       break;
     }
 
@@ -379,6 +460,19 @@ function applyAction(actionType: string, payload: any): boolean {
       break;
     }
 
+    case 'UPDATE_LOCATION': {
+      const loc = payload;
+      if (loc && (loc.id || loc.code)) {
+        const idx = db.locations.findIndex((l) => l.id === loc.id || l.code === loc.code);
+        if (idx >= 0) {
+          db.locations[idx] = { ...db.locations[idx], ...loc };
+        } else {
+          db.locations.push(loc);
+        }
+      }
+      break;
+    }
+
     case 'SET_LAST_LOCATION': {
       const loc = typeof payload === 'string' ? payload : payload?.location;
       if (loc) {
@@ -441,6 +535,54 @@ function applyAction(actionType: string, payload: any): boolean {
         if (Array.isArray(payload.locations)) db.locations = payload.locations;
         if (Array.isArray(payload.familles)) db.familles = payload.familles;
         if (Array.isArray(payload.machines)) db.machines = payload.machines;
+      }
+      break;
+    }
+
+    case 'CREATE_USER': {
+      const user = payload;
+      if (user && user.id && user.username) {
+        if (!Array.isArray(db.users)) db.users = [];
+        const existingIdx = db.users.findIndex(
+          (u) => u.id === user.id || u.username.toLowerCase() === user.username.toLowerCase()
+        );
+        if (existingIdx >= 0) {
+          db.users[existingIdx] = user;
+        } else {
+          db.users.push(user);
+        }
+      }
+      break;
+    }
+
+    case 'UPDATE_USER': {
+      const user = payload;
+      if (user && user.id) {
+        if (!Array.isArray(db.users)) db.users = [];
+        const existingIdx = db.users.findIndex((u) => u.id === user.id);
+        if (existingIdx >= 0) {
+          db.users[existingIdx] = { ...db.users[existingIdx], ...user };
+        } else {
+          db.users.push(user);
+        }
+      }
+      break;
+    }
+
+    case 'DELETE_USER': {
+      const userId = payload?.id || payload;
+      if (userId && Array.isArray(db.users)) {
+        db.users = db.users.filter((u) => u.id !== userId && u.username?.toLowerCase() !== 'ouaradtech');
+      }
+      break;
+    }
+
+    case 'SYNC_USERS': {
+      if (Array.isArray(payload) && payload.length > 0) {
+        db.users = payload;
+        if (!db.users.some((u: any) => u.username?.toLowerCase() === 'ouaradtech')) {
+          db.users.unshift(DEFAULT_USERS[0]);
+        }
       }
       break;
     }
@@ -546,13 +688,16 @@ app.post('/api/inventory/action', (req, res) => {
 });
 
 app.post('/api/inventory/sync', (req, res) => {
-  const { articles, entries, locations, familles, machines, lastLocation } = req.body;
+  const { articles, entries, locations, familles, machines, lastLocation, inventories, activeInventoryId, users } = req.body;
   if (articles !== undefined) db.articles = articles;
   if (entries !== undefined) db.entries = entries;
   if (locations !== undefined) db.locations = locations;
   if (familles !== undefined) db.familles = familles;
   if (machines !== undefined) db.machines = machines;
   if (lastLocation !== undefined) db.lastLocation = lastLocation;
+  if (inventories !== undefined) db.inventories = inventories;
+  if (activeInventoryId !== undefined) db.activeInventoryId = activeInventoryId;
+  if (users !== undefined) db.users = users;
 
   saveDatabase();
   broadcast({

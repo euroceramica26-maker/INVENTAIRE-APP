@@ -15,11 +15,12 @@ import {
   CheckCircle2,
   Clock,
   X,
-  User
+  User,
+  MapPin
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { Article, InventoryEntry, QualiteEtat } from '../types/inventory';
-import { QUALITE_LABELS, buildCombinedInventoryList } from '../utils/excelExport';
+import { QUALITE_LABELS, buildCombinedInventoryList, exportInventoryToExcel } from '../utils/excelExport';
 import { exportFullJsonBackup } from '../utils/storage';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -45,6 +46,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     articles,
     machines,
     familles,
+    locations,
     lastLocation,
     deleteEntry,
     searchArticles,
@@ -62,6 +64,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [displayMode, setDisplayMode] = useState<'saisis' | 'tous' | 'a_faire'>('saisis');
   const [selectedMachine, setSelectedMachine] = useState<string>('all');
   const [selectedFamille, setSelectedFamille] = useState<string>('all');
+  const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [selectedQualite, setSelectedQualite] = useState<string>('all');
   const [selectedOperator, setSelectedOperator] = useState<string>('all');
 
@@ -111,6 +114,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return Array.from(set).sort();
   }, [users, entries]);
 
+  // Distinct locations list for filtering in Base d'Inventaire
+  const distinctLocations = useMemo(() => {
+    const set = new Set<string>();
+    locations.forEach((l) => { if (l.code) set.add(l.code); });
+    entries.forEach((e) => { if (e.emplacement) set.add(e.emplacement); });
+    articles.forEach((a) => { if (a.emplacement) set.add(a.emplacement); });
+    return Array.from(set).sort();
+  }, [locations, entries, articles]);
+
   // Filtered rows depending on active displayMode ('saisis' | 'tous' | 'a_faire')
   const displayedRows = useMemo(() => {
     return combinedList.filter((item) => {
@@ -124,20 +136,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       // 3. Famille filter
       if (selectedFamille !== 'all' && item.famille !== selectedFamille) return false;
 
-      // 4. Operator filter
+      // 4. Emplacement filter
+      if (selectedLocation !== 'all' && (item.emplacement || '').toLowerCase() !== selectedLocation.toLowerCase()) {
+        return false;
+      }
+
+      // 5. Operator filter
       if (selectedOperator !== 'all') {
         const itemOp = (item.operator || '').toLowerCase();
         const sel = selectedOperator.toLowerCase();
         if (itemOp !== sel && !itemOp.includes(sel)) return false;
       }
 
-      // 5. Qualite filter (only if not 'all' and item is counted)
+      // 6. Qualite filter (only if not 'all' and item is counted)
       if (selectedQualite !== 'all') {
         const selectedLabel = (QUALITE_LABELS as Record<string, string>)[selectedQualite] || selectedQualite;
         if (item.qualite !== selectedLabel) return false;
       }
 
-      // 6. Table text search
+      // 7. Table text search
       const q = tableSearch.toLowerCase().trim();
       if (q) {
         const matchesCode = (item.code_article || '').toLowerCase().includes(q);
@@ -149,7 +166,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       return true;
     });
-  }, [combinedList, displayMode, selectedMachine, selectedFamille, selectedOperator, selectedQualite, tableSearch]);
+  }, [combinedList, displayMode, selectedMachine, selectedFamille, selectedLocation, selectedOperator, selectedQualite, tableSearch]);
 
   // KPI Calculations (No ecart)
   const totalCountedLines = entries.length;
@@ -448,64 +465,95 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Chaque article inventorié s'affiche automatiquement dans la base d'inventaire avec son statut (saisi) et ses quantités enregistrées.
+                Chaque article inventorié s'affiche automatiquement dans la base d'inventaire avec son emplacement, son statut (saisi) et ses quantités enregistrées.
               </p>
             </div>
 
-            {/* View Mode Switcher Tabs */}
-            <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/70 text-xs self-start md:self-auto">
-              <button
-                type="button"
-                onClick={() => setDisplayMode('saisis')}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
-                  displayMode === 'saisis'
-                    ? 'bg-white text-emerald-700 shadow-xs font-bold border border-slate-200/60'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Articles Saisis</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                  displayMode === 'saisis' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {entries.length}
-                </span>
-              </button>
+            {/* View Mode Switcher Tabs & Quick Excel Export */}
+            <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
+              <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/70 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode('saisis')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                    displayMode === 'saisis'
+                      ? 'bg-white text-emerald-700 shadow-xs font-bold border border-slate-200/60'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Articles Saisis</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    displayMode === 'saisis' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {entries.length}
+                  </span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setDisplayMode('tous')}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
-                  displayMode === 'tous'
-                    ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200/60'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5 text-slate-600" />
-                <span>Base Complète</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                  displayMode === 'tous' ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {combinedList.length}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode('tous')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                    displayMode === 'tous'
+                      ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200/60'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Base Complète</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    displayMode === 'tous' ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {combinedList.length}
+                  </span>
+                </button>
 
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode('a_faire')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                    displayMode === 'a_faire'
+                      ? 'bg-white text-amber-800 shadow-xs font-bold border border-slate-200/60'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>En attente</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    displayMode === 'a_faire' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {countPending}
+                  </span>
+                </button>
+              </div>
+
+              {/* Direct Excel Export Button from Base d'Inventaire */}
               <button
                 type="button"
-                onClick={() => setDisplayMode('a_faire')}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
-                  displayMode === 'a_faire'
-                    ? 'bg-white text-amber-800 shadow-xs font-bold border border-slate-200/60'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                onClick={() => {
+                  exportInventoryToExcel(
+                    entries,
+                    articles,
+                    {
+                      famille: selectedFamille,
+                      machine: selectedMachine,
+                      designationSearch: '',
+                      codeSearch: '',
+                      referenceSearch: '',
+                      unite: 'all',
+                      emplacement: selectedLocation,
+                      qualite: selectedQualite,
+                      statusFilter: displayMode === 'saisis' ? 'saisi' : displayMode === 'a_faire' ? 'a_faire' : 'all',
+                      operator: selectedOperator
+                    },
+                    `Inventaire_${displayMode === 'saisis' ? 'Articles_Saisis' : 'Base_Complete'}`
+                  );
+                }}
+                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all"
+                title="Exporter la sélection en Excel avec colonne Emplacement"
               >
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
-                <span>En attente</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                  displayMode === 'a_faire' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {countPending}
-                </span>
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Export Excel</span>
               </button>
             </div>
           </div>
@@ -515,7 +563,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="p-3 sm:p-4 bg-slate-50/70 border-b border-slate-200/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap flex-1">
             {/* Live Search inside the Table */}
-            <div className="relative min-w-[200px] flex-1 max-w-sm">
+            <div className="relative min-w-[180px] flex-1 max-w-sm">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -562,6 +610,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </select>
             )}
 
+            {/* Emplacement Filter Dropdown */}
+            {distinctLocations.length > 0 && (
+              <select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700"
+                title="Filtrer par emplacement"
+              >
+                <option value="all">Tous les emplacements ({distinctLocations.length})</option>
+                {distinctLocations.map((loc) => (
+                  <option key={loc} value={loc}>
+                    Emplacement : {loc}
+                  </option>
+                ))}
+              </select>
+            )}
+
             {/* Qualité Filter (useful in saisis and tous) */}
             {displayMode !== 'a_faire' && (
               <select
@@ -590,6 +655,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </option>
                 ))}
               </select>
+            )}
+
+            {/* Reset Filter Button if active */}
+            {(selectedMachine !== 'all' || selectedFamille !== 'all' || selectedLocation !== 'all' || selectedQualite !== 'all' || selectedOperator !== 'all' || tableSearch) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedMachine('all');
+                  setSelectedFamille('all');
+                  setSelectedLocation('all');
+                  setSelectedQualite('all');
+                  setSelectedOperator('all');
+                  setTableSearch('');
+                }}
+                className="text-xs text-amber-700 hover:text-amber-800 font-semibold px-2 py-1 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-200 transition-colors flex items-center gap-1"
+                title="Réinitialiser tous les filtres"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span className="hidden sm:inline">Réinitialiser</span>
+              </button>
             )}
           </div>
 
@@ -703,7 +788,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <th className="py-3 px-4">Code Article</th>
                   <th className="py-3 px-4">Désignation</th>
                   <th className="py-3 px-4">Machine & Famille</th>
-                  <th className="py-3 px-4">Emplacement</th>
+                  <th className="py-3 px-4">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Emplacement</span>
+                    </div>
+                  </th>
                   <th className="py-3 px-4 text-right">Quantité Saisie</th>
                   <th className="py-3 px-4">Qualité Réelle</th>
                   <th className="py-3 px-4">Date / Opérateur</th>
@@ -766,9 +856,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                       {/* Emplacement */}
                       <td className="py-3 px-4 font-mono text-slate-700 whitespace-nowrap">
-                        <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
-                          {item.emplacement || 'Non assigné'}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedLocation(item.emplacement || 'all')}
+                          title={`Filtrer par cet emplacement (${item.emplacement || 'Non assigné'})`}
+                          className="inline-flex items-center gap-1 font-mono font-semibold text-slate-800 bg-slate-100 hover:bg-amber-100/80 hover:text-amber-900 border border-slate-200 px-2 py-0.5 rounded text-[11px] transition-colors cursor-pointer"
+                        >
+                          <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                          <span>{item.emplacement || 'Non assigné'}</span>
+                        </button>
                       </td>
 
                       {/* Quantité Saisie */}

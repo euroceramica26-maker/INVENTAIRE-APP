@@ -174,7 +174,8 @@ export function exportInventoryToExcel(
     'Famaille': item.famille || 'Général',
     'S.famaille': item.sous_famille || '',
     'Départ': item.depart || item.machine || 'Standard',
-    'Position': item.position || item.emplacement || 'Non assigné',
+    'Position': item.position || '',
+    'Emplacement': item.emplacement || item.position || 'Non assigné',
     'Désignation': item.designation,
     'Référence manuel': item.reference,
     'Code magasin': item.code_article,
@@ -196,6 +197,7 @@ export function exportInventoryToExcel(
     { wch: 18 }, // S.famaille
     { wch: 18 }, // Départ
     { wch: 16 }, // Position
+    { wch: 20 }, // Emplacement
     { wch: 38 }, // Désignation
     { wch: 22 }, // Référence manuel
     { wch: 18 }, // Code magasin
@@ -218,7 +220,8 @@ export function exportInventoryToExcel(
       'Famaille': item.famille || 'Général',
       'S.famaille': item.sous_famille || '',
       'Départ': item.depart || item.machine || 'Standard',
-      'Position': item.position || item.emplacement || 'Non assigné',
+      'Position': item.position || '',
+      'Emplacement': item.emplacement || item.position || 'Non assigné',
       'Désignation': item.designation,
       'Référence manuel': item.reference,
       'Code magasin': item.code_article,
@@ -234,6 +237,7 @@ export function exportInventoryToExcel(
       { wch: 18 },
       { wch: 18 },
       { wch: 16 },
+      { wch: 20 },
       { wch: 38 },
       { wch: 22 },
       { wch: 18 },
@@ -254,7 +258,8 @@ export function exportInventoryToExcel(
       'Référence Fabricant': item.reference,
       'Famille': item.famille,
       'Machine': item.machine,
-      'Emplacement Constaté': item.emplacement,
+      'Position': item.position || '',
+      'Emplacement': item.emplacement || item.position || 'Non assigné',
       'Unité': item.unite,
       'Quantité Comptée': item.quantite,
       'Qualité / État': item.qualite,
@@ -264,7 +269,22 @@ export function exportInventoryToExcel(
     }));
 
     const wsSaisis = XLSX.utils.json_to_sheet(rowsSaisis);
-    wsSaisis['!cols'] = wsGlobal['!cols'];
+    wsSaisis['!cols'] = [
+      { wch: 6 },  // N°
+      { wch: 18 }, // Code Article
+      { wch: 38 }, // Désignation
+      { wch: 22 }, // Référence Fabricant
+      { wch: 18 }, // Famille
+      { wch: 18 }, // Machine
+      { wch: 16 }, // Position
+      { wch: 20 }, // Emplacement
+      { wch: 10 }, // Unité
+      { wch: 16 }, // Quantité Comptée
+      { wch: 26 }, // Qualité
+      { wch: 20 }, // Date
+      { wch: 16 }, // Opérateur
+      { wch: 30 }  // Notes
+    ];
     XLSX.utils.book_append_sheet(wb, wsSaisis, 'Articles_Saisis');
   }
 
@@ -323,6 +343,34 @@ export function exportInventoryToExcel(
   const wsFamille = XLSX.utils.json_to_sheet(familleRows);
   wsFamille['!cols'] = [{ wch: 30 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 20 }, { wch: 24 }];
   XLSX.utils.book_append_sheet(wb, wsFamille, 'Synthèse_Avancement_Familles');
+
+  // 6. Emplacement Summary Sheet (avec taux d'avancement par zone/emplacement)
+  const locMap = new Map<string, { total: number; saisis: number; aFaire: number; totalQty: number }>();
+  filtered.forEach(item => {
+    const loc = item.emplacement || 'Non assigné';
+    const curr = locMap.get(loc) || { total: 0, saisis: 0, aFaire: 0, totalQty: 0 };
+    curr.total += 1;
+    if (item.statutInventaire === 'Saisi') {
+      curr.saisis += 1;
+      curr.totalQty += typeof item.quantite === 'number' ? item.quantite : 0;
+    } else {
+      curr.aFaire += 1;
+    }
+    locMap.set(loc, curr);
+  });
+
+  const locRows = Array.from(locMap.entries()).map(([loc, stats]) => ({
+    'Emplacement / Zone': loc,
+    'Total Articles Prévus': stats.total,
+    'Articles Saisis': stats.saisis,
+    'Articles À Faire (Non saisis)': stats.aFaire,
+    'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
+    'Quantité Totale Comptée': stats.totalQty
+  }));
+
+  const wsLoc = XLSX.utils.json_to_sheet(locRows);
+  wsLoc['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 20 }, { wch: 24 }];
+  XLSX.utils.book_append_sheet(wb, wsLoc, 'Synthèse_Avancement_Emplacements');
 
   const dateStr = new Date().toISOString().slice(0, 10);
   const timeStr = new Date().toTimeString().slice(0, 5).replace(':', 'h');

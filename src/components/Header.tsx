@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   Unlock,
   LogOut,
-  Users
+  Users,
+  Cloud
 } from 'lucide-react';
 import { SyncStatusBadge } from './SyncStatusBadge';
 import { useInventory } from '../context/InventoryContext';
@@ -44,8 +45,17 @@ export const Header: React.FC<HeaderProps> = ({
     activeInventory,
     switchInventory,
     currentUser,
-    logoutUser
+    logoutUser,
+    syncState,
+    entries,
+    triggerManualSync
   } = useInventory();
+
+  const isPendingSync =
+    syncState.isSyncing ||
+    syncState.pendingCount > 0 ||
+    !syncState.isOnline ||
+    entries.some((e) => e.syncStatus === 'pending');
 
   const [editingOperator, setEditingOperator] = useState(false);
   const [operatorInput, setOperatorInput] = useState(operator);
@@ -286,6 +296,52 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               </div>
             )}
+
+            {/* Visual Indicator: Cloud Sync Status (subtle green dot for synced, pulsing yellow dot for pending sync) */}
+            <button
+              type="button"
+              data-testid="cloud-sync-indicator"
+              onClick={triggerManualSync}
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors cursor-pointer select-none ${
+                isPendingSync
+                  ? 'bg-amber-50/90 border-amber-300 text-amber-900 hover:bg-amber-100'
+                  : 'bg-emerald-50/60 border-emerald-200 text-emerald-900 hover:bg-emerald-100/60'
+              }`}
+              title={
+                isPendingSync
+                  ? 'Synchronisation avec le cloud en attente (cliquer pour forcer la synchronisation)'
+                  : `Données d'inventaire synchronisées avec le cloud (${syncState.lastSyncedAt || 'En direct'})`
+              }
+              aria-label={
+                isPendingSync
+                  ? 'Données en attente de synchronisation cloud'
+                  : 'Données synchronisées avec le cloud'
+              }
+            >
+              {/* Dot: subtle green dot for synced, pulsing yellow dot for pending sync */}
+              <div className="relative flex items-center justify-center shrink-0">
+                {isPendingSync ? (
+                  <span
+                    data-testid="sync-dot-pending"
+                    className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse shrink-0"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <span
+                    data-testid="sync-dot-synced"
+                    className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"
+                    aria-hidden="true"
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
+                <Cloud className={`w-3.5 h-3.5 shrink-0 ${isPendingSync ? 'text-amber-600' : 'text-emerald-600'}`} />
+                <span className="hidden sm:inline">
+                  {isPendingSync ? 'En attente de synchro' : 'Cloud synchronisé'}
+                </span>
+              </div>
+            </button>
 
             {/* Cloud & Local storage state */}
             <SyncStatusBadge />

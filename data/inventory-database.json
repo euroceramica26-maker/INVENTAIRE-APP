@@ -1,0 +1,56 @@
+{
+  "inventories": [
+    {
+      "id": "inv-principal",
+      "titre": "Inventaire Principal",
+      "code": "INV-01",
+      "description": "Campagne principale d'inventaire",
+      "dateCreation": "2026-10-24T10:05:50.243Z",
+      "statut": "en_cours",
+      "responsable": "ouaradtech",
+      "articles": [],
+      "entries": [],
+      "locations": [],
+      "familles": [],
+      "machines": [],
+      "lastLocation": ""
+    }
+  ],
+  "activeInventoryId": "inv-principal",
+  "articles": [],
+  "entries": [],
+  "locations": [],
+  "familles": [],
+  "machines": [],
+  "lastLocation": "",
+  "users": [
+    {
+      "id": "usr-admin-01",
+      "username": "ouaradtech",
+      "nom": "Mohamed Ouarad (Admin)",
+      "motDePasse": "Ouaradtech26@",
+      "role": "admin",
+      "actif": true,
+      "dateCreation": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "usr-op-01",
+      "username": "saisie1",
+      "nom": "Opérateur 1 (Atelier)",
+      "motDePasse": "1234",
+      "role": "operateur",
+      "actif": true,
+      "dateCreation": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "usr-op-02",
+      "username": "saisie2",
+      "nom": "Opérateur 2 (Magasin)",
+      "motDePasse": "1234",
+      "role": "operateur",
+      "actif": true,
+      "dateCreation": "2026-01-01T08:00:00.000Z"
+    }
+  ],
+  "updatedAt": "2026-10-24T10:05:50.243Z"
+}

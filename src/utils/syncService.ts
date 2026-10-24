@@ -1,4 +1,4 @@
-import { Article, InventoryEntry, EmplacementItem, InventoryCampaign } from '../types/inventory';
+import { Article, InventoryEntry, EmplacementItem, InventoryCampaign, AppUser } from '../types/inventory';
 
 export interface RemoteServerState {
   inventories?: InventoryCampaign[];
@@ -9,12 +9,23 @@ export interface RemoteServerState {
   familles: string[];
   machines: string[];
   lastLocation: string;
+  users?: AppUser[];
   updatedAt?: string;
+}
+
+interface QueuedAction {
+  id: string;
+  action: string;
+  payload: any;
+  timestamp: number;
 }
 
 type StateListener = (state: RemoteServerState) => void;
 type ClientCountListener = (count: number) => void;
 type ConnectionStatusListener = (isConnected: boolean) => void;
+type SyncActivityListener = (isSyncing: boolean, pendingCount: number) => void;
+
+const OFFLINE_QUEUE_KEY = 'inventaire_offline_sync_queue_v5';
 
 class RealtimeSyncService {
   private socket: WebSocket | null = null;
@@ -25,10 +36,43 @@ class RealtimeSyncService {
   private stateListeners: Set<StateListener> = new Set();
   private countListeners: Set<ClientCountListener> = new Set();
   private statusListeners: Set<ConnectionStatusListener> = new Set();
+  private activityListeners: Set<SyncActivityListener> = new Set();
   private clientCount: number = 1;
+  private inFlightRequests: number = 0;
+  private offlineQueue: QueuedAction[] = [];
+  private isFlushingQueue: boolean = false;
 
   constructor() {
     this.clientId = 'client-' + Math.random().toString(36).substring(2, 9);
+    this.loadOfflineQueue();
+  }
+
+  private loadOfflineQueue(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          this.offlineQueue = parsed;
+        }
+      }
+    } catch {
+      this.offlineQueue = [];
+    }
+  }
+
+  private saveOfflineQueue(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      if (this.offlineQueue.length === 0) {
+        localStorage.removeItem(OFFLINE_QUEUE_KEY);
+      } else {
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(this.offlineQueue));
+      }
+    } catch {
+      // ignore
+    }
   }
 
   public getClientId(): string {
@@ -41,6 +85,10 @@ class RealtimeSyncService {
 
   public isSocketConnected(): boolean {
     return this.isConnected;
+  }
+
+  public getPendingCount(): number {
+    return this.offlineQueue.length + this.inFlightRequests;
   }
 
   public subscribeState(listener: StateListener): () => void {
@@ -66,10 +114,45 @@ class RealtimeSyncService {
     };
   }
 
+  public subscribeActivity(listener: SyncActivityListener): () => void {
+    this.activityListeners.add(listener);
+    const pending = this.getPendingCount();
+    listener(this.inFlightRequests > 0 || this.isFlushingQueue, pending);
+    return () => {
+      this.activityListeners.delete(listener);
+    };
+  }
+
+  private notifyActivity(): void {
+    const pending = this.getPendingCount();
+    const isSyncing = this.inFlightRequests > 0 || this.isFlushingQueue;
+    this.activityListeners.forEach((listener) => {
+      try {
+        listener(isSyncing, pending);
+      } catch (e) {
+        console.error('[SyncService] Error in activity listener:', e);
+      }
+    });
+  }
+
   public start(): void {
     if (typeof window === 'undefined') return;
+
+    window.addEventListener('online', () => {
+      this.connect();
+      this.fetchInitialState();
+      this.flushOfflineQueue();
+    });
+
+    window.addEventListener('offline', () => {
+      this.isConnected = false;
+      this.notifyStatus(false);
+      this.notifyActivity();
+    });
+
     this.connect();
     this.fetchInitialState();
+    this.flushOfflineQueue();
   }
 
   private getWebSocketUrl(): string {
@@ -91,6 +174,7 @@ class RealtimeSyncService {
         this.isConnected = true;
         this.notifyStatus(true);
         this.startHeartbeat();
+        this.flushOfflineQueue();
       };
 
       this.socket.onmessage = (event) => {
@@ -125,7 +209,7 @@ class RealtimeSyncService {
       this.reconnectTimer = null;
       this.connect();
       this.fetchInitialState();
-    }, 2500);
+    }, 2000);
   }
 
   private startHeartbeat(): void {
@@ -134,11 +218,11 @@ class RealtimeSyncService {
       if (this.socket && this.socket.readyState === WebSocket.OPEN) {
         try {
           this.socket.send(JSON.stringify({ type: 'PING' }));
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
-    }, 20000);
+    }, 15000);
   }
 
   private stopHeartbeat(): void {
@@ -198,6 +282,8 @@ class RealtimeSyncService {
   }
 
   public async fetchInitialState(): Promise<RemoteServerState | null> {
+    this.inFlightRequests++;
+    this.notifyActivity();
     try {
       const res = await fetch('/api/inventory/state');
       if (res.ok) {
@@ -211,13 +297,21 @@ class RealtimeSyncService {
           return json.data;
         }
       }
-    } catch (err) {
+    } catch {
       // offline or server starting
+    } finally {
+      setTimeout(() => {
+        this.inFlightRequests = Math.max(0, this.inFlightRequests - 1);
+        this.notifyActivity();
+      }, 300);
     }
     return null;
   }
 
   public sendAction(action: string, payload: any): void {
+    this.inFlightRequests++;
+    this.notifyActivity();
+
     const message = {
       type: 'ACTION',
       action,
@@ -232,11 +326,10 @@ class RealtimeSyncService {
         this.socket.send(JSON.stringify(message));
         sentViaWs = true;
       } catch (err) {
-        console.warn('[SyncService] Error sending via WebSocket, falling back to HTTP', err);
+        console.warn('[SyncService] WS send failed, fallback to HTTP', err);
       }
     }
 
-    // Also send via HTTP POST as reliable backup
     if (!sentViaWs) {
       fetch('/api/inventory/action', {
         method: 'POST',
@@ -246,20 +339,92 @@ class RealtimeSyncService {
           payload,
           clientId: this.clientId
         })
-      }).catch((err) => {
-        console.warn('[SyncService] HTTP action fallback failed', err);
-      });
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error('HTTP action failed');
+        })
+        .catch(() => {
+          // Add to offline queue if completely offline
+          this.queueAction(action, payload);
+        })
+        .finally(() => {
+          this.inFlightRequests = Math.max(0, this.inFlightRequests - 1);
+          this.notifyActivity();
+        });
+    } else {
+      setTimeout(() => {
+        this.inFlightRequests = Math.max(0, this.inFlightRequests - 1);
+        this.notifyActivity();
+      }, 400);
+    }
+  }
+
+  private queueAction(action: string, payload: any): void {
+    const item: QueuedAction = {
+      id: `queue-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      action,
+      payload,
+      timestamp: Date.now()
+    };
+    this.offlineQueue.push(item);
+    this.saveOfflineQueue();
+    this.notifyActivity();
+  }
+
+  public async flushOfflineQueue(): Promise<void> {
+    if (this.isFlushingQueue || this.offlineQueue.length === 0) return;
+    this.isFlushingQueue = true;
+    this.notifyActivity();
+
+    try {
+      while (this.offlineQueue.length > 0) {
+        const item = this.offlineQueue[0];
+        try {
+          const res = await fetch('/api/inventory/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: item.action,
+              payload: item.payload,
+              clientId: this.clientId
+            })
+          });
+          if (res.ok) {
+            this.offlineQueue.shift();
+            this.saveOfflineQueue();
+            this.notifyActivity();
+          } else {
+            break;
+          }
+        } catch {
+          // Still offline
+          break;
+        }
+      }
+    } finally {
+      this.isFlushingQueue = false;
+      this.notifyActivity();
     }
   }
 
   public sendFullSync(state: Partial<RemoteServerState>): void {
+    this.inFlightRequests++;
+    this.notifyActivity();
+
     fetch('/api/inventory/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state)
-    }).catch((err) => {
-      console.warn('[SyncService] HTTP full sync failed', err);
-    });
+    })
+      .catch((err) => {
+        console.warn('[SyncService] HTTP full sync failed', err);
+      })
+      .finally(() => {
+        setTimeout(() => {
+          this.inFlightRequests = Math.max(0, this.inFlightRequests - 1);
+          this.notifyActivity();
+        }, 500);
+      });
   }
 }
 

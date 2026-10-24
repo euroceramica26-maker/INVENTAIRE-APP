@@ -217,6 +217,18 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           setMachines(remote.machines);
           saveStoredMachines(remote.machines);
         }
+        if (Array.isArray(remote.inventories) && remote.inventories.length > 0) {
+          setInventories(remote.inventories);
+          saveStoredInventories(remote.inventories);
+        }
+        if (typeof remote.activeInventoryId === 'string' && remote.activeInventoryId) {
+          setActiveInventoryId(remote.activeInventoryId);
+          saveStoredActiveInventoryId(remote.activeInventoryId);
+        }
+        if (Array.isArray(remote.users) && remote.users.length > 0) {
+          setUsers(remote.users);
+          saveStoredUsers(remote.users);
+        }
         if (typeof remote.lastLocation === 'string' && remote.lastLocation) {
           setLastLocationState(remote.lastLocation);
           saveStoredLastLocation(remote.lastLocation);
@@ -243,7 +255,17 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setSyncState((prev) => ({ ...prev, isOnline: connected }));
     });
 
-    // 5. Subscribe to same-browser BroadcastChannel
+    // 5. Subscribe to real-time sync in-flight activity & pending sync
+    const unsubscribeActivity = syncService.subscribeActivity((isSyncing, pendingCount) => {
+      setSyncState((prev) => ({
+        ...prev,
+        isSyncing,
+        pendingCount: !prev.isOnline ? Math.max(1, pendingCount) : pendingCount,
+        lastSyncedAt: !isSyncing ? new Date().toLocaleTimeString('fr-FR') : prev.lastSyncedAt
+      }));
+    });
+
+    // 6. Subscribe to same-browser BroadcastChannel
     const unsubscribeChannel = subscribeToSyncChannel((type, payload) => {
       if (type === 'ENTRIES_UPDATED') {
         setEntries(payload);
@@ -268,6 +290,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       unsubscribeState();
       unsubscribeCount();
       unsubscribeStatus();
+      unsubscribeActivity();
       unsubscribeChannel();
     };
   }, []);
@@ -637,6 +660,25 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const clearEntireDatabase = useCallback(() => {
     clearAllLocalDatabase();
+    const cleanInv: InventoryCampaign = {
+      id: 'inv-principal',
+      titre: 'Inventaire Principal',
+      code: 'INV-01',
+      description: "Campagne principale d'inventaire",
+      dateCreation: new Date().toISOString(),
+      statut: 'en_cours',
+      responsable: 'ouaradtech',
+      articles: [],
+      entries: [],
+      locations: [],
+      familles: [],
+      machines: [],
+      lastLocation: ''
+    };
+    setInventories([cleanInv]);
+    setActiveInventoryId('inv-principal');
+    saveStoredInventories([cleanInv]);
+    saveStoredActiveInventoryId('inv-principal');
     setArticles([]);
     setEntries([]);
     setLocations([]);
@@ -984,6 +1026,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return { success: false, message: errorMsg };
     }
 
+    if (created) {
+      syncService.sendAction('CREATE_USER', created);
+    }
+
     return { success: true, user: created };
   }, []);
 
@@ -1013,6 +1059,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (errorMsg) {
       return { success: false, message: errorMsg };
     }
+
+    syncService.sendAction('UPDATE_USER', userData);
     return { success: true };
   }, [currentUser]);
 
@@ -1028,6 +1076,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return next;
     });
 
+    syncService.sendAction('DELETE_USER', userId);
     return { success: true };
   }, [users]);
 
@@ -1037,8 +1086,12 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (target?.username.toLowerCase() === 'ouaradtech') {
         return prev;
       }
+      const updatedUser = target ? { ...target, actif: !target.actif } : null;
       const next = prev.map((u) => (u.id === userId ? { ...u, actif: !u.actif } : u));
       saveStoredUsers(next);
+      if (updatedUser) {
+        syncService.sendAction('UPDATE_USER', updatedUser);
+      }
       return next;
     });
   }, []);
@@ -1193,13 +1246,15 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   );
 
   const closeInventory = useCallback((id: string) => {
+    const dateCloture = new Date().toISOString();
     setInventories((prev) => {
       const next = prev.map((inv) =>
-        inv.id === id ? { ...inv, statut: 'cloture' as const, dateCloture: new Date().toISOString() } : inv
+        inv.id === id ? { ...inv, statut: 'cloture' as const, dateCloture } : inv
       );
       saveStoredInventories(next);
       return next;
     });
+    syncService.sendAction('UPDATE_INVENTORY', { id, statut: 'cloture', dateCloture });
   }, []);
 
   const reopenInventory = useCallback((id: string) => {
@@ -1210,6 +1265,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       saveStoredInventories(next);
       return next;
     });
+    syncService.sendAction('UPDATE_INVENTORY', { id, statut: 'en_cours', dateCloture: undefined });
   }, []);
 
   return (
