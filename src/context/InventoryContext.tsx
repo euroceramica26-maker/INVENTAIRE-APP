@@ -147,7 +147,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const storedId = getStoredActiveInventoryId();
     const all = getStoredInventories();
     if (storedId && all.some((i) => i.id === storedId)) return storedId;
-    return all[0]?.id || 'inv-default-01';
+    return all[0]?.id || 'inv-principal';
   });
 
   // Admin Auth State (login: ouaradtech, mdp: Ouaradtech26@)
@@ -198,16 +198,41 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       isRemoteUpdatingRef.current = true;
       try {
         if (Array.isArray(remote.articles)) {
-          setArticles(remote.articles);
-          saveStoredArticles(remote.articles);
+          if (remote.articles.length > 0) {
+            setArticles(remote.articles);
+            saveStoredArticles(remote.articles);
+          } else {
+            const localArticles = getStoredArticles();
+            if (localArticles.length > 0) {
+              syncService.sendAction('IMPORT_ARTICLES', {
+                newArticles: localArticles,
+                newMachines: getStoredMachines(),
+                newFamilles: getStoredFamilles(),
+                newEmplacements: getStoredLocations().map((l) => l.code)
+              });
+            } else {
+              setArticles([]);
+              saveStoredArticles([]);
+            }
+          }
         }
         if (Array.isArray(remote.entries)) {
           setEntries(remote.entries);
           saveStoredEntries(remote.entries);
         }
         if (Array.isArray(remote.locations)) {
-          setLocations(remote.locations);
-          saveStoredLocations(remote.locations);
+          if (remote.locations.length > 0) {
+            setLocations(remote.locations);
+            saveStoredLocations(remote.locations);
+          } else {
+            const localLocs = getStoredLocations();
+            if (localLocs.length > 0) {
+              syncService.sendAction('IMPORT_LOCATIONS', { newLocations: localLocs });
+            } else {
+              setLocations([]);
+              saveStoredLocations([]);
+            }
+          }
         }
         if (Array.isArray(remote.familles)) {
           setFamilles(remote.familles);
@@ -713,13 +738,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       newFamilles?: string[],
       newEmplacements?: string[]
     ) => {
+      let mergedArticles: Article[] = [];
       setArticles((prev) => {
         const map = new Map<string, Article>();
         prev.forEach((a) => map.set(a.code_article.toLowerCase(), a));
         newArticles.forEach((a) => map.set(a.code_article.toLowerCase(), a));
-        const next = Array.from(map.values());
-        saveStoredArticles(next);
-        return next;
+        mergedArticles = Array.from(map.values());
+        saveStoredArticles(mergedArticles);
+        return mergedArticles;
       });
 
       if (newMachines && newMachines.length > 0) {
@@ -742,6 +768,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
       }
 
+      let mergedLocations: EmplacementItem[] = [];
       if (newEmplacements && newEmplacements.length > 0) {
         setLocations((prev) => {
           const set = new Set(prev.map((l) => l.code.toLowerCase()));
@@ -757,11 +784,27 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               });
             }
           });
-          const next = [...prev, ...toAdd];
-          saveStoredLocations(next);
-          return next;
+          mergedLocations = [...prev, ...toAdd];
+          saveStoredLocations(mergedLocations);
+          return mergedLocations;
         });
       }
+
+      // Crucial: keep current inventory campaign updated so switching/refreshing never loses articles
+      setInventories((prev) => {
+        const updated = prev.map((inv) => {
+          if (inv.id === activeInventoryId) {
+            return {
+              ...inv,
+              articles: mergedArticles,
+              locations: mergedLocations.length > 0 ? mergedLocations : inv.locations
+            };
+          }
+          return inv;
+        });
+        saveStoredInventories(updated);
+        return updated;
+      });
 
       syncService.sendAction('IMPORT_ARTICLES', {
         newArticles,
@@ -770,21 +813,39 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         newEmplacements
       });
     },
-    []
+    [activeInventoryId]
   );
 
-  const importLocationsBulk = useCallback((locs: EmplacementItem[]) => {
-    setLocations((prev) => {
-      const map = new Map<string, EmplacementItem>();
-      prev.forEach((l) => map.set(l.code.toLowerCase(), l));
-      locs.forEach((l) => map.set(l.code.toLowerCase(), l));
-      const next = Array.from(map.values());
-      saveStoredLocations(next);
-      return next;
-    });
+  const importLocationsBulk = useCallback(
+    (locs: EmplacementItem[]) => {
+      let merged: EmplacementItem[] = [];
+      setLocations((prev) => {
+        const map = new Map<string, EmplacementItem>();
+        prev.forEach((l) => map.set(l.code.toLowerCase(), l));
+        locs.forEach((l) => map.set(l.code.toLowerCase(), l));
+        merged = Array.from(map.values());
+        saveStoredLocations(merged);
+        return merged;
+      });
 
-    syncService.sendAction('IMPORT_LOCATIONS', { newLocations: locs });
-  }, []);
+      setInventories((prev) => {
+        const updated = prev.map((inv) => {
+          if (inv.id === activeInventoryId) {
+            return {
+              ...inv,
+              locations: merged
+            };
+          }
+          return inv;
+        });
+        saveStoredInventories(updated);
+        return updated;
+      });
+
+      syncService.sendAction('IMPORT_LOCATIONS', { newLocations: locs });
+    },
+    [activeInventoryId]
+  );
 
   const matchScannedArticle = useCallback(
     (query: string): ScanMatchResult => {
@@ -1161,7 +1222,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setLastLocationState(loadedLastLoc);
       saveStoredLastLocation(loadedLastLoc);
 
-      syncService.sendAction('SWITCH_INVENTORY', { inventoryId: target.id });
+      syncService.sendAction('SWITCH_INVENTORY', { inventoryId: target.id, id: target.id });
     },
     [activeInventoryId, inventories, articles, entries, locations, familles, machines, lastLocation]
   );

@@ -61,7 +61,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Search & filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [tableSearch, setTableSearch] = useState('');
-  const [displayMode, setDisplayMode] = useState<'saisis' | 'tous' | 'a_faire'>('saisis');
+  const [displayMode, setDisplayMode] = useState<'saisis' | 'tous' | 'a_faire'>(() => {
+    try {
+      const stored = localStorage.getItem('inventory_display_mode');
+      if (stored === 'saisis' || stored === 'tous' || stored === 'a_faire') {
+        return stored as 'saisis' | 'tous' | 'a_faire';
+      }
+    } catch {
+      // ignore
+    }
+    return 'saisis';
+  });
+
+  const handleDisplayModeChange = (mode: 'saisis' | 'tous' | 'a_faire') => {
+    setDisplayMode(mode);
+    try {
+      localStorage.setItem('inventory_display_mode', mode);
+    } catch {
+      // ignore
+    }
+  };
+
   const [selectedMachine, setSelectedMachine] = useState<string>('all');
   const [selectedFamille, setSelectedFamille] = useState<string>('all');
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
@@ -474,7 +494,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/70 text-xs">
                 <button
                   type="button"
-                  onClick={() => setDisplayMode('saisis')}
+                  onClick={() => handleDisplayModeChange('saisis')}
                   className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
                     displayMode === 'saisis'
                       ? 'bg-white text-emerald-700 shadow-xs font-bold border border-slate-200/60'
@@ -492,7 +512,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => setDisplayMode('tous')}
+                  onClick={() => handleDisplayModeChange('tous')}
                   className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
                     displayMode === 'tous'
                       ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200/60'
@@ -510,7 +530,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => setDisplayMode('a_faire')}
+                  onClick={() => handleDisplayModeChange('a_faire')}
                   className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
                     displayMode === 'a_faire'
                       ? 'bg-white text-amber-800 shadow-xs font-bold border border-slate-200/60'

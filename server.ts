@@ -140,18 +140,43 @@ function loadDatabase(): ServerDatabase {
 }
 
 function syncActiveInventoryInList(): void {
-  const idx = db.inventories.findIndex((inv) => inv.id === db.activeInventoryId);
-  if (idx >= 0) {
-    db.inventories[idx] = {
-      ...db.inventories[idx],
-      articles: db.articles,
-      entries: db.entries,
-      locations: db.locations,
-      familles: db.familles,
-      machines: db.machines,
-      lastLocation: db.lastLocation
-    };
+  if (!Array.isArray(db.inventories) || db.inventories.length === 0) {
+    db.inventories = [
+      {
+        id: db.activeInventoryId || 'inv-principal',
+        titre: 'Inventaire Principal',
+        code: 'INV-01',
+        description: "Campagne principale d'inventaire",
+        dateCreation: new Date().toISOString(),
+        statut: 'en_cours',
+        responsable: 'ouaradtech',
+        articles: db.articles,
+        entries: db.entries,
+        locations: db.locations,
+        familles: db.familles,
+        machines: db.machines,
+        lastLocation: db.lastLocation
+      }
+    ];
+    db.activeInventoryId = db.inventories[0].id;
+    return;
   }
+
+  let idx = db.inventories.findIndex((inv) => inv.id === db.activeInventoryId);
+  if (idx < 0) {
+    idx = 0;
+    db.activeInventoryId = db.inventories[0].id;
+  }
+
+  db.inventories[idx] = {
+    ...db.inventories[idx],
+    articles: db.articles,
+    entries: db.entries,
+    locations: db.locations,
+    familles: db.familles,
+    machines: db.machines,
+    lastLocation: db.lastLocation
+  };
 }
 
 function saveDatabase(): void {
@@ -238,7 +263,7 @@ function applyAction(actionType: string, payload: any): boolean {
     }
 
     case 'SWITCH_INVENTORY': {
-      const targetId = typeof payload === 'string' ? payload : payload?.id;
+      const targetId = typeof payload === 'string' ? payload : (payload?.inventoryId || payload?.id);
       if (!targetId) return false;
       syncActiveInventoryInList();
       const target = db.inventories.find((i) => i.id === targetId);
@@ -515,6 +540,7 @@ function applyAction(actionType: string, payload: any): boolean {
           }
         });
       }
+      syncActiveInventoryInList();
       break;
     }
 
@@ -526,6 +552,7 @@ function applyAction(actionType: string, payload: any): boolean {
         newLocations.forEach((l) => map.set(l.code.toLowerCase(), l));
         db.locations = Array.from(map.values());
       }
+      syncActiveInventoryInList();
       break;
     }
 

@@ -265,34 +265,14 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
                 </span>
               </label>
 
-              <div className="mt-8 pt-6 border-t border-slate-200 text-left text-xs space-y-4">
+              <div className="mt-8 pt-6 border-t border-slate-200 text-left text-xs space-y-3">
                 <div>
-                  <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                    <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                      <FileSpreadsheet className="w-4 h-4 text-orange-600" />
-                      <span>Colonnes détectées pour les Articles (Format 9 colonnes) :</span>
-                    </span>
-                    <span className="text-[10px] bg-orange-100 text-orange-800 font-bold px-2.5 py-0.5 rounded-full border border-orange-200">
-                      Conforme à votre modèle
-                    </span>
-                  </div>
-
-                  {/* Modèle visuel fidèle à l'image fournie par l'utilisateur */}
-                  <div className="overflow-x-auto rounded-xl border border-orange-400/80 shadow-xs">
-                    <div className="grid grid-cols-9 bg-[#f28e2b] text-white text-[11px] font-bold text-center divide-x divide-orange-300/60 min-w-[720px]">
-                      <div className="py-2.5 px-2">Famaille</div>
-                      <div className="py-2.5 px-2">S.famaille</div>
-                      <div className="py-2.5 px-2">Départ</div>
-                      <div className="py-2.5 px-2">Position</div>
-                      <div className="py-2.5 px-3">Désignation</div>
-                      <div className="py-2.5 px-2">Référence manuel</div>
-                      <div className="py-2.5 px-2">Code magasin</div>
-                      <div className="py-2.5 px-2">Unité</div>
-                      <div className="py-2.5 px-2">Géré /nn</div>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-2">
-                    L'application reconnaît automatiquement ces 9 colonnes et leurs variantes lors du chargement de votre fichier.
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5 mb-1">
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                    <span>Colonnes supportées pour les Articles (Format standard) :</span>
+                  </span>
+                  <p className="text-[11px] text-slate-600">
+                    Famille, Sous-famille, Départ/Machine, Position/Emplacement, Désignation (requis), Référence manuel, Code magasin (requis), Unité, Géré/non-géré.
                   </p>
                 </div>
 
@@ -300,7 +280,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
                   <span className="font-bold text-slate-700 block mb-0.5">
                     Colonnes pour les Emplacements :
                   </span>
-                  <p>Code Emplacement (ex: MAG-A-01), Nom Emplacement, Zone / Secteur.</p>
+                  <p className="text-[11px]">Code Emplacement (ex: MAG-A-01), Nom Emplacement, Zone / Secteur.</p>
                 </div>
               </div>
             </div>

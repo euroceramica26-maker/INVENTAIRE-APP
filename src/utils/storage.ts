@@ -156,10 +156,10 @@ export function getStoredInventories(): InventoryCampaign[] {
 
   // Initial default campaign
   const defaultInv: InventoryCampaign = {
-    id: 'inv-default-01',
-    titre: 'Inventaire Principal 2026',
-    code: 'INV-2026-01',
-    description: 'Campagne principale d\'inventaire initial',
+    id: 'inv-principal',
+    titre: 'Inventaire Principal',
+    code: 'INV-01',
+    description: "Campagne principale d'inventaire initial",
     dateCreation: new Date().toISOString(),
     statut: 'en_cours',
     responsable: 'ouaradtech',
