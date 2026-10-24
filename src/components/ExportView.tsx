@@ -110,19 +110,37 @@ export const ExportView: React.FC = () => {
     });
   };
 
-  const handleExport = () => {
-    if (filteredData.length === 0) {
-      setLastExportMessage("Aucune donnée à exporter avec les filtres sélectionnés.");
-      setTimeout(() => setLastExportMessage(null), 5000);
-      return;
-    }
+  const [isExporting, setIsExporting] = useState(false);
+  const [lastExportError, setLastExportError] = useState<string | null>(null);
 
-    const res = exportInventoryToExcel(entries, articles, filters, 'Inventaire_Global');
-    if (res.success) {
-      setLastExportMessage(
-        `Export Excel téléchargé : ${res.fileName} — Total ${res.rowCount} articles (${res.countSaisis} saisis, ${res.countAFaire} à faire pour contrôle)`
-      );
-      setTimeout(() => setLastExportMessage(null), 8000);
+  const handleExport = () => {
+    setLastExportError(null);
+    setLastExportMessage(null);
+    setIsExporting(true);
+
+    try {
+      if (filteredData.length === 0) {
+        if (allCombined.length === 0) {
+          setLastExportError("La base d'inventaire est vide. Importez vos articles Excel ou chargez la démo pour exporter.");
+        } else {
+          setLastExportError("Aucun article ne correspond aux filtres sélectionnés. Réinitialisez les filtres pour exporter.");
+        }
+        setIsExporting(false);
+        return;
+      }
+
+      const res = exportInventoryToExcel(entries, articles, filters, 'Inventaire_Global');
+      if (res.success) {
+        setLastExportMessage(
+          `Classeur Excel téléchargé avec succès : ${res.fileName} — Total ${res.rowCount} article(s) (${res.countSaisis} saisis, ${res.countAFaire} à faire pour contrôle)`
+        );
+        setTimeout(() => setLastExportMessage(null), 8000);
+      }
+    } catch (err: any) {
+      console.error('Erreur export Excel:', err);
+      setLastExportError(`Erreur lors du téléchargement : ${err?.message || 'Erreur inattendue'}`);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -141,11 +159,15 @@ export const ExportView: React.FC = () => {
 
         <button
           onClick={handleExport}
-          disabled={filteredData.length === 0}
-          className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+          disabled={isExporting}
+          className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98"
         >
           <FileSpreadsheet className="w-4 h-4" />
-          <span>Télécharger l'Inventaire Excel ({filteredData.length} articles)</span>
+          <span>
+            {isExporting
+              ? 'Génération en cours...'
+              : `Télécharger l'Inventaire Excel (${filteredData.length} articles)`}
+          </span>
         </button>
       </div>
 
@@ -153,6 +175,21 @@ export const ExportView: React.FC = () => {
         <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span className="font-semibold">{lastExportMessage}</span>
+        </div>
+      )}
+
+      {lastExportError && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-900 rounded-xl text-xs flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span className="font-semibold">{lastExportError}</span>
+          </div>
+          <button
+            onClick={() => setLastExportError(null)}
+            className="text-xs text-rose-700 hover:text-rose-900 underline font-semibold ml-2"
+          >
+            Fermer
+          </button>
         </div>
       )}
 

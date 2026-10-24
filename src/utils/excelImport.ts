@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { Article, ColumnMapping, EmplacementItem } from '../types/inventory';
+import { downloadWorkbook } from './excelExport';
 
 function normalizeHeader(str: string): string {
   return str
@@ -503,7 +504,7 @@ export function generateSampleArticlesExcel(): void {
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Articles');
-  XLSX.writeFile(wb, 'Modele_Articles_Inventaire.xlsx');
+  downloadWorkbook(wb, 'Modele_Articles_Inventaire.xlsx');
 }
 
 export function generateSampleLocationsExcel(): void {
@@ -521,5 +522,5 @@ export function generateSampleLocationsExcel(): void {
   ];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Emplacements');
-  XLSX.writeFile(wb, 'Modele_Emplacements.xlsx');
+  downloadWorkbook(wb, 'Modele_Emplacements.xlsx');
 }

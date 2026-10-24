@@ -29,6 +29,7 @@ import * as XLSX from 'xlsx';
 import { useInventory } from '../context/InventoryContext';
 import { AppUser, UserRole } from '../types/inventory';
 import { ConfirmModal } from './ConfirmModal';
+import { downloadWorkbook, safeAppendSheet } from '../utils/excelExport';
 
 interface UserManagementViewProps {
   onNavigateToTab?: (tab: string) => void;
@@ -1029,8 +1030,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = () => {
           }));
           const wb = XLSX.utils.book_new();
           const ws = XLSX.utils.json_to_sheet(rows);
-          XLSX.utils.book_append_sheet(wb, ws, `Saisies_${viewingUserEntries.username.slice(0, 15)}`);
-          XLSX.writeFile(
+          safeAppendSheet(wb, ws, `Saisies_${viewingUserEntries.username.slice(0, 15)}`);
+          downloadWorkbook(
             wb,
             `Articles_Saisis_${viewingUserEntries.username}_${new Date().toISOString().slice(0, 10)}.xlsx`
           );

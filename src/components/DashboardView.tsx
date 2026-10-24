@@ -87,10 +87,47 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [selectedQualite, setSelectedQualite] = useState<string>('all');
   const [selectedOperator, setSelectedOperator] = useState<string>('all');
+  const [exportToast, setExportToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Deletion modals state
   const [entryToDelete, setEntryToDelete] = useState<InventoryEntry | null>(null);
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
+
+  const handleQuickExport = () => {
+    try {
+      const res = exportInventoryToExcel(
+        entries,
+        articles,
+        {
+          famille: selectedFamille,
+          machine: selectedMachine,
+          designationSearch: '',
+          codeSearch: '',
+          referenceSearch: '',
+          unite: 'all',
+          emplacement: selectedLocation,
+          qualite: selectedQualite,
+          statusFilter: displayMode === 'saisis' ? 'saisi' : displayMode === 'a_faire' ? 'a_faire' : 'all',
+          operator: selectedOperator
+        },
+        `Inventaire_${displayMode === 'saisis' ? 'Articles_Saisis' : 'Base_Complete'}`
+      );
+      if (res.success) {
+        setExportToast({
+          type: 'success',
+          message: `Fichier téléchargé : ${res.fileName} (${res.rowCount} ligne(s))`
+        });
+        setTimeout(() => setExportToast(null), 5000);
+      }
+    } catch (err: any) {
+      console.error('Erreur export:', err);
+      setExportToast({
+        type: 'error',
+        message: `Erreur lors de l'exportation : ${err?.message || 'Erreur inattendue'}`
+      });
+      setTimeout(() => setExportToast(null), 6000);
+    }
+  };
 
   // Search suggestions enhanced with scan parsing (code, designation, reference, or composite scan)
   const searchResults = useMemo(() => {
@@ -550,25 +587,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {/* Direct Excel Export Button from Base d'Inventaire */}
               <button
                 type="button"
-                onClick={() => {
-                  exportInventoryToExcel(
-                    entries,
-                    articles,
-                    {
-                      famille: selectedFamille,
-                      machine: selectedMachine,
-                      designationSearch: '',
-                      codeSearch: '',
-                      referenceSearch: '',
-                      unite: 'all',
-                      emplacement: selectedLocation,
-                      qualite: selectedQualite,
-                      statusFilter: displayMode === 'saisis' ? 'saisi' : displayMode === 'a_faire' ? 'a_faire' : 'all',
-                      operator: selectedOperator
-                    },
-                    `Inventaire_${displayMode === 'saisis' ? 'Articles_Saisis' : 'Base_Complete'}`
-                  );
-                }}
+                onClick={handleQuickExport}
                 className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all"
                 title="Exporter la sélection en Excel avec colonne Emplacement"
               >
@@ -577,6 +596,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button>
             </div>
           </div>
+
+          {exportToast && (
+            <div
+              className={`mt-3 p-3 rounded-xl border text-xs flex items-center gap-2 transition-all ${
+                exportToast.type === 'success'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-rose-50 border-rose-200 text-rose-800'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span className="font-semibold">{exportToast.message}</span>
+            </div>
+          )}
         </div>
 
         {/* Table Filter Toolbar */}

@@ -156,6 +156,52 @@ export function filterCombinedInventory(
   });
 }
 
+/**
+ * Microsoft Excel strictly limits sheet names to 31 characters
+ * and forbids: \ / ? * [ ] :
+ */
+export function safeAppendSheet(wb: XLSX.WorkBook, ws: XLSX.WorkSheet, name: string): void {
+  const sanitized = name.replace(/[:\\/?*\[\]]/g, '_').slice(0, 31);
+  XLSX.utils.book_append_sheet(wb, ws, sanitized);
+}
+
+/**
+ * Robust browser download helper supporting iframes, mobile, and desktop browsers
+ */
+export function downloadWorkbook(wb: XLSX.WorkBook, fileName: string): void {
+  try {
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    if (typeof (navigator as any).msSaveBlob !== 'undefined') {
+      (navigator as any).msSaveBlob(blob, fileName);
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => {
+      try {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch {
+        // ignore
+      }
+    }, 1500);
+  } catch (err) {
+    console.warn('[ExcelExport] Blob download failed, falling back to XLSX.writeFile:', err);
+    XLSX.writeFile(wb, fileName);
+  }
+}
+
 export function exportInventoryToExcel(
   entries: InventoryEntry[],
   articles: Article[],
@@ -188,7 +234,29 @@ export function exportInventoryToExcel(
     'Remarques & Observations': item.notes
   }));
 
-  const wsGlobal = XLSX.utils.json_to_sheet(rowsGlobal);
+  const globalHeaders = [
+    'N°',
+    'Statut Inventaire',
+    'Famaille',
+    'S.famaille',
+    'Départ',
+    'Position',
+    'Emplacement',
+    'Désignation',
+    'Référence manuel',
+    'Code magasin',
+    'Unité',
+    'Géré /nn',
+    'Quantité Saisie',
+    'Qualité / État Réel',
+    'Date & Heure',
+    'Opérateur',
+    'Remarques & Observations'
+  ];
+
+  const wsGlobal = rowsGlobal.length > 0
+    ? XLSX.utils.json_to_sheet(rowsGlobal)
+    : XLSX.utils.json_to_sheet([], { header: globalHeaders });
 
   wsGlobal['!cols'] = [
     { wch: 6 },  // N°
@@ -210,7 +278,7 @@ export function exportInventoryToExcel(
     { wch: 30 }  // Notes
   ];
 
-  XLSX.utils.book_append_sheet(wb, wsGlobal, 'Inventaire_Global');
+  safeAppendSheet(wb, wsGlobal, 'Inventaire_Global');
 
   // 2. Sheet: Articles_Non_Inventoriés (À faire pour contrôle)
   const aFaireItems = filtered.filter(i => i.statutInventaire === 'À faire (Non inventorié)');
@@ -245,7 +313,7 @@ export function exportInventoryToExcel(
       { wch: 12 },
       { wch: 28 }
     ];
-    XLSX.utils.book_append_sheet(wb, wsAFaire, 'Articles_À_Faire_Contrôle');
+    safeAppendSheet(wb, wsAFaire, 'Articles_À_Faire_Contrôle');
   }
 
   // 3. Sheet: Articles_Saisis
@@ -285,7 +353,7 @@ export function exportInventoryToExcel(
       { wch: 16 }, // Opérateur
       { wch: 30 }  // Notes
     ];
-    XLSX.utils.book_append_sheet(wb, wsSaisis, 'Articles_Saisis');
+    safeAppendSheet(wb, wsSaisis, 'Articles_Saisis');
   }
 
   // 4. Machine Summary Sheet (avec taux d'avancement)
@@ -303,18 +371,20 @@ export function exportInventoryToExcel(
     machineMap.set(m, curr);
   });
 
-  const machineRows = Array.from(machineMap.entries()).map(([machine, stats]) => ({
-    'Machine / Équipement': machine,
-    'Total Articles Prévus': stats.total,
-    'Articles Saisis': stats.saisis,
-    'Articles À Faire (Non saisis)': stats.aFaire,
-    'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
-    'Quantité Totale Comptée': stats.totalQty
-  }));
+  if (machineMap.size > 0) {
+    const machineRows = Array.from(machineMap.entries()).map(([machine, stats]) => ({
+      'Machine / Équipement': machine,
+      'Total Articles Prévus': stats.total,
+      'Articles Saisis': stats.saisis,
+      'Articles À Faire (Non saisis)': stats.aFaire,
+      'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
+      'Quantité Totale Comptée': stats.totalQty
+    }));
 
-  const wsMachine = XLSX.utils.json_to_sheet(machineRows);
-  wsMachine['!cols'] = [{ wch: 35 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 20 }, { wch: 24 }];
-  XLSX.utils.book_append_sheet(wb, wsMachine, 'Synthèse_Avancement_Machines');
+    const wsMachine = XLSX.utils.json_to_sheet(machineRows);
+    wsMachine['!cols'] = [{ wch: 35 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 20 }, { wch: 24 }];
+    safeAppendSheet(wb, wsMachine, 'Synthèse_Machines');
+  }
 
   // 5. Family Summary Sheet (avec taux d'avancement)
   const familleMap = new Map<string, { total: number; saisis: number; aFaire: number; totalQty: number }>();
@@ -331,18 +401,20 @@ export function exportInventoryToExcel(
     familleMap.set(f, curr);
   });
 
-  const familleRows = Array.from(familleMap.entries()).map(([famille, stats]) => ({
-    'Famille / Catégorie': famille,
-    'Total Articles Prévus': stats.total,
-    'Articles Saisis': stats.saisis,
-    'Articles À Faire (Non saisis)': stats.aFaire,
-    'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
-    'Quantité Totale Comptée': stats.totalQty
-  }));
+  if (familleMap.size > 0) {
+    const familleRows = Array.from(familleMap.entries()).map(([famille, stats]) => ({
+      'Famille / Catégorie': famille,
+      'Total Articles Prévus': stats.total,
+      'Articles Saisis': stats.saisis,
+      'Articles À Faire (Non saisis)': stats.aFaire,
+      'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
+      'Quantité Totale Comptée': stats.totalQty
+    }));
 
-  const wsFamille = XLSX.utils.json_to_sheet(familleRows);
-  wsFamille['!cols'] = [{ wch: 30 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 20 }, { wch: 24 }];
-  XLSX.utils.book_append_sheet(wb, wsFamille, 'Synthèse_Avancement_Familles');
+    const wsFamille = XLSX.utils.json_to_sheet(familleRows);
+    wsFamille['!cols'] = [{ wch: 30 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 20 }, { wch: 24 }];
+    safeAppendSheet(wb, wsFamille, 'Synthèse_Familles');
+  }
 
   // 6. Emplacement Summary Sheet (avec taux d'avancement par zone/emplacement)
   const locMap = new Map<string, { total: number; saisis: number; aFaire: number; totalQty: number }>();
@@ -359,24 +431,26 @@ export function exportInventoryToExcel(
     locMap.set(loc, curr);
   });
 
-  const locRows = Array.from(locMap.entries()).map(([loc, stats]) => ({
-    'Emplacement / Zone': loc,
-    'Total Articles Prévus': stats.total,
-    'Articles Saisis': stats.saisis,
-    'Articles À Faire (Non saisis)': stats.aFaire,
-    'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
-    'Quantité Totale Comptée': stats.totalQty
-  }));
+  if (locMap.size > 0) {
+    const locRows = Array.from(locMap.entries()).map(([loc, stats]) => ({
+      'Emplacement / Zone': loc,
+      'Total Articles Prévus': stats.total,
+      'Articles Saisis': stats.saisis,
+      'Articles À Faire (Non saisis)': stats.aFaire,
+      'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
+      'Quantité Totale Comptée': stats.totalQty
+    }));
 
-  const wsLoc = XLSX.utils.json_to_sheet(locRows);
-  wsLoc['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 20 }, { wch: 24 }];
-  XLSX.utils.book_append_sheet(wb, wsLoc, 'Synthèse_Avancement_Emplacements');
+    const wsLoc = XLSX.utils.json_to_sheet(locRows);
+    wsLoc['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 20 }, { wch: 24 }];
+    safeAppendSheet(wb, wsLoc, 'Synthèse_Emplacements');
+  }
 
   const dateStr = new Date().toISOString().slice(0, 10);
   const timeStr = new Date().toTimeString().slice(0, 5).replace(':', 'h');
   const fileName = `${filenamePrefix}_${dateStr}_${timeStr}.xlsx`;
 
-  XLSX.writeFile(wb, fileName);
+  downloadWorkbook(wb, fileName);
 
   return {
     success: true,
