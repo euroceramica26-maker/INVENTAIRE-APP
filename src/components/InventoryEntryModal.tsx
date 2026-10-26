@@ -76,7 +76,9 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       setReferenceInput(existingEntry.reference || '');
       setQuantite(existingEntry.quantite);
       setQualite(existingEntry.qualite);
-      setEmplacement(existingEntry.emplacement);
+      const entLoc = (existingEntry.emplacement || existingEntry.position || '').trim();
+      const cleanEntLoc = (entLoc && entLoc !== 'Non renseigné' && entLoc !== 'Non assigné') ? entLoc : '';
+      setEmplacement(cleanEntLoc || lastLocation || '');
       setMachine(existingEntry.machine);
       setFamille(existingEntry.famille);
       setUnite(existingEntry.unite);
@@ -88,8 +90,11 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       setReferenceInput(article.reference || '');
       setQuantite(article.quantite && article.quantite > 0 ? article.quantite : 1);
       setQualite('conforme');
-      // Mémoriser le dernier emplacement saisi : si présent, il est repris automatiquement
-      const loc = lastLocation || article.emplacement || (locations[0]?.code ?? '');
+      // Mémoriser le dernier emplacement réel saisi : si présent, il est repris automatiquement
+      const artLoc = (article.emplacement || article.position || '').trim();
+      const cleanArtLoc = (artLoc && artLoc !== 'Non renseigné' && artLoc !== 'Non assigné') ? artLoc : '';
+      const cleanLastLoc = (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné') ? lastLocation.trim() : '';
+      const loc = cleanLastLoc || cleanArtLoc || (locations[0]?.code ?? '');
       setEmplacement(loc);
       setMachine(article.machine || (machines[0] ?? ''));
       setFamille(article.famille || (familles[0] ?? ''));
@@ -97,7 +102,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       setNotes('');
       setCurrentOperator(operator);
     }
-  }, [article, existingEntry, isOpen, lastLocation]);
+  }, [article, existingEntry, isOpen, lastLocation, locations, machines, familles, operator]);
 
   if (!isOpen || (!article && !existingEntry)) return null;
 
@@ -155,7 +160,19 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
 
     if (!finalCode) return;
 
-    // 1. Ajouter à la liste des articles avec le statut (saisi)
+    // Déterminer l'emplacement réel : priorité à la valeur saisie, puis dernier emplacement, sans jamais 'Non renseigné'
+    const rawLoc = (emplacement || '').trim();
+    const cleanArtLoc = (currentArticle.emplacement && currentArticle.emplacement !== 'Non renseigné' && currentArticle.emplacement !== 'Non assigné')
+      ? currentArticle.emplacement.trim()
+      : '';
+    const cleanLastLoc = (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné')
+      ? lastLocation.trim()
+      : '';
+    const realLocation = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
+      ? rawLoc
+      : (cleanLastLoc || cleanArtLoc || 'Non assigné');
+
+    // 1. Ajouter à la liste des articles avec le statut (saisi) et l'emplacement réel
     addArticle({
       code_article: finalCode,
       designation: finalDesig,
@@ -163,7 +180,8 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       famille: famille || currentArticle.famille || 'Général',
       machine: machine || currentArticle.machine || 'Standard',
       unite: unite || currentArticle.unite || 'Pièce',
-      emplacement: emplacement || currentArticle.emplacement || lastLocation || 'Non assigné',
+      emplacement: realLocation,
+      position: realLocation,
       quantite: quantite,
       status: 'saisi'
     });
@@ -178,7 +196,8 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
         famille: famille || currentArticle.famille || 'Général',
         machine: machine || currentArticle.machine || 'Standard',
         unite: unite || currentArticle.unite || 'Pièce',
-        emplacement: emplacement || currentArticle.emplacement || lastLocation || 'Non assigné',
+        emplacement: realLocation,
+        position: realLocation,
         quantite: quantite,
         qualite,
         notes: notes.trim(),
@@ -188,8 +207,8 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       existingEntry?.id
     );
 
-    if (emplacement && emplacement.trim()) {
-      setLastLocation(emplacement.trim());
+    if (realLocation && realLocation !== 'Non assigné' && realLocation !== 'Non renseigné') {
+      setLastLocation(realLocation);
     }
 
     if (continueScanning && onSaveAndNext) {
@@ -478,15 +497,20 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                   onChange={(e) => setEmplacement(e.target.value)}
                   className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-amber-500 shadow-2xs"
                 >
-                  <option value="">-- Sélectionner un emplacement --</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.code}>
-                      {loc.code} — {loc.nom}
-                    </option>
-                  ))}
-                  {emplacement && !locations.some((l) => l.code === emplacement) && (
-                    <option value={emplacement}>{emplacement} (Saisi manuellement)</option>
-                  )}
+                  <option value="">-- Sélectionner l'emplacement réel --</option>
+                  {locations
+                    .filter((l) => l.code && l.code !== 'Non renseigné' && l.code !== 'Non assigné')
+                    .map((loc) => (
+                      <option key={loc.id} value={loc.code}>
+                        {loc.code} — {loc.nom}
+                      </option>
+                    ))}
+                  {emplacement &&
+                    emplacement !== 'Non renseigné' &&
+                    emplacement !== 'Non assigné' &&
+                    !locations.some((l) => l.code === emplacement) && (
+                      <option value={emplacement}>{emplacement} (Emplacement réel saisi)</option>
+                    )}
                 </select>
                 <div className="text-xs text-slate-500 flex items-center px-1">
                   <span>

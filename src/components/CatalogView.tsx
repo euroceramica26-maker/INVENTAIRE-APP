@@ -150,9 +150,15 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
       {/* Top Banner */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Base Articles (Catalogue Excel)
-          </h1>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              Base Articles (Catalogue Excel)
+            </h1>
+            <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>{entries.length} article(s) saisi(s)</span>
+            </span>
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Recherche par code ou désignation parmi les articles importés préalablement sous Excel
           </p>
@@ -364,6 +370,14 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                       {/* Actions */}
                       <td className="py-3 px-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => onCountArticle(art)}
+                            className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-bold text-xs rounded-lg inline-flex items-center gap-1 shadow-xs transition-transform"
+                            title="Saisir et inventorier cet article maintenant"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Saisir</span>
+                          </button>
                           <button
                             onClick={() => {
                               requestAdminAction(() => {

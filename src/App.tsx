@@ -31,7 +31,8 @@ function AuthenticatedApp() {
     isAdminLoginModalOpen,
     setIsAdminLoginModalOpen,
     adminActionMessage,
-    isAdmin
+    isAdmin,
+    entries
   } = useInventory();
 
   // Strict route guard: standard user accounts ONLY have the right to Comptage & Saisie
@@ -180,12 +181,17 @@ function AuthenticatedApp() {
           {/* Tab 1: Saisie */}
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
+            className={`min-h-[44px] flex flex-col items-center justify-center transition-colors relative ${
               activeTab === 'dashboard' ? 'text-amber-600 font-bold' : 'text-slate-500'
             }`}
           >
             <LayoutDashboard className="w-4 h-4" />
             <span className="text-[9px] mt-1 font-medium">Saisie</span>
+            {entries.length > 0 && (
+              <span className="absolute top-1 right-2 bg-emerald-500 text-white text-[9px] px-1 rounded-full font-bold">
+                {entries.length}
+              </span>
+            )}
           </button>
 
           {/* Tab 2: Articles */}

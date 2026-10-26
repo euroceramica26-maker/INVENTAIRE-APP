@@ -217,8 +217,21 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
         if (Array.isArray(remote.entries)) {
-          setEntries(remote.entries);
-          saveStoredEntries(remote.entries);
+          if (remote.entries.length > 0) {
+            setEntries(remote.entries);
+            saveStoredEntries(remote.entries);
+          } else {
+            const localEntries = getStoredEntries();
+            if (localEntries.length > 0) {
+              setEntries(localEntries);
+              localEntries.forEach((ent) => {
+                syncService.sendAction('ADD_ENTRY', ent);
+              });
+            } else {
+              setEntries([]);
+              saveStoredEntries([]);
+            }
+          }
         }
         if (Array.isArray(remote.locations)) {
           if (remote.locations.length > 0) {
@@ -488,18 +501,32 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const now = new Date().toISOString();
       const finalOperator = entryData.operator || currentUser?.nom || currentUser?.username || operator || 'Opérateur';
 
+      // Déterminer l'emplacement réel : priorité à la valeur saisie, puis lastLocation, sans jamais conserver "Non renseigné"
+      const rawLoc = (entryData.emplacement || entryData.position || '').trim();
+      const realLocation = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
+        ? rawLoc
+        : (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné')
+        ? lastLocation
+        : 'Non assigné';
+
+      const sanitizedData = {
+        ...entryData,
+        emplacement: realLocation,
+        position: realLocation,
+        operator: finalOperator,
+        status: 'saisi' as const
+      };
+
       setEntries((prev) => {
-        const codeMatch = (entryData.code_article || '').trim().toLowerCase();
-        const locMatch = (entryData.emplacement || '').trim().toLowerCase();
+        const codeMatch = (sanitizedData.code_article || '').trim().toLowerCase();
+        const locMatch = (sanitizedData.emplacement || '').trim().toLowerCase();
 
         if (existingId) {
           const index = prev.findIndex((e) => e.id === existingId);
           if (index >= 0) {
             updatedEntry = {
               ...prev[index],
-              ...entryData,
-              operator: finalOperator,
-              status: 'saisi',
+              ...sanitizedData,
               timestamp: now,
               syncStatus: 'synced'
             };
@@ -520,9 +547,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (existingMatchIndex >= 0 && !existingId) {
           updatedEntry = {
             ...prev[existingMatchIndex],
-            ...entryData,
-            operator: finalOperator,
-            status: 'saisi',
+            ...sanitizedData,
             timestamp: now,
             syncStatus: 'synced'
           };
@@ -533,10 +558,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
 
         updatedEntry = {
-          ...entryData,
+          ...sanitizedData,
           id: `entry-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          operator: finalOperator,
-          status: 'saisi',
           timestamp: now,
           syncStatus: 'synced'
         };
@@ -545,22 +568,24 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return next;
       });
 
-      // Synchronize article in the articles list: add it if missing, and change status to 'saisi'
+      // Synchronize article in the articles list: add it if missing, and change status to 'saisi' avec l'emplacement réel
       setArticles((prevArts) => {
         const artIdx = prevArts.findIndex(
-          (a) => a.code_article.toLowerCase() === entryData.code_article.toLowerCase()
+          (a) => a.code_article.toLowerCase() === sanitizedData.code_article.toLowerCase()
         );
         if (artIdx >= 0) {
           const nextArts = [...prevArts];
           const curr = nextArts[artIdx];
           nextArts[artIdx] = {
             ...curr,
-            designation: entryData.designation || curr.designation,
-            reference: entryData.reference || curr.reference,
-            famille: entryData.famille || curr.famille,
-            machine: entryData.machine || curr.machine,
-            unite: entryData.unite || curr.unite,
-            emplacement: entryData.emplacement || curr.emplacement,
+            designation: sanitizedData.designation || curr.designation,
+            reference: sanitizedData.reference || curr.reference,
+            famille: sanitizedData.famille || curr.famille,
+            machine: sanitizedData.machine || curr.machine,
+            unite: sanitizedData.unite || curr.unite,
+            emplacement: realLocation,
+            position: realLocation,
+            quantite: sanitizedData.quantite,
             status: 'saisi'
           };
           saveStoredArticles(nextArts);
@@ -569,15 +594,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         } else {
           // If not in articles, add to articles list with status: 'saisi'
           const newArt: Article = {
-            id: entryData.articleId || `art-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            code_article: entryData.code_article,
-            designation: entryData.designation || entryData.code_article,
-            reference: entryData.reference || '',
-            famille: entryData.famille || 'Général',
-            machine: entryData.machine || 'Standard',
-            unite: entryData.unite || 'Pièce',
-            emplacement: entryData.emplacement || '',
-            quantite: entryData.quantite,
+            id: sanitizedData.articleId || `art-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            code_article: sanitizedData.code_article,
+            designation: sanitizedData.designation || sanitizedData.code_article,
+            reference: sanitizedData.reference || '',
+            famille: sanitizedData.famille || 'Général',
+            machine: sanitizedData.machine || 'Standard',
+            unite: sanitizedData.unite || 'Pièce',
+            emplacement: realLocation,
+            position: realLocation,
+            quantite: sanitizedData.quantite,
             status: 'saisi'
           };
           const nextArts = [newArt, ...prevArts];
@@ -587,12 +613,33 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       });
 
-      if (entryData.machine) addMachine(entryData.machine);
-      if (entryData.famille) addFamille(entryData.famille);
-      if (entryData.emplacement && entryData.emplacement.trim()) {
-        addLocation({ code: entryData.emplacement, nom: entryData.emplacement, zone: 'Général' });
-        setLastLocation(entryData.emplacement.trim());
+      if (sanitizedData.machine) addMachine(sanitizedData.machine);
+      if (sanitizedData.famille) addFamille(sanitizedData.famille);
+      if (realLocation && realLocation !== 'Non assigné' && realLocation !== 'Non renseigné') {
+        addLocation({ code: realLocation, nom: realLocation, zone: 'Général' });
+        setLastLocation(realLocation);
       }
+
+      // Synchroniser immédiatement la campagne d'inventaire active
+      setInventories((prev) => {
+        const next = prev.map((inv) => {
+          if (inv.id === activeInventoryId) {
+            const existingEntries = inv.entries || [];
+            const idx = existingEntries.findIndex((e) => e.id === updatedEntry!.id);
+            const nextEntries = idx >= 0
+              ? existingEntries.map((e) => (e.id === updatedEntry!.id ? updatedEntry! : e))
+              : [updatedEntry!, ...existingEntries];
+            return {
+              ...inv,
+              entries: nextEntries,
+              lastLocation: realLocation !== 'Non assigné' ? realLocation : inv.lastLocation
+            };
+          }
+          return inv;
+        });
+        saveStoredInventories(next);
+        return next;
+      });
 
       // Broadcast to other devices in real-time
       syncService.sendAction('ADD_ENTRY', updatedEntry!);
@@ -600,7 +647,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setSyncState((prev) => ({ ...prev, lastSyncedAt: new Date().toLocaleTimeString('fr-FR') }));
       return updatedEntry!;
     },
-    [setLastLocation, addMachine, addFamille, addLocation]
+    [setLastLocation, addMachine, addFamille, addLocation, currentUser, operator, lastLocation, activeInventoryId]
   );
 
   const addManualArticle = useCallback(
@@ -610,14 +657,23 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       qualite: QualiteEtat = 'conforme',
       notes = 'Saisie manuelle'
     ): { article: Article; entry: InventoryEntry } => {
-      // 1. Add/Update in articles list with status: 'saisi'
+      const rawLoc = (artData.emplacement || artData.position || '').trim();
+      const realLocation = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
+        ? rawLoc
+        : (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné')
+        ? lastLocation
+        : 'Non assigné';
+
+      // 1. Add/Update in articles list with status: 'saisi' and real location
       const savedArticle = addArticle({
         ...artData,
+        emplacement: realLocation,
+        position: realLocation,
         status: 'saisi',
         quantite: quantite
       });
 
-      // 2. Add to entries list (saisis) with status: 'valide'
+      // 2. Add to entries list (saisis) with status: 'saisi' and real location
       const entry = addOrUpdateEntry({
         articleId: savedArticle.id,
         code_article: savedArticle.code_article,
@@ -626,12 +682,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         famille: savedArticle.famille || 'Général',
         machine: savedArticle.machine || 'Standard',
         unite: savedArticle.unite || 'Pièce',
-        emplacement: savedArticle.emplacement || lastLocation || 'Non assigné',
+        emplacement: realLocation,
+        position: realLocation,
         quantite: quantite,
         qualite: qualite,
         notes: notes,
         operator: currentUser?.nom || currentUser?.username || operator || 'Opérateur',
-        status: 'valide'
+        status: 'saisi'
       });
 
       return { article: savedArticle, entry };

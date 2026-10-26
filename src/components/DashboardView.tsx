@@ -174,9 +174,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Distinct locations list for filtering in Base d'Inventaire
   const distinctLocations = useMemo(() => {
     const set = new Set<string>();
-    locations.forEach((l) => { if (l.code) set.add(l.code); });
-    entries.forEach((e) => { if (e.emplacement) set.add(e.emplacement); });
-    articles.forEach((a) => { if (a.emplacement) set.add(a.emplacement); });
+    locations.forEach((l) => {
+      if (l.code && l.code !== 'Non renseigné' && l.code !== 'Non assigné') set.add(l.code);
+    });
+    entries.forEach((e) => {
+      if (e.emplacement && e.emplacement !== 'Non renseigné' && e.emplacement !== 'Non assigné') set.add(e.emplacement);
+    });
+    articles.forEach((a) => {
+      if (a.emplacement && a.emplacement !== 'Non renseigné' && a.emplacement !== 'Non assigné') set.add(a.emplacement);
+    });
     return Array.from(set).sort();
   }, [locations, entries, articles]);
 
@@ -226,7 +232,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }, [combinedList, displayMode, selectedMachine, selectedFamille, selectedLocation, selectedOperator, selectedQualite, tableSearch]);
 
   // KPI Calculations (No ecart)
-  const totalCountedLines = entries.length;
+  const countSaisis = useMemo(() => {
+    return Math.max(entries.length, combinedList.filter((item) => item.statutInventaire === 'Saisi').length);
+  }, [entries, combinedList]);
+
+  const totalCountedLines = countSaisis;
   const totalQuantitySum = entries.reduce((acc, curr) => acc + curr.quantite, 0);
   const distinctMachinesCount = new Set(entries.map(e => e.machine)).size;
   const anomaliesQualityCount = entries.filter(e => e.qualite !== 'conforme' && e.qualite !== 'bon_etat').length;
@@ -237,13 +247,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                 {isAdmin ? "Saisie & Suivi d'Inventaire" : "Poste de Comptage & Saisie"}
               </h1>
+              <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>{countSaisis} article(s) saisi(s)</span>
+              </span>
               {!isAdmin && (
-                <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  Comptage & Saisie
+                <span className="text-[11px] bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-full border border-slate-200">
+                  Poste Opérateur
                 </span>
               )}
             </div>
@@ -543,7 +557,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                     displayMode === 'saisis' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
                   }`}>
-                    {entries.length}
+                    {countSaisis}
                   </span>
                 </button>
 
@@ -908,15 +922,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                       {/* Emplacement */}
                       <td className="py-3 px-4 font-mono text-slate-700 whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedLocation(item.emplacement || 'all')}
-                          title={`Filtrer par cet emplacement (${item.emplacement || 'Non assigné'})`}
-                          className="inline-flex items-center gap-1 font-mono font-semibold text-slate-800 bg-slate-100 hover:bg-amber-100/80 hover:text-amber-900 border border-slate-200 px-2 py-0.5 rounded text-[11px] transition-colors cursor-pointer"
-                        >
-                          <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
-                          <span>{item.emplacement || 'Non assigné'}</span>
-                        </button>
+                        {(() => {
+                          const rawLoc = (item.emplacement || '').trim();
+                          const displayLoc = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
+                            ? rawLoc
+                            : (matchingEntry?.emplacement && matchingEntry.emplacement !== 'Non renseigné' && matchingEntry.emplacement !== 'Non assigné')
+                            ? matchingEntry.emplacement
+                            : (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné')
+                            ? lastLocation
+                            : (isSaisi ? 'Emplacement Saisi' : 'Non assigné');
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedLocation(displayLoc !== 'Non assigné' ? displayLoc : 'all')}
+                              title={`Filtrer par cet emplacement (${displayLoc})`}
+                              className={`inline-flex items-center gap-1 font-mono font-semibold px-2 py-0.5 rounded text-[11px] transition-colors cursor-pointer border ${
+                                isSaisi
+                                  ? 'bg-amber-50 text-amber-950 border-amber-300 hover:bg-amber-100'
+                                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                              }`}
+                            >
+                              <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span>{displayLoc}</span>
+                            </button>
+                          );
+                        })()}
                       </td>
 
                       {/* Quantité Saisie */}

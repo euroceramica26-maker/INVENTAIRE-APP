@@ -181,13 +181,23 @@ export const Header: React.FC<HeaderProps> = ({
             <nav className="hidden lg:flex items-center gap-5 text-sm font-medium">
               <button
                 onClick={() => setActiveTab('dashboard')}
-                className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
+                className={`whitespace-nowrap shrink-0 transition-colors py-1 flex items-center gap-1.5 ${
                   activeTab === 'dashboard'
                     ? 'text-amber-600 font-semibold border-b-2 border-amber-500'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Comptage & Saisie
+                <span>Comptage & Saisie</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    activeTab === 'dashboard'
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  }`}
+                  title={`${entries.length} article(s) saisi(s)`}
+                >
+                  {entries.length}
+                </span>
               </button>
               <button
                 onClick={() => setActiveTab('catalog')}
@@ -250,6 +260,9 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="px-3.5 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-950 text-xs font-bold rounded-xl flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>Poste Comptage & Saisie</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  {entries.length} saisi(s)
+                </span>
               </span>
             </div>
           )}

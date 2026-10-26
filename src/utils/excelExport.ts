@@ -21,7 +21,13 @@ export function buildCombinedInventoryList(
   entries.forEach((entry) => {
     accountedArticleCodes.add(entry.code_article.toLowerCase());
     const departVal = entry.depart || entry.machine || 'Standard';
-    const positionVal = entry.position || entry.emplacement || 'Non assigné';
+    
+    // Priorité absolue à l'Emplacement Réel saisi lors de l'inventaire
+    const entryLoc = (entry.emplacement || '').trim();
+    const entryPos = (entry.position || '').trim();
+    const cleanEntryLoc = (entryLoc && entryLoc !== 'Non renseigné' && entryLoc !== 'Non assigné') ? entryLoc : '';
+    const cleanEntryPos = (entryPos && entryPos !== 'Non renseigné' && entryPos !== 'Non assigné') ? entryPos : '';
+    const positionVal = cleanEntryLoc || cleanEntryPos || (entryLoc && entryLoc !== 'Non renseigné' ? entryLoc : 'Non assigné');
 
     combined.push({
       id: entry.id,
@@ -50,7 +56,12 @@ export function buildCombinedInventoryList(
     if (!accountedArticleCodes.has(art.code_article.toLowerCase())) {
       const isSaisi = art.status === 'saisi';
       const departVal = art.depart || art.machine || 'Standard';
-      const positionVal = art.position || art.emplacement || 'Non assigné';
+      
+      const artLoc = (art.emplacement || '').trim();
+      const artPos = (art.position || '').trim();
+      const cleanArtLoc = (artLoc && artLoc !== 'Non renseigné' && artLoc !== 'Non assigné') ? artLoc : '';
+      const cleanArtPos = (artPos && artPos !== 'Non renseigné' && artPos !== 'Non assigné') ? artPos : '';
+      const positionVal = cleanArtLoc || cleanArtPos || (artLoc && artLoc !== 'Non renseigné' ? artLoc : 'Non assigné');
 
       combined.push({
         id: `missing-${art.id}`,

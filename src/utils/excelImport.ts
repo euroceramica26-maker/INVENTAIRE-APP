@@ -330,11 +330,12 @@ export function convertRawRowsToArticles(
     const machine = depart;
 
     // 4. Position (Emplacement)
-    const position = String(
+    const rawPos = String(
       (mapping.position ? row[mapping.position] : '') ||
       (mapping.emplacement ? row[mapping.emplacement] : '') ||
-      'Non renseigné'
-    ).trim() || 'Non renseigné';
+      ''
+    ).trim();
+    const position = rawPos === 'Non renseigné' ? '' : rawPos;
     const emplacement = position;
 
     // 5. Désignation

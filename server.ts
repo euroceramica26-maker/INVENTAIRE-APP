@@ -323,6 +323,18 @@ function applyAction(actionType: string, payload: any): boolean {
     case 'UPDATE_ENTRY': {
       const entry = payload;
       if (!entry) return false;
+
+      const rawLoc = (entry.emplacement || entry.position || '').trim();
+      const realLocation = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
+        ? rawLoc
+        : (db.lastLocation && db.lastLocation !== 'Non renseigné' && db.lastLocation !== 'Non assigné')
+        ? db.lastLocation
+        : (rawLoc || 'Non assigné');
+
+      entry.emplacement = realLocation;
+      entry.position = realLocation;
+      entry.status = 'saisi';
+
       const index = db.entries.findIndex((e) => e.id === entry.id);
       if (index >= 0) {
         db.entries[index] = entry;
@@ -339,8 +351,8 @@ function applyAction(actionType: string, payload: any): boolean {
           db.entries.unshift(entry);
         }
       }
-      if (entry.emplacement && entry.emplacement.trim()) {
-        db.lastLocation = entry.emplacement.trim();
+      if (realLocation && realLocation !== 'Non assigné' && realLocation !== 'Non renseigné') {
+        db.lastLocation = realLocation;
       }
 
       // Update status in db.articles if found
@@ -350,9 +362,11 @@ function applyAction(actionType: string, payload: any): boolean {
           ...db.articles[artIdx],
           status: 'saisi',
           quantite: entry.quantite,
-          emplacement: entry.emplacement || db.articles[artIdx].emplacement
+          emplacement: realLocation,
+          position: realLocation
         };
       }
+      syncActiveInventoryInList();
       break;
     }
 

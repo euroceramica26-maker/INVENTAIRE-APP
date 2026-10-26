@@ -205,7 +205,9 @@ export function saveStoredActiveInventoryId(id: string): void {
 
 export function getStoredLastLocation(): string {
   try {
-    return localStorage.getItem(STORAGE_KEYS.LAST_LOCATION) || '';
+    const val = localStorage.getItem(STORAGE_KEYS.LAST_LOCATION) || '';
+    if (val === 'Non renseigné' || val === 'Non assigné') return '';
+    return val;
   } catch (e) {
     return '';
   }
@@ -213,7 +215,12 @@ export function getStoredLastLocation(): string {
 
 export function saveStoredLastLocation(location: string): void {
   try {
-    if (location && location.trim()) {
+    if (
+      location &&
+      location.trim() &&
+      location.trim() !== 'Non renseigné' &&
+      location.trim() !== 'Non assigné'
+    ) {
       localStorage.setItem(STORAGE_KEYS.LAST_LOCATION, location.trim());
     }
   } catch (e) {
