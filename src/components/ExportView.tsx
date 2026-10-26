@@ -10,7 +10,11 @@ import {
   FolderTree,
   MapPin,
   AlertCircle,
-  User
+  User,
+  Boxes,
+  TrendingUp,
+  TrendingDown,
+  Equal
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { ExportFilters } from '../types/inventory';
@@ -44,7 +48,9 @@ export const ExportView: React.FC = () => {
       if (u.username) set.add(u.username);
     });
     allCombined.forEach((item) => {
-      if (item.operator && item.operator !== '-') set.add(item.operator);
+      if (item.operator && item.operator !== '-' && item.operator !== 'En attente') {
+        set.add(item.operator);
+      }
     });
     return Array.from(set).sort();
   }, [users, allCombined]);
@@ -72,8 +78,10 @@ export const ExportView: React.FC = () => {
     let totalQty = 0;
     let countSaisis = 0;
     let countAFaire = 0;
+    let totalStockInterne = 0;
 
     filteredData.forEach(item => {
+      totalStockInterne += typeof item.stock_interne === 'number' ? item.stock_interne : 0;
       if (item.statutInventaire === 'Saisi') {
         countSaisis += 1;
         totalQty += typeof item.quantite === 'number' ? item.quantite : 0;
@@ -86,11 +94,15 @@ export const ExportView: React.FC = () => {
       ? Math.round((countSaisis / filteredData.length) * 100)
       : 0;
 
+    const ecartGlobal = totalQty - totalStockInterne;
+
     return {
       total: filteredData.length,
       countSaisis,
       countAFaire,
       totalQty,
+      totalStockInterne,
+      ecartGlobal,
       completionRate
     };
   }, [filteredData]);
@@ -147,13 +159,13 @@ export const ExportView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 transition-colors">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
             Exportation Complète de l'Inventaire (Saisis & À Faire)
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Générez un classeur Excel contenant tous les articles saisis et ceux restant à faire pour contrôler les non inventorier
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Générez un classeur Excel contenant tous les articles saisis et ceux restant à faire avec Stock Interne, Quantités Saisies, Écarts et Traçabilité Opérateur.
           </p>
         </div>
 
@@ -172,21 +184,21 @@ export const ExportView: React.FC = () => {
       </div>
 
       {lastExportMessage && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 rounded-xl text-xs flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span className="font-semibold">{lastExportMessage}</span>
         </div>
       )}
 
       {lastExportError && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-900 rounded-xl text-xs flex items-center justify-between gap-2">
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200 rounded-xl text-xs flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
             <span className="font-semibold">{lastExportError}</span>
           </div>
           <button
             onClick={() => setLastExportError(null)}
-            className="text-xs text-rose-700 hover:text-rose-900 underline font-semibold ml-2"
+            className="text-xs text-rose-700 dark:text-rose-300 hover:underline font-semibold ml-2"
           >
             Fermer
           </button>
@@ -194,23 +206,23 @@ export const ExportView: React.FC = () => {
       )}
 
       {/* FILTER CONTROLS GRID */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-4 transition-colors">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-amber-600" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+            <Filter className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
               Filtres & Sélection d'Exportation
             </h3>
           </div>
 
           {/* Status Filter Segmented Controls */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-medium">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-medium">
             <button
               onClick={() => setFilters({ ...filters, statusFilter: 'all' })}
               className={`px-3 py-1.5 rounded-lg transition-colors ${
                 filters.statusFilter === 'all'
-                  ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Tous les articles ({allCombined.length})
@@ -219,29 +231,29 @@ export const ExportView: React.FC = () => {
               onClick={() => setFilters({ ...filters, statusFilter: 'saisi' })}
               className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
                 filters.statusFilter === 'saisi'
-                  ? 'bg-white text-emerald-800 shadow-2xs font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-emerald-800 dark:text-emerald-300 shadow-2xs font-bold'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Saisis ({entries.length})</span>
             </button>
             <button
               onClick={() => setFilters({ ...filters, statusFilter: 'a_faire' })}
               className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
                 filters.statusFilter === 'a_faire'
-                  ? 'bg-white text-amber-800 shadow-2xs font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-amber-800 dark:text-amber-300 shadow-2xs font-bold'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <Clock className="w-3.5 h-3.5 text-amber-600" />
+              <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               <span>À faire / Non inventoriés ({Math.max(0, allCombined.length - entries.length)})</span>
             </button>
           </div>
 
           <button
             onClick={handleResetFilters}
-            className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-slate-100 transition-colors"
+            className="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Réinitialiser</span>
@@ -251,14 +263,14 @@ export const ExportView: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
           {/* 1. Famille */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1">
-              <FolderTree className="w-3.5 h-3.5 text-emerald-600" />
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
+              <FolderTree className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               Famille
             </label>
             <select
               value={filters.famille}
               onChange={(e) => setFilters({ ...filters, famille: e.target.value })}
-              className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-medium"
+              className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none focus:border-amber-500"
             >
               <option value="all">Toutes les familles ({familles.length})</option>
               {familles.map((f) => (
@@ -269,14 +281,14 @@ export const ExportView: React.FC = () => {
 
           {/* 2. Machine */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1">
-              <Cpu className="w-3.5 h-3.5 text-blue-600" />
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
+              <Cpu className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               Machine
             </label>
             <select
               value={filters.machine}
               onChange={(e) => setFilters({ ...filters, machine: e.target.value })}
-              className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-medium"
+              className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none focus:border-amber-500"
             >
               <option value="all">Toutes les machines ({machines.length})</option>
               {machines.map((m) => (
@@ -287,13 +299,13 @@ export const ExportView: React.FC = () => {
 
           {/* 3. Unité */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1">
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Unité
             </label>
             <select
               value={filters.unite}
               onChange={(e) => setFilters({ ...filters, unite: e.target.value })}
-              className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-medium"
+              className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none focus:border-amber-500"
             >
               <option value="all">Toutes les unités</option>
               {availableUnits.map((u) => (
@@ -304,14 +316,14 @@ export const ExportView: React.FC = () => {
 
           {/* 4. Emplacement */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-amber-600" />
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               Emplacement
             </label>
             <select
               value={filters.emplacement}
               onChange={(e) => setFilters({ ...filters, emplacement: e.target.value })}
-              className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-medium"
+              className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none focus:border-amber-500"
             >
               <option value="all">Tous les emplacements</option>
               {locations.map((l) => (
@@ -322,7 +334,7 @@ export const ExportView: React.FC = () => {
 
           {/* 5. Code Article */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1">
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Code Article
             </label>
             <input
@@ -330,13 +342,13 @@ export const ExportView: React.FC = () => {
               placeholder="Ex: ROU-, VER-..."
               value={filters.codeSearch}
               onChange={(e) => setFilters({ ...filters, codeSearch: e.target.value })}
-              className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-mono"
+              className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-mono focus:outline-none focus:border-amber-500"
             />
           </div>
 
           {/* 6. Désignation */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1">
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Désignation
             </label>
             <input
@@ -344,13 +356,13 @@ export const ExportView: React.FC = () => {
               placeholder="Ex: Roulement, Huile..."
               value={filters.designationSearch}
               onChange={(e) => setFilters({ ...filters, designationSearch: e.target.value })}
-              className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800"
+              className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-amber-500"
             />
           </div>
 
           {/* 7. Référence */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1">
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Référence
             </label>
             <input
@@ -358,19 +370,19 @@ export const ExportView: React.FC = () => {
               placeholder="Ex: SKF, FESTO..."
               value={filters.referenceSearch}
               onChange={(e) => setFilters({ ...filters, referenceSearch: e.target.value })}
-              className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-mono"
+              className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-mono focus:outline-none focus:border-amber-500"
             />
           </div>
 
           {/* 8. Qualité */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1">
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Qualité / État Réel
             </label>
             <select
               value={filters.qualite}
               onChange={(e) => setFilters({ ...filters, qualite: e.target.value })}
-              className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-medium"
+              className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none focus:border-amber-500"
             >
               <option value="all">Toutes les qualités</option>
               {Object.entries(QUALITE_LABELS).map(([k, label]) => (
@@ -381,14 +393,14 @@ export const ExportView: React.FC = () => {
 
           {/* 9. Opérateur de Saisie */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1">
-              <User className="w-3.5 h-3.5 text-emerald-600" />
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
+              <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               Opérateur de saisie
             </label>
             <select
               value={filters.operator || 'all'}
               onChange={(e) => setFilters({ ...filters, operator: e.target.value })}
-              className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-medium"
+              className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:outline-none focus:border-amber-500"
             >
               <option value="all">Tous les opérateurs ({distinctOperators.length})</option>
               {distinctOperators.map((op) => (
@@ -401,56 +413,138 @@ export const ExportView: React.FC = () => {
         </div>
       </div>
 
-      {/* SUMMARY STATS BAR */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-900 text-white p-4 rounded-2xl shadow-xs">
-        <div>
-          <span className="text-xs text-slate-400 block">Total Articles Sélectionnés</span>
-          <span className="text-2xl font-bold font-mono tabular-nums">{stats.total}</span>
-        </div>
-        <div>
-          <span className="text-xs text-emerald-400 block">Articles Saisis</span>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold font-mono tabular-nums text-emerald-400">
-              {stats.countSaisis}
+      {/* SUMMARY STATS BAR WITH STOCK INTERNE TOTAL & ÉCART GLOBAL */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 bg-slate-900 dark:bg-slate-950 text-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-800">
+        {/* Metric 1: Total Sélectionné */}
+        <div className="p-2 sm:p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+          <span className="text-[11px] font-medium text-slate-400 block uppercase tracking-wider">
+            Total Articles
+          </span>
+          <div className="flex items-baseline gap-1.5 mt-1">
+            <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-white">
+              {stats.total}
             </span>
-            <span className="text-xs text-slate-400">({stats.completionRate}%)</span>
+            <span className="text-xs text-slate-400">réf.</span>
           </div>
-        </div>
-        <div>
-          <span className="text-xs text-amber-400 block">À Faire (Non inventoriés)</span>
-          <span className="text-2xl font-bold font-mono tabular-nums text-amber-400">
-            {stats.countAFaire}
+          <span className="text-[11px] text-slate-400 block mt-1">
+            {stats.countSaisis} saisis • {stats.countAFaire} à faire
           </span>
         </div>
-        <div>
-          <span className="text-xs text-slate-400 block">Quantité Totale Comptée</span>
-          <span className="text-2xl font-bold font-mono tabular-nums text-white">
-            {stats.totalQty}
+
+        {/* Metric 2: Stock Interne Total */}
+        <div className="p-2 sm:p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-sky-400 block uppercase tracking-wider">
+              Stock Interne Total
+            </span>
+            <Boxes className="w-4 h-4 text-sky-400" />
+          </div>
+          <div className="flex items-baseline gap-1.5 mt-1">
+            <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-sky-300">
+              {stats.totalStockInterne}
+            </span>
+            <span className="text-xs text-slate-400">unités</span>
+          </div>
+          <span className="text-[11px] text-slate-400 block mt-1">
+            Catalogue théorique initial
+          </span>
+        </div>
+
+        {/* Metric 3: Quantité Totale Comptée */}
+        <div className="p-2 sm:p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-emerald-400 block uppercase tracking-wider">
+              Stock Compté (Physique)
+            </span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="flex items-baseline gap-1.5 mt-1">
+            <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-emerald-300">
+              {stats.totalQty}
+            </span>
+            <span className="text-xs text-slate-400">unités</span>
+          </div>
+          <span className="text-[11px] text-slate-400 block mt-1">
+            Sur {stats.countSaisis} article(s) compté(s)
+          </span>
+        </div>
+
+        {/* Metric 4: Écart Global de Stock */}
+        <div className="p-2 sm:p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-slate-300 block uppercase tracking-wider">
+              Écart Global Stock
+            </span>
+            {stats.ecartGlobal === 0 ? (
+              <Equal className="w-4 h-4 text-emerald-400" />
+            ) : stats.ecartGlobal > 0 ? (
+              <TrendingUp className="w-4 h-4 text-sky-400" />
+            ) : (
+              <TrendingDown className="w-4 h-4 text-rose-400" />
+            )}
+          </div>
+          <div className="flex items-baseline gap-1.5 mt-1">
+            <span
+              className={`text-2xl sm:text-3xl font-bold font-mono tabular-nums ${
+                stats.ecartGlobal === 0
+                  ? 'text-emerald-400'
+                  : stats.ecartGlobal > 0
+                  ? 'text-sky-300'
+                  : 'text-rose-400'
+              }`}
+            >
+              {stats.ecartGlobal > 0 ? `+${stats.ecartGlobal}` : stats.ecartGlobal}
+            </span>
+            <span className="text-xs text-slate-400">
+              {stats.ecartGlobal === 0 ? 'conforme' : stats.ecartGlobal > 0 ? 'surplus' : 'déficit'}
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-400 block mt-1">
+            Physique vs Catalogue
+          </span>
+        </div>
+
+        {/* Metric 5: Taux d'Avancement */}
+        <div className="p-2 sm:p-3 bg-slate-800/60 rounded-xl border border-slate-700/50 col-span-2 sm:col-span-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-amber-400 block uppercase tracking-wider">
+              Avancement Saisie
+            </span>
+            <Clock className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="flex items-baseline gap-1.5 mt-1">
+            <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-white">
+              {stats.completionRate}%
+            </span>
+            <span className="text-xs text-slate-400">réalisé</span>
+          </div>
+          <span className="text-[11px] text-slate-400 block mt-1">
+            {stats.countAFaire} restant(s) à contrôler
           </span>
         </div>
       </div>
 
-      {/* PREVIEW TABLE */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs">
-        <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+      {/* PREVIEW TABLE WITH NEW COLUMNS */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs transition-colors">
+        <div className="p-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-800">
-              Aperçu des données du fichier Excel ({filteredData.length} articles)
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              Aperçu des données du classeur Excel ({filteredData.length} articles)
             </span>
           </div>
-          <span className="text-[11px] text-slate-500">
-            Comprend l'inventaire global, l'onglet de contrôle des articles non inventoriés et les synthèses par Machine / Famille.
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+            Comprend Stock Interne, Quantité Saisie, Écart de Stock et Opérateur pour chaque article (Saisi et À Faire).
           </span>
         </div>
 
         {filteredData.length === 0 ? (
-          <div className="p-10 text-center text-slate-400 text-xs">
+          <div className="p-10 text-center text-slate-400 dark:text-slate-500 text-xs">
             Aucun article ne correspond aux filtres appliqués.
           </div>
         ) : (
-          <div className="overflow-x-auto max-h-[460px]">
-            <table className="w-full text-left text-xs divide-y divide-slate-100">
-              <thead className="bg-[#f28e2b] text-white font-bold sticky top-0 shadow-xs">
+          <div className="overflow-x-auto max-h-[500px]">
+            <table className="w-full text-left text-xs divide-y divide-slate-100 dark:divide-slate-800">
+              <thead className="bg-[#f28e2b] text-white font-bold sticky top-0 shadow-xs z-10">
                 <tr className="divide-x divide-orange-300/60">
                   <th className="py-2.5 px-3 whitespace-nowrap text-center">Statut</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">Famaille</th>
@@ -468,106 +562,154 @@ export const ExportView: React.FC = () => {
                   <th className="py-2.5 px-3 whitespace-nowrap">Code magasin</th>
                   <th className="py-2.5 px-2 text-center whitespace-nowrap">Unité</th>
                   <th className="py-2.5 px-2 text-center whitespace-nowrap">Géré /nn</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Quantité</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap bg-sky-700/40">
+                    Stock Interne
+                  </th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap bg-emerald-700/40">
+                    Qté Saisie
+                  </th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap">
+                    Écart
+                  </th>
                   <th className="py-2.5 px-3 whitespace-nowrap">Qualité</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Opérateur</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <User className="w-3.5 h-3.5 text-amber-100" />
+                      <span>Opérateur d'inventaire</span>
+                    </div>
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700 bg-white">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900">
                 {filteredData.map((item) => {
                   const isSaisi = item.statutInventaire === 'Saisi';
+                  const ecart = typeof item.ecart_stock === 'number' ? item.ecart_stock : null;
+
                   return (
                     <tr
                       key={item.id}
-                      className={`hover:bg-amber-50/40 divide-x divide-slate-100/70 transition-colors ${
-                        !isSaisi ? 'bg-amber-50/20' : ''
+                      className={`hover:bg-amber-50/40 dark:hover:bg-slate-800/60 divide-x divide-slate-100/70 dark:divide-slate-800/70 transition-colors ${
+                        !isSaisi ? 'bg-amber-50/20 dark:bg-amber-950/10' : ''
                       }`}
                     >
                       {/* Statut Inventaire */}
                       <td className="py-2.5 px-3 whitespace-nowrap text-center">
                         {isSaisi ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md border border-emerald-300">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-800">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                             Saisi
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-300">
-                            <Clock className="w-3 h-3 text-amber-600" />
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-300 dark:border-amber-800">
+                            <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                             À faire
                           </span>
                         )}
                       </td>
 
                       {/* 1. Famaille */}
-                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap truncate max-w-[130px]">
+                      <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap truncate max-w-[130px]">
                         {item.famille || 'Général'}
                       </td>
 
                       {/* 2. S.famaille */}
-                      <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap truncate max-w-[120px]">
+                      <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap truncate max-w-[120px]">
                         {item.sous_famille || '-'}
                       </td>
 
                       {/* 3. Départ */}
-                      <td className="py-2.5 px-3 text-slate-800 whitespace-nowrap truncate max-w-[130px] font-semibold">
-                        <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+                      <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200 whitespace-nowrap truncate max-w-[130px] font-semibold">
+                        <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-[11px]">
                           {item.depart || item.machine || 'Standard'}
                         </span>
                       </td>
 
                       {/* 4. Position */}
-                      <td className="py-2.5 px-3 font-mono text-slate-700 whitespace-nowrap">
-                        <span className="bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+                      <td className="py-2.5 px-3 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                        <span className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800 text-[11px]">
                           {item.position || '-'}
                         </span>
                       </td>
 
                       {/* 4b. Emplacement */}
-                      <td className="py-2.5 px-3 font-mono text-slate-700 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200 text-[11px] font-semibold">
-                          <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                      <td className="py-2.5 px-3 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 text-[11px] font-semibold">
+                          <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
                           {item.emplacement || item.position || 'Non assigné'}
                         </span>
                       </td>
 
                       {/* 5. Désignation */}
-                      <td className="py-2.5 px-3 font-medium max-w-[200px] truncate">
+                      <td className="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-200 max-w-[200px] truncate">
                         {item.designation}
                       </td>
 
                       {/* 6. Référence manuel */}
-                      <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">
                         {item.reference || '-'}
                       </td>
 
                       {/* 7. Code magasin */}
-                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
-                        <span className="bg-slate-100 text-slate-900 px-2 py-0.5 rounded font-mono font-bold text-[11px] border border-slate-300">
+                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                        <span className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white px-2 py-0.5 rounded font-mono font-bold text-[11px] border border-slate-300 dark:border-slate-700">
                           {item.code_article}
                         </span>
                       </td>
 
                       {/* 8. Unité */}
-                      <td className="py-2.5 px-2 text-center whitespace-nowrap text-slate-600">
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap text-slate-600 dark:text-slate-400">
                         {item.unite || 'Pièce'}
                       </td>
 
                       {/* 9. Géré /nn */}
                       <td className="py-2.5 px-2 text-center whitespace-nowrap">
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
                           {item.gere_nn || 'G'}
                         </span>
                       </td>
 
-                      {/* Quantité */}
-                      <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
+                      {/* Stock Interne (Catalogue) */}
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap bg-sky-50/40 dark:bg-sky-950/20">
+                        <span className="text-sky-700 dark:text-sky-300">
+                          {item.stock_interne}
+                        </span>
+                      </td>
+
+                      {/* Quantité Saisie (Physique) */}
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap bg-emerald-50/40 dark:bg-emerald-950/20">
                         {isSaisi ? (
-                          <span className="text-amber-600 font-bold">
+                          <span className="text-emerald-700 dark:text-emerald-400">
                             {item.quantite}
                           </span>
                         ) : (
-                          <span className="text-slate-400 font-normal italic">
+                          <span className="text-slate-400 dark:text-slate-500 font-normal italic">
                             Non saisi
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Écart de Stock */}
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
+                        {isSaisi && ecart !== null ? (
+                          ecart === 0 ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800">
+                              <Equal className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                              0
+                            </span>
+                          ) : ecart > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-100/70 dark:bg-sky-950/50 px-2 py-0.5 rounded border border-sky-300 dark:border-sky-800">
+                              <TrendingUp className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                              +{ecart}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 bg-rose-100/70 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-300 dark:border-rose-800">
+                              <TrendingDown className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                              {ecart}
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">
+                            -
                           </span>
                         )}
                       </td>
@@ -575,21 +717,30 @@ export const ExportView: React.FC = () => {
                       {/* Qualité */}
                       <td className="py-2.5 px-3 whitespace-nowrap text-[11px]">
                         {isSaisi ? (
-                          <span>{item.qualite}</span>
+                          <span className="text-slate-800 dark:text-slate-200">{item.qualite}</span>
                         ) : (
-                          <span className="text-slate-400 italic">En attente</span>
+                          <span className="text-slate-400 dark:text-slate-500 italic">En attente</span>
                         )}
                       </td>
 
-                      {/* Opérateur */}
-                      <td className="py-2.5 px-3 whitespace-nowrap text-[11px] text-slate-600">
-                        {isSaisi && item.operator && item.operator !== '-' ? (
-                          <span className="inline-flex items-center gap-1 font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                            <User className="w-3 h-3 text-emerald-600" />
-                            <span>{item.operator}</span>
-                          </span>
+                      {/* Opérateur qui a réalisé l'inventaire */}
+                      <td className="py-2.5 px-3 whitespace-nowrap text-[11px]">
+                        {isSaisi && item.operator && item.operator !== '-' && item.operator !== 'En attente' ? (
+                          <div className="flex flex-col">
+                            <span className="inline-flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 w-fit">
+                              <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              <span>{item.operator}</span>
+                            </span>
+                            {item.timestamp && item.timestamp !== '-' && (
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-mono">
+                                {item.timestamp}
+                              </span>
+                            )}
+                          </div>
                         ) : (
-                          <span className="text-slate-400 italic">-</span>
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">
+                            En attente
+                          </span>
                         )}
                       </td>
                     </tr>

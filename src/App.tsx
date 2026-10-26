@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { InventoryProvider, useInventory } from './context/InventoryContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Header, ActiveTab } from './components/Header';
 import { DashboardView } from './components/DashboardView';
 import { CatalogView } from './components/CatalogView';
@@ -126,7 +127,7 @@ function AuthenticatedApp() {
   }, [isAdmin, activeTab]);
 
   return (
-    <div className={`min-h-screen bg-slate-100/70 text-slate-900 ${isAdmin ? 'pb-20 md:pb-8' : 'pb-8'} flex flex-col`}>
+    <div className={`min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-150 ${isAdmin ? 'pb-20 md:pb-8' : 'pb-8'} flex flex-col`}>
       {/* Top Bar Header */}
       <Header
         activeTab={activeTab}
@@ -176,13 +177,13 @@ function AuthenticatedApp() {
 
       {/* Mobile Ergonomic Bottom Tab Bar: Uniquement visible pour l'administrateur */}
       {isAdmin && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 transition-colors">
           <div className="grid grid-cols-6 items-center h-16 max-w-lg mx-auto px-1">
           {/* Tab 1: Saisie */}
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`min-h-[44px] flex flex-col items-center justify-center transition-colors relative ${
-              activeTab === 'dashboard' ? 'text-amber-600 font-bold' : 'text-slate-500'
+              activeTab === 'dashboard' ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <LayoutDashboard className="w-4 h-4" />
@@ -198,7 +199,7 @@ function AuthenticatedApp() {
           <button
             onClick={() => setActiveTab('catalog')}
             className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
-              activeTab === 'catalog' ? 'text-amber-600 font-bold' : 'text-slate-500'
+              activeTab === 'catalog' ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <FileSpreadsheet className="w-4 h-4" />
@@ -209,7 +210,7 @@ function AuthenticatedApp() {
           <button
             onClick={() => setActiveTab('locations')}
             className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
-              activeTab === 'locations' ? 'text-amber-600 font-bold' : 'text-slate-500'
+              activeTab === 'locations' ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <Settings className="w-4 h-4" />
@@ -220,7 +221,7 @@ function AuthenticatedApp() {
           <button
             onClick={() => setActiveTab('export')}
             className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
-              activeTab === 'export' ? 'text-amber-600 font-bold' : 'text-slate-500'
+              activeTab === 'export' ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <Download className="w-4 h-4" />
@@ -231,7 +232,7 @@ function AuthenticatedApp() {
           <button
             onClick={() => setActiveTab('users')}
             className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
-              activeTab === 'users' ? 'text-amber-600 font-bold' : 'text-slate-500'
+              activeTab === 'users' ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <Users className="w-4 h-4" />
@@ -242,13 +243,13 @@ function AuthenticatedApp() {
           <button
             onClick={() => setActiveTab('admin')}
             className={`min-h-[44px] flex flex-col items-center justify-center transition-colors relative ${
-              activeTab === 'admin' ? 'text-amber-600 font-bold' : 'text-slate-500'
+              activeTab === 'admin' ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <Shield className="w-4 h-4" />
             <span className="text-[9px] mt-1 font-medium">Admin</span>
             {isAdmin && (
-              <span className="absolute top-2 right-3 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+              <span className="absolute top-2 right-3 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
             )}
           </button>
         </div>
@@ -310,8 +311,10 @@ function InventoryApp() {
 
 export default function App() {
   return (
-    <InventoryProvider>
-      <InventoryApp />
-    </InventoryProvider>
+    <ThemeProvider>
+      <InventoryProvider>
+        <InventoryApp />
+      </InventoryProvider>
+    </ThemeProvider>
   );
 }

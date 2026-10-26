@@ -100,11 +100,13 @@ export interface ExportCombinedItem {
   emplacement: string;
   unite: string;
   gere_nn?: string;
-  quantite: number | '';
+  stock_interne: number; // Stock interne total initial / théorique (Catalogue)
+  quantite: number | ''; // Quantité comptée lors de l'inventaire
+  ecart_stock?: number | ''; // Écart: Quantité comptée - Stock interne
   qualite: string;
   statutInventaire: 'Saisi' | 'À faire (Non inventorié)';
   timestamp: string;
-  operator: string;
+  operator: string; // Opérateur qui a réalisé l'inventaire (ou '-' si en attente)
   notes: string;
 }
 

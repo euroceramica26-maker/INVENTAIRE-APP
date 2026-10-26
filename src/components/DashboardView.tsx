@@ -244,24 +244,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="space-y-6">
       {/* 1. TOP HERO WORKSTATION / SEARCH & SCAN PROMPT */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-xs transition-colors">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                 {isAdmin ? "Saisie & Suivi d'Inventaire" : "Poste de Comptage & Saisie"}
               </h1>
-              <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="text-xs bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 shadow-2xs">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>{countSaisis} article(s) saisi(s)</span>
               </span>
               {!isAdmin && (
-                <span className="text-[11px] bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-full border border-slate-200">
+                <span className="text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
                   Poste Opérateur
                 </span>
               )}
             </div>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
               {isAdmin 
                 ? "Scannez le QR/Code-barres, photographiez l'étiquette (OCR) ou saisissez directement"
                 : "Scannez les articles et saisissez vos comptages d'inventaire"}
@@ -272,7 +272,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <button
               onClick={onOpenScanner}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-98 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-2 shadow-sm transition-all"
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-98 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
             >
               <ScanLine className="w-4 h-4" />
               <span>Scanner QR / OCR</span>
@@ -296,7 +296,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   });
                 }
               }}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-sm transition-all"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Saisie Manuelle</span>
@@ -306,14 +306,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <>
                 <button
                   onClick={onOpenImport}
-                  className="px-3.5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl flex items-center gap-2 shadow-2xs transition-colors"
+                  className="px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl flex items-center gap-2 shadow-2xs transition-colors cursor-pointer"
                 >
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>Importer Base Excel</span>
                 </button>
                 <button
                   onClick={onOpenExport}
-                  className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl flex items-center gap-2 shadow-2xs transition-colors"
+                  className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-semibold text-xs rounded-xl flex items-center gap-2 shadow-2xs transition-colors cursor-pointer"
                 >
                   <Download className="w-4 h-4 text-amber-400" />
                   <span>Exporter en Excel</span>
@@ -326,7 +326,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Live Search Bar with Suggestions */}
         <div className="relative mt-5">
           <div className="relative flex items-center">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
@@ -359,12 +359,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 }
               }}
               placeholder="Rechercher ou saisir un article par code, désignation ou référence..."
-              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300/80 rounded-xl text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-amber-500 focus:outline-none transition-all"
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300/80 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-900 focus:border-amber-500 dark:focus:border-amber-400 focus:outline-none transition-all"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 text-xs text-slate-400 hover:text-slate-600"
+                className="absolute right-3 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
               >
                 Effacer
               </button>
@@ -373,10 +373,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           {/* Autocomplete Dropdown if typing search term */}
           {searchTerm.trim().length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-20 space-y-1.5">
+            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-20 space-y-1.5">
               {/* Manual Entry Quick Action Shortcut */}
               <div
-                className="flex items-center justify-between p-2.5 bg-amber-50 hover:bg-amber-100/90 border border-amber-200/90 rounded-lg transition-colors cursor-pointer"
+                className="flex items-center justify-between p-2.5 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100/90 dark:hover:bg-amber-950/60 border border-amber-200/90 dark:border-amber-800/80 rounded-lg transition-colors cursor-pointer"
                 onClick={() => {
                   const term = searchTerm.trim();
                   setSearchTerm('');
@@ -403,28 +403,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     +
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-amber-950">
+                    <span className="text-xs font-bold text-amber-950 dark:text-amber-200">
                       Saisie manuelle : Ajouter & inventorier "{searchTerm.trim()}"
                     </span>
-                    <div className="text-[10px] text-amber-800">
+                    <div className="text-[10px] text-amber-800 dark:text-amber-300">
                       Sera ajouté à la liste des articles et dans la liste des saisis avec le statut (saisi)
                     </div>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-300 shrink-0">
+                <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-700 shrink-0">
                   Statut : (saisi)
                 </span>
               </div>
 
               {searchResults.length > 0 && (
                 <div className="pt-1">
-                  <div className="text-[11px] font-bold text-slate-400 px-3 py-1 uppercase tracking-wider">
+                  <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 px-3 py-1 uppercase tracking-wider">
                     Articles correspondants dans la base ({searchResults.length})
                   </div>
                   {searchResults.map((art) => (
                     <div
                       key={art.id}
-                      className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-lg transition-colors group cursor-pointer"
+                      className="flex items-center justify-between p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-lg transition-colors group cursor-pointer"
                       onClick={() => {
                         onSelectArticleToCount(art);
                         setSearchTerm('');
@@ -432,19 +432,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     >
                       <div className="min-w-0 pr-3">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">
+                          <span className="font-mono text-xs font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                             {art.code_article}
                           </span>
-                          <span className="text-xs font-medium text-slate-800 truncate">
+                          <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
                             {art.designation}
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                           Machine : <strong>{art.machine}</strong> · Emplacement : <strong>{art.emplacement}</strong>
                         </div>
                       </div>
                       <button
-                        className="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-lg group-hover:bg-amber-600 transition-colors shrink-0 flex items-center gap-1"
+                        className="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-lg group-hover:bg-amber-600 transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Saisir</span>
@@ -461,101 +461,103 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* 2. STATS & KPI STRIP */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* KPI 1 */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
-          <span className="text-xs font-semibold text-slate-500 block">Lignes Saisies</span>
+        <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs transition-colors">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Lignes Saisies</span>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl sm:text-3xl font-bold font-mono text-slate-900 tabular-nums">
+            <span className="text-2xl sm:text-3xl font-bold font-mono text-slate-900 dark:text-white tabular-nums">
               {totalCountedLines}
             </span>
-            <span className="text-xs text-slate-400">références</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">références</span>
           </div>
-          <span className="text-[11px] text-slate-400 block mt-2">
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-2">
             Articles répertoriés à l'inventaire
           </span>
         </div>
 
         {/* KPI 2 */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
-          <span className="text-xs font-semibold text-slate-500 block">Quantité Totale</span>
+        <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs transition-colors">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Quantité Totale</span>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl sm:text-3xl font-bold font-mono text-amber-600 tabular-nums">
+            <span className="text-2xl sm:text-3xl font-bold font-mono text-amber-600 dark:text-amber-400 tabular-nums">
               {totalQuantitySum}
             </span>
-            <span className="text-xs text-slate-500">unités</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">unités</span>
           </div>
-          <span className="text-[11px] text-slate-400 block mt-2">
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-2">
             Cumul de toutes les pièces saisies
           </span>
         </div>
 
         {/* KPI 3 */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
-          <span className="text-xs font-semibold text-slate-500 block">Machines Inventoriées</span>
+        <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs transition-colors">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Machines Inventoriées</span>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl sm:text-3xl font-bold font-mono text-blue-600 tabular-nums">
+            <span className="text-2xl sm:text-3xl font-bold font-mono text-blue-600 dark:text-blue-400 tabular-nums">
               {distinctMachinesCount}
             </span>
-            <span className="text-xs text-slate-500">équipements</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">équipements</span>
           </div>
-          <span className="text-[11px] text-slate-400 block mt-2">
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-2">
             Machines avec pièces comptées
           </span>
         </div>
 
         {/* KPI 4 */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
-          <span className="text-xs font-semibold text-slate-500 block">Anomalies Qualité</span>
+        <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs transition-colors">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Anomalies Qualité</span>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className={`text-2xl sm:text-3xl font-bold font-mono tabular-nums ${anomaliesQualityCount > 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+            <span className={`text-2xl sm:text-3xl font-bold font-mono tabular-nums ${anomaliesQualityCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
               {anomaliesQualityCount}
             </span>
-            <span className="text-xs text-slate-500">à réparer / rebut</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">à réparer / rebut</span>
           </div>
-          <span className="text-[11px] text-slate-400 block mt-2">
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-2">
             Matériel dégradé ou non conforme
           </span>
         </div>
       </div>
 
       {/* 3. INVENTORY BASE & ENTRIES TABLE SECTION */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs transition-colors">
         {/* Table Header & View Switcher */}
-        <div className="p-4 sm:p-5 border-b border-slate-200/80 bg-white">
+        <div className="p-4 sm:p-5 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
                   Base d'Inventaire & Articles Saisis
                 </h3>
                 {activeInventory && (
-                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                    <span className="font-mono text-amber-700 font-bold">{activeInventory.code}</span>
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                    <span className="font-mono text-amber-700 dark:text-amber-400 font-bold">{activeInventory.code}</span>
                     <span>·</span>
                     <span className="truncate max-w-[150px]">{activeInventory.titre}</span>
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Chaque article inventorié s'affiche automatiquement dans la base d'inventaire avec son emplacement, son statut (saisi) et ses quantités enregistrées.
               </p>
             </div>
 
             {/* View Mode Switcher Tabs & Quick Excel Export */}
             <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
-              <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/70 text-xs">
+              <div className="flex items-center bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-200/70 dark:border-slate-700/70 text-xs">
                 <button
                   type="button"
                   onClick={() => handleDisplayModeChange('saisis')}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                     displayMode === 'saisis'
-                      ? 'bg-white text-emerald-700 shadow-xs font-bold border border-slate-200/60'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs font-bold border border-slate-200/60 dark:border-slate-700'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>Articles Saisis</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    displayMode === 'saisis' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                    displayMode === 'saisis'
+                      ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                   }`}>
                     {countSaisis}
                   </span>
@@ -564,16 +566,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <button
                   type="button"
                   onClick={() => handleDisplayModeChange('tous')}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                     displayMode === 'tous'
-                      ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200/60'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold border border-slate-200/60 dark:border-slate-700'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <Layers className="w-3.5 h-3.5 text-slate-600" />
+                  <Layers className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                   <span>Base Complète</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    displayMode === 'tous' ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-600'
+                    displayMode === 'tous'
+                      ? 'bg-slate-800 dark:bg-slate-700 text-white'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                   }`}>
                     {combinedList.length}
                   </span>
@@ -582,16 +586,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <button
                   type="button"
                   onClick={() => handleDisplayModeChange('a_faire')}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                     displayMode === 'a_faire'
-                      ? 'bg-white text-amber-800 shadow-xs font-bold border border-slate-200/60'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white dark:bg-slate-900 text-amber-800 dark:text-amber-300 shadow-xs font-bold border border-slate-200/60 dark:border-slate-700'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                   <span>En attente</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    displayMode === 'a_faire' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-600'
+                    displayMode === 'a_faire'
+                      ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                   }`}>
                     {countPending}
                   </span>
@@ -602,7 +608,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <button
                 type="button"
                 onClick={handleQuickExport}
-                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all"
+                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
                 title="Exporter la sélection en Excel avec colonne Emplacement"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -615,8 +621,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div
               className={`mt-3 p-3 rounded-xl border text-xs flex items-center gap-2 transition-all ${
                 exportToast.type === 'success'
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                  : 'bg-rose-50 border-rose-200 text-rose-800'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                  : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'
               }`}
             >
               <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -626,22 +632,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Table Filter Toolbar */}
-        <div className="p-3 sm:p-4 bg-slate-50/70 border-b border-slate-200/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div className="p-3 sm:p-4 bg-slate-50/70 dark:bg-slate-950/60 border-b border-slate-200/80 dark:border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 transition-colors">
           <div className="flex items-center gap-2 flex-wrap flex-1">
             {/* Live Search inside the Table */}
             <div className="relative min-w-[180px] flex-1 max-w-sm">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={tableSearch}
                 onChange={(e) => setTableSearch(e.target.value)}
                 placeholder="Filtrer code, nom, réf, emplacement..."
-                className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
+                className="w-full pl-8 pr-7 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:border-amber-500 dark:focus:border-amber-400"
               />
               {tableSearch && (
                 <button
                   onClick={() => setTableSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -653,7 +659,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <select
                 value={selectedMachine}
                 onChange={(e) => setSelectedMachine(e.target.value)}
-                className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700"
+                className="text-xs font-medium px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
               >
                 <option value="all">Toutes les machines</option>
                 {machines.map((m) => (
@@ -667,7 +673,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <select
                 value={selectedFamille}
                 onChange={(e) => setSelectedFamille(e.target.value)}
-                className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700"
+                className="text-xs font-medium px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
               >
                 <option value="all">Toutes les familles</option>
                 {familles.map((f) => (
@@ -681,7 +687,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700"
+                className="text-xs font-medium px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
                 title="Filtrer par emplacement"
               >
                 <option value="all">Tous les emplacements ({distinctLocations.length})</option>
@@ -698,7 +704,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <select
                 value={selectedQualite}
                 onChange={(e) => setSelectedQualite(e.target.value)}
-                className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700"
+                className="text-xs font-medium px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
               >
                 <option value="all">Toutes les qualités</option>
                 {Object.entries(QUALITE_LABELS).map(([k, label]) => (
@@ -712,7 +718,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <select
                 value={selectedOperator}
                 onChange={(e) => setSelectedOperator(e.target.value)}
-                className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700"
+                className="text-xs font-medium px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
               >
                 <option value="all">Tous les opérateurs ({distinctOperators.length})</option>
                 {distinctOperators.map((op) => (
@@ -735,7 +741,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   setSelectedOperator('all');
                   setTableSearch('');
                 }}
-                className="text-xs text-amber-700 hover:text-amber-800 font-semibold px-2 py-1 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-200 transition-colors flex items-center gap-1"
+                className="text-xs text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 font-semibold px-2 py-1 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded-lg border border-amber-200 dark:border-amber-800 transition-colors flex items-center gap-1 cursor-pointer"
                 title="Réinitialiser tous les filtres"
               >
                 <RotateCcw className="w-3 h-3" />
@@ -744,15 +750,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             )}
           </div>
 
-          <div className="flex items-center justify-between md:justify-end gap-3 text-xs text-slate-500 shrink-0">
+          <div className="flex items-center justify-between md:justify-end gap-3 text-xs text-slate-500 dark:text-slate-400 shrink-0">
             <span>
-              <strong>{displayedRows.length}</strong> ligne(s) affichée(s)
+              <strong className="text-slate-800 dark:text-slate-200">{displayedRows.length}</strong> ligne(s) affichée(s)
             </span>
             {isAdmin && (
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => exportFullJsonBackup()}
-                  className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-lg"
+                  className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
                   title="Sauvegarder une copie locale JSON"
                 >
                   <HardDrive className="w-4 h-4" />
@@ -765,7 +771,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         "Seul l'administrateur (ouaradtech) a le droit de vider ou réinitialiser la base de données."
                       );
                     }}
-                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1 text-xs"
+                    className="p-1.5 text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors flex items-center gap-1 text-xs cursor-pointer"
                     title="Vider toute la base (Admin)"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -779,16 +785,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Data Table */}
         {displayedRows.length === 0 ? (
-          <div className="p-12 text-center">
-            <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h3 className="text-sm font-bold text-slate-800">
+          <div className="p-12 text-center bg-white dark:bg-slate-900 transition-colors">
+            <Package className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
               {displayMode === 'saisis'
                 ? (entries.length === 0 ? "Aucun article inventorié pour le moment" : "Aucun article saisi ne correspond aux filtres")
                 : displayMode === 'a_faire'
                 ? (countPending === 0 ? "Félicitations ! 100% des articles sont inventoriés" : "Aucun article en attente ne correspond aux filtres")
                 : (combinedList.length === 0 ? "La base d'inventaire est actuellement vide" : "Aucun article ne correspond à votre recherche")}
             </h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1 mb-4">
               {displayMode === 'saisis' && entries.length === 0
                 ? "Scannez un code-barres ou lancez une saisie manuelle pour inventorier votre premier article. Il s'affichera immédiatement ici avec le statut (saisi)."
                 : "Modifiez vos termes de recherche ou sélectionnez un autre affichage."}
@@ -797,7 +803,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {displayMode === 'saisis' && combinedList.length > 0 && (
                 <button
                   onClick={() => setDisplayMode('tous')}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-semibold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <Layers className="w-4 h-4" />
                   <span>Afficher toute la base ({combinedList.length})</span>
@@ -805,7 +811,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               )}
               <button
                 onClick={onOpenScanner}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <ScanLine className="w-4 h-4" />
                 <span>Scanner un code</span>
@@ -829,7 +835,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     });
                   }
                 }}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Saisie manuelle</span>
@@ -837,18 +843,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {isAdmin && (
                 <button
                   onClick={onOpenImport}
-                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl inline-flex items-center gap-1.5"
+                  className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
                 >
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>Importer Excel</span>
                 </button>
               )}
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs divide-y divide-slate-100">
-              <thead className="bg-slate-50 text-slate-600 font-semibold">
+          <div className="overflow-x-auto bg-white dark:bg-slate-900 transition-colors">
+            <table className="w-full text-left text-xs divide-y divide-slate-100 dark:divide-slate-800">
+              <thead className="bg-slate-50 dark:bg-slate-950/80 text-slate-600 dark:text-slate-400 font-semibold">
                 <tr>
                   <th className="py-3 px-4">Statut</th>
                   <th className="py-3 px-4">Code Article</th>
@@ -856,7 +862,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <th className="py-3 px-4">Machine & Famille</th>
                   <th className="py-3 px-4">
                     <div className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                      <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                       <span>Emplacement</span>
                     </div>
                   </th>
@@ -866,7 +872,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                 {displayedRows.map((item) => {
                   const isSaisi = item.statutInventaire === 'Saisi';
                   const matchingEntry = entries.find(
@@ -877,51 +883,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <tr
                       key={item.id}
                       className={`transition-colors ${
-                        isSaisi ? 'bg-emerald-50/20 hover:bg-emerald-50/40' : 'hover:bg-slate-50/80'
+                        isSaisi
+                          ? 'bg-emerald-50/20 dark:bg-emerald-950/20 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/40'
+                          : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
                       }`}
                     >
                       {/* Statut : (saisi) ou (À faire) */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         {isSaisi ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             (saisi)
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                            <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                             À faire
                           </span>
                         )}
                       </td>
 
                       {/* Code Article */}
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
                         {item.code_article}
                       </td>
 
                       {/* Designation & Reference */}
-                      <td className="py-3 px-4 font-medium text-slate-800 max-w-[220px]">
+                      <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200 max-w-[220px]">
                         <div className="truncate font-semibold">{item.designation}</div>
                         {item.reference && item.reference !== '-' && (
-                          <div className="text-[11px] text-slate-400 font-mono truncate">
+                          <div className="text-[11px] text-slate-400 dark:text-slate-500 font-mono truncate">
                             Réf: {item.reference}
                           </div>
                         )}
                       </td>
 
                       {/* Machine & Famille */}
-                      <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
-                        <div className="font-medium text-slate-800 truncate max-w-[160px]">
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                        <div className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[160px]">
                           {item.machine}
                         </div>
-                        <div className="text-[11px] text-slate-400 truncate max-w-[160px]">
+                        <div className="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-[160px]">
                           {item.famille}
                         </div>
                       </td>
 
                       {/* Emplacement */}
-                      <td className="py-3 px-4 font-mono text-slate-700 whitespace-nowrap">
+                      <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
                         {(() => {
                           const rawLoc = (item.emplacement || '').trim();
                           const displayLoc = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
@@ -938,11 +946,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               title={`Filtrer par cet emplacement (${displayLoc})`}
                               className={`inline-flex items-center gap-1 font-mono font-semibold px-2 py-0.5 rounded text-[11px] transition-colors cursor-pointer border ${
                                 isSaisi
-                                  ? 'bg-amber-50 text-amber-950 border-amber-300 hover:bg-amber-100'
-                                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
                               }`}
                             >
-                              <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                              <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
                               <span>{displayLoc}</span>
                             </button>
                           );
@@ -953,11 +961,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <td className="py-3 px-4 text-right font-mono tabular-nums font-bold whitespace-nowrap">
                         {isSaisi ? (
                           <>
-                            <span className="text-base text-amber-600">{item.quantite}</span>{' '}
-                            <span className="text-xs text-slate-500 font-normal">{item.unite}</span>
+                            <span className="text-base text-amber-600 dark:text-amber-400">{item.quantite}</span>{' '}
+                            <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">{item.unite}</span>
                           </>
                         ) : (
-                          <span className="text-slate-400 italic text-[11px]">Non saisi</span>
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">Non saisi</span>
                         )}
                       </td>
 
@@ -967,36 +975,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <span
                             className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
                               item.qualite.includes('Conforme') || item.qualite.includes('Bon')
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                 : item.qualite.includes('réparer') || item.qualite.includes('Dégradé')
-                                ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                : 'bg-rose-50 text-rose-800 border-rose-200'
+                                ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                : 'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'
                             }`}
                           >
                             {item.qualite}
                           </span>
                         ) : (
-                          <span className="text-[11px] text-slate-400 italic">En attente</span>
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 italic">En attente</span>
                         )}
                       </td>
 
                       {/* Date & Opérateur */}
-                      <td className="py-3 px-4 whitespace-nowrap text-slate-500 text-[11px]">
+                      <td className="py-3 px-4 whitespace-nowrap text-slate-500 dark:text-slate-400 text-[11px]">
                         {isSaisi ? (
                           <div className="space-y-1">
-                            <div className="text-slate-600 font-mono text-[10px]">{item.timestamp}</div>
+                            <div className="text-slate-600 dark:text-slate-400 font-mono text-[10px]">{item.timestamp}</div>
                             <button
                               type="button"
                               onClick={() => setSelectedOperator(item.operator)}
                               title={`Filtrer par cet opérateur (${item.operator})`}
-                              className="inline-flex items-center gap-1 font-semibold text-slate-800 bg-slate-100 hover:bg-amber-100/80 hover:text-amber-900 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-amber-100/80 dark:hover:bg-amber-950/60 hover:text-amber-900 dark:hover:text-amber-300 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded text-[10px] transition-colors cursor-pointer"
                             >
-                              <User className="w-2.5 h-2.5 text-emerald-600" />
+                              <User className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
                               <span className="truncate max-w-[120px]">{item.operator}</span>
                             </button>
                           </div>
                         ) : (
-                          <span className="text-slate-400">-</span>
+                          <span className="text-slate-400 dark:text-slate-500">-</span>
                         )}
                       </td>
 
@@ -1018,7 +1026,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                     }
                                   }
                                 }}
-                                className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg transition-colors cursor-pointer"
                                 title="Modifier la saisie (Admin)"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
@@ -1029,15 +1037,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                     setEntryToDelete(matchingEntry);
                                   }
                                 }}
-                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
                                 title="Supprimer la saisie (Admin)"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                               <span>Enregistré</span>
                             </span>
                           )
@@ -1064,7 +1072,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 });
                               }
                             }}
-                            className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 active:scale-98 text-slate-950 font-bold text-xs rounded-lg inline-flex items-center gap-1 shadow-xs transition-transform"
+                            className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 active:scale-98 text-slate-950 font-bold text-xs rounded-lg inline-flex items-center gap-1 shadow-xs transition-transform cursor-pointer"
                             title="Saisir et inventorier cet article maintenant"
                           >
                             <Plus className="w-3.5 h-3.5" />

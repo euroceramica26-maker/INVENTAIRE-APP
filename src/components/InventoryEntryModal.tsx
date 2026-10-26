@@ -220,44 +220,44 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto max-h-[95vh]">
+      <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col my-auto max-h-[95vh] transition-colors">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
               <Package className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-mono text-xs font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
+                <span className="font-mono text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                   {codeArticleInput || currentArticle.code_article || 'Saisie Manuelle'}
                 </span>
                 {(referenceInput || currentArticle.reference) && (referenceInput || currentArticle.reference) !== '-' && (
                   <>
-                    <span className="text-xs text-slate-400">·</span>
-                    <span className="text-xs text-slate-500 font-mono">
+                    <span className="text-xs text-slate-400 dark:text-slate-500">·</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                       Réf: {referenceInput || currentArticle.reference}
                     </span>
                   </>
                 )}
                 {isKnownArticle ? (
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
                     ✓ Article Répertorié (Saisi)
                   </span>
                 ) : (
-                  <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-300">
+                  <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-700">
                     Saisie Manuelle · Sera Ajouté & Saisi
                   </span>
                 )}
               </div>
-              <h2 className="text-base font-bold text-slate-900 leading-tight mt-0.5 truncate max-w-md">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight mt-0.5 truncate max-w-md">
                 {designationInput || currentArticle.designation || 'Nouvel Article'}
               </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -267,20 +267,20 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Manual Entry Article Details (Code, Désignation, Référence) */}
           {(!isKnownArticle || currentArticle.id?.startsWith('manual')) && (
-            <div className="p-4 bg-amber-50/60 rounded-2xl border border-amber-200/80 space-y-3">
+            <div className="p-4 bg-amber-50/60 dark:bg-amber-950/30 rounded-2xl border border-amber-200/80 dark:border-amber-800/60 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
-                  <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                  <Edit3 className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
                   Informations Article (Saisie Manuelle)
                 </span>
-                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded-md">
+                <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
                   Statut : (saisi)
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Code Article <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -288,12 +288,12 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                     value={codeArticleInput}
                     onChange={(e) => setCodeArticleInput(e.target.value.toUpperCase())}
                     placeholder="Ex: ART-001"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-mono text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-500"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                     required
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Désignation <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -301,14 +301,14 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                     value={designationInput}
                     onChange={(e) => setDesignationInput(e.target.value)}
                     placeholder="Nom ou description de l'article"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-amber-500"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Référence Fabricant
                 </label>
                 <input
@@ -316,12 +316,12 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                   value={referenceInput}
                   onChange={(e) => setReferenceInput(e.target.value)}
                   placeholder="Ex: SKF-6204, SIEMENS-3RV..."
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
-              <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pt-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>
                   Cet article sera ajouté à la liste des articles et dans la liste des saisis avec le statut <strong>(saisi)</strong>.
                 </span>
@@ -330,18 +330,18 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
           )}
 
           {/* 1. QUANTITY COUNTER */}
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/80">
             <div className="flex items-center justify-between mb-3">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                 Saisir la Quantité
               </label>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Unité :</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">Unité :</span>
                 <input
                   type="text"
                   value={unite}
                   onChange={(e) => setUnite(e.target.value)}
-                  className="w-20 px-2 py-1 bg-white border border-slate-300 rounded-md text-xs font-medium text-center"
+                  className="w-20 px-2 py-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md text-xs font-medium text-center text-slate-800 dark:text-slate-200"
                   placeholder="Pièce"
                 />
               </div>
@@ -353,7 +353,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                 <button
                   type="button"
                   onClick={() => handleAdjustQty(-1)}
-                  className="w-12 h-12 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 flex items-center justify-center font-bold text-lg shadow-xs transition-all"
+                  className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 flex items-center justify-center font-bold text-lg shadow-xs transition-all cursor-pointer"
                 >
                   <Minus className="w-5 h-5" />
                 </button>
@@ -364,16 +364,16 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                     min="0"
                     value={quantite}
                     onChange={(e) => setQuantite(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className="w-full h-12 text-center font-mono text-2xl font-bold text-slate-900 bg-white border-2 border-slate-300 rounded-xl focus:border-amber-500 focus:outline-none tabular-nums"
+                    className="w-full h-12 text-center font-mono text-2xl font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl focus:border-amber-500 focus:outline-none tabular-nums"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 dark:text-slate-500 pointer-events-none">
                     {unite}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleAdjustQty(1)}
-                  className="w-12 h-12 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 flex items-center justify-center font-bold text-lg shadow-xs transition-all"
+                  className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 flex items-center justify-center font-bold text-lg shadow-xs transition-all cursor-pointer"
                 >
                   <Plus className="w-5 h-5" />
                 </button>
@@ -386,7 +386,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                     key={inc}
                     type="button"
                     onClick={() => handleAdjustQty(inc)}
-                    className="flex-1 sm:flex-none px-3 py-2 bg-white border border-slate-200 text-slate-700 hover:border-amber-400 hover:text-amber-700 text-xs font-semibold rounded-lg shadow-2xs transition-colors"
+                    className="flex-1 sm:flex-none px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-700 dark:hover:text-amber-400 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
                   >
                     +{inc}
                   </button>
@@ -397,7 +397,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
 
           {/* 2. QUALITÉ RÉELLE / ÉTAT DU MATÉRIEL */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
               Saisir la Qualité Réelle / État du Matériel
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -409,18 +409,18 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                     key={key}
                     type="button"
                     onClick={() => setQualite(key)}
-                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between min-h-[60px] ${
+                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between min-h-[60px] cursor-pointer ${
                       isSelected
                         ? key === 'conforme' || key === 'bon_etat'
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-950 shadow-xs ring-1 ring-emerald-500 font-bold'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-950 dark:text-emerald-200 shadow-xs ring-1 ring-emerald-500 font-bold'
                           : key === 'a_reparer' || key === 'degrade'
-                          ? 'bg-amber-50 border-amber-500 text-amber-950 shadow-xs ring-1 ring-amber-500 font-bold'
-                          : 'bg-rose-50 border-rose-500 text-rose-950 shadow-xs ring-1 ring-rose-500 font-bold'
-                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                          ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-500 text-amber-950 dark:text-amber-200 shadow-xs ring-1 ring-amber-500 font-bold'
+                          : 'bg-rose-50 dark:bg-rose-950/60 border-rose-500 text-rose-950 dark:text-rose-200 shadow-xs ring-1 ring-rose-500 font-bold'
+                        : 'bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
                     <span className="text-xs font-semibold leading-tight">{label}</span>
-                    <span className="text-[10px] text-slate-400 mt-1 capitalize">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 capitalize">
                       {key.replace('_', ' ')}
                     </span>
                   </button>
@@ -430,15 +430,15 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
           </div>
 
           {/* 3. EMPLACEMENT */}
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                   Emplacement Réel
                 </label>
                 {lastLocation && (
-                  <span className="text-[11px] font-mono font-semibold text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-300 flex items-center gap-1">
+                  <span className="text-[11px] font-mono font-semibold text-amber-900 dark:text-amber-200 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700 flex items-center gap-1">
                     <span>Mémorisé :</span>
                     <strong>{lastLocation}</strong>
                   </span>
@@ -449,7 +449,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setEmplacement(lastLocation)}
-                    className="text-xs text-amber-700 hover:text-amber-800 font-semibold underline"
+                    className="text-xs text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 font-semibold underline cursor-pointer"
                     title="Reprendre le dernier emplacement saisi"
                   >
                     Reprendre {lastLocation}
@@ -458,7 +458,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsAddingNewLocation(!isAddingNewLocation)}
-                  className="text-xs font-semibold text-amber-600 hover:text-amber-700"
+                  className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 cursor-pointer"
                 >
                   {isAddingNewLocation ? 'Annuler' : '+ Nouvel emplacement'}
                 </button>
@@ -478,13 +478,13 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                       setEmplacement(e.target.value.toUpperCase());
                     }
                   }}
-                  className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono uppercase focus:outline-none focus:border-amber-500 font-bold"
+                  className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono uppercase focus:outline-none focus:border-amber-500 font-bold text-slate-900 dark:text-white"
                 />
                 {isAddingNewLocation && (
                   <button
                     type="button"
                     onClick={handleAddNewLocation}
-                    className="px-3 py-2 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700"
+                    className="px-3 py-2 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 cursor-pointer"
                   >
                     Ajouter
                   </button>
@@ -495,7 +495,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                 <select
                   value={emplacement}
                   onChange={(e) => setEmplacement(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-amber-500 shadow-2xs"
+                  className="w-full px-3 py-2.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-amber-500 shadow-2xs"
                 >
                   <option value="">-- Sélectionner l'emplacement réel --</option>
                   {locations
@@ -512,10 +512,10 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                       <option value={emplacement}>{emplacement} (Emplacement réel saisi)</option>
                     )}
                 </select>
-                <div className="text-xs text-slate-500 flex items-center px-1">
+                <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center px-1">
                   <span>
                     Zone :{' '}
-                    <strong>
+                    <strong className="text-slate-700 dark:text-slate-300">
                       {locations.find((l) => l.code === emplacement)?.zone || 'Atelier/Magasin'}
                     </strong>
                   </span>
@@ -529,14 +529,14 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
             {/* Machine */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-blue-600" />
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                   Machine Affectée
                 </label>
                 <button
                   type="button"
                   onClick={() => setIsAddingNewMachine(!isAddingNewMachine)}
-                  className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                  className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer"
                 >
                   {isAddingNewMachine ? 'Annuler' : '+ Ajouter'}
                 </button>
@@ -552,13 +552,13 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                       if (isAddingNewMachine) setNewMachineInput(e.target.value);
                       else setMachine(e.target.value);
                     }}
-                    className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium"
+                    className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white"
                   />
                   {isAddingNewMachine && (
                     <button
                       type="button"
                       onClick={handleAddNewMachine}
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium"
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium cursor-pointer"
                     >
                       OK
                     </button>
@@ -568,7 +568,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                 <select
                   value={machine}
                   onChange={(e) => setMachine(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200"
                 >
                   <option value="">-- Sélectionner une machine --</option>
                   {machines.map((m) => (
@@ -586,14 +586,14 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
             {/* Famille */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <FolderTree className="w-3.5 h-3.5 text-emerald-600" />
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <FolderTree className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   Famille d'Article
                 </label>
                 <button
                   type="button"
                   onClick={() => setIsAddingNewFamille(!isAddingNewFamille)}
-                  className="text-xs font-medium text-emerald-600 hover:text-emerald-700"
+                  className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 cursor-pointer"
                 >
                   {isAddingNewFamille ? 'Annuler' : '+ Ajouter'}
                 </button>
@@ -609,13 +609,13 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                       if (isAddingNewFamille) setNewFamilleInput(e.target.value);
                       else setFamille(e.target.value);
                     }}
-                    className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium"
+                    className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white"
                   />
                   {isAddingNewFamille && (
                     <button
                       type="button"
                       onClick={handleAddNewFamille}
-                      className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-medium"
+                      className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-medium cursor-pointer"
                     >
                       OK
                     </button>
@@ -625,7 +625,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                 <select
                   value={famille}
                   onChange={(e) => setFamille(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200"
                 >
                   <option value="">-- Sélectionner une famille --</option>
                   {familles.map((f) => (
@@ -644,8 +644,8 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
           {/* 5. NOTES & OPÉRATEUR */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2 space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-slate-500" />
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                 Observations / Remarques
               </label>
               <input
@@ -653,30 +653,30 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                 placeholder="Ex: Emballage intact, pièce contrôlée..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-amber-500"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-slate-500" />
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                 Opérateur
               </label>
               <input
                 type="text"
                 value={currentOperator}
                 onChange={(e) => setCurrentOperator(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200"
               />
             </div>
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto px-4 py-2.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors"
+            className="w-full sm:w-auto px-4 py-2.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
           >
             Annuler
           </button>
@@ -686,7 +686,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleSave(true)}
-                className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-800 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
               >
                 <ScanLine className="w-4 h-4 text-amber-400" />
                 <span>Enregistrer & Scanner Suivant</span>
@@ -695,7 +695,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
             <button
               type="button"
               onClick={() => handleSave(false)}
-              className="flex-1 sm:flex-none px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98"
+              className="flex-1 sm:flex-none px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>Valider la Saisie</span>

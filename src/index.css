@@ -1,9 +1,12 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     @apply antialiased bg-slate-100/70 text-slate-900 selection:bg-amber-100 selection:text-amber-900;
+    @apply dark:bg-slate-950 dark:text-slate-100 dark:selection:bg-amber-900 dark:selection:text-amber-100;
   }
 
   .font-mono, .tabular-nums {

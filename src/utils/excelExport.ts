@@ -17,10 +17,20 @@ export function buildCombinedInventoryList(
   const combined: ExportCombinedItem[] = [];
   const accountedArticleCodes = new Set<string>();
 
+  // Map of article code to catalog article for quick O(1) lookup
+  const articleMap = new Map<string, Article>();
+  articles.forEach((art) => {
+    if (art.code_article) {
+      articleMap.set(art.code_article.toLowerCase().trim(), art);
+    }
+  });
+
   // 1. Add all inventoried entries (Saisi)
   entries.forEach((entry) => {
-    accountedArticleCodes.add(entry.code_article.toLowerCase());
-    const departVal = entry.depart || entry.machine || 'Standard';
+    const codeLower = (entry.code_article || '').toLowerCase().trim();
+    accountedArticleCodes.add(codeLower);
+    const matchingArt = articleMap.get(codeLower);
+    const departVal = entry.depart || entry.machine || matchingArt?.depart || matchingArt?.machine || 'Standard';
     
     // Priorité absolue à l'Emplacement Réel saisi lors de l'inventaire
     const entryLoc = (entry.emplacement || '').trim();
@@ -29,20 +39,26 @@ export function buildCombinedInventoryList(
     const cleanEntryPos = (entryPos && entryPos !== 'Non renseigné' && entryPos !== 'Non assigné') ? entryPos : '';
     const positionVal = cleanEntryLoc || cleanEntryPos || (entryLoc && entryLoc !== 'Non renseigné' ? entryLoc : 'Non assigné');
 
+    // Stock interne initial théorique (Catalogue)
+    const stockInterne = typeof matchingArt?.quantite === 'number' ? matchingArt.quantite : 0;
+    const ecartStock = entry.quantite - stockInterne;
+
     combined.push({
       id: entry.id,
       code_article: entry.code_article,
       designation: entry.designation,
-      reference: entry.reference || '-',
-      famille: entry.famille || 'Général',
-      sous_famille: entry.sous_famille || '',
+      reference: entry.reference || matchingArt?.reference || '-',
+      famille: entry.famille || matchingArt?.famille || 'Général',
+      sous_famille: entry.sous_famille || matchingArt?.sous_famille || '',
       depart: departVal,
       machine: departVal,
       position: positionVal,
       emplacement: positionVal,
-      unite: entry.unite || 'Pièce',
-      gere_nn: entry.gere_nn || 'G',
+      unite: entry.unite || matchingArt?.unite || 'Pièce',
+      gere_nn: entry.gere_nn || matchingArt?.gere_nn || 'G',
+      stock_interne: stockInterne,
       quantite: entry.quantite,
+      ecart_stock: ecartStock,
       qualite: QUALITE_LABELS[entry.qualite] || entry.qualite,
       statutInventaire: 'Saisi',
       timestamp: entry.timestamp ? new Date(entry.timestamp).toLocaleString('fr-FR') : '-',
@@ -53,7 +69,8 @@ export function buildCombinedInventoryList(
 
   // 2. Add all catalog articles that have NOT been inventoried yet (À faire)
   articles.forEach((art) => {
-    if (!accountedArticleCodes.has(art.code_article.toLowerCase())) {
+    const codeLower = (art.code_article || '').toLowerCase().trim();
+    if (!accountedArticleCodes.has(codeLower)) {
       const isSaisi = art.status === 'saisi';
       const departVal = art.depart || art.machine || 'Standard';
       
@@ -62,6 +79,10 @@ export function buildCombinedInventoryList(
       const cleanArtLoc = (artLoc && artLoc !== 'Non renseigné' && artLoc !== 'Non assigné') ? artLoc : '';
       const cleanArtPos = (artPos && artPos !== 'Non renseigné' && artPos !== 'Non assigné') ? artPos : '';
       const positionVal = cleanArtLoc || cleanArtPos || (artLoc && artLoc !== 'Non renseigné' ? artLoc : 'Non assigné');
+
+      const stockInterne = typeof art.quantite === 'number' ? art.quantite : 0;
+      const quantite = isSaisi ? (art.quantite || 1) : '';
+      const ecartStock = isSaisi ? (Number(quantite) - stockInterne) : '';
 
       combined.push({
         id: `missing-${art.id}`,
@@ -76,11 +97,13 @@ export function buildCombinedInventoryList(
         emplacement: positionVal,
         unite: art.unite || 'Pièce',
         gere_nn: art.gere_nn || 'G',
-        quantite: isSaisi ? (art.quantite || 1) : '',
+        stock_interne: stockInterne,
+        quantite: quantite,
+        ecart_stock: ecartStock,
         qualite: isSaisi ? 'Conforme / Neuf' : 'En attente d\'inventaire',
         statutInventaire: isSaisi ? 'Saisi' : 'À faire (Non inventorié)',
         timestamp: '-',
-        operator: '-',
+        operator: isSaisi ? 'Opérateur' : '-',
         notes: isSaisi ? 'Article saisi manuellement' : 'Article non inventorié'
       });
     }
@@ -225,43 +248,56 @@ export function exportInventoryToExcel(
   const wb = XLSX.utils.book_new();
 
   // 1. Sheet: Inventaire_Global (Tous les articles avec statut Saisi ou À Faire)
-  const rowsGlobal = filtered.map((item, idx) => ({
-    'N°': idx + 1,
-    'Statut Inventaire': item.statutInventaire,
-    'Famaille': item.famille || 'Général',
-    'S.famaille': item.sous_famille || '',
-    'Départ': item.depart || item.machine || 'Standard',
-    'Position': item.position || '',
-    'Emplacement': item.emplacement || item.position || 'Non assigné',
-    'Désignation': item.designation,
-    'Référence manuel': item.reference,
-    'Code magasin': item.code_article,
-    'Unité': item.unite,
-    'Géré /nn': item.gere_nn || 'G',
-    'Quantité Saisie': item.quantite === '' ? 'Non saisi' : item.quantite,
-    'Qualité / État Réel': item.qualite,
-    'Date & Heure': item.timestamp,
-    'Opérateur': item.operator,
-    'Remarques & Observations': item.notes
-  }));
+  const rowsGlobal = filtered.map((item, idx) => {
+    const isSaisi = item.statutInventaire === 'Saisi';
+    const ecartVal = isSaisi
+      ? (typeof item.ecart_stock === 'number'
+          ? item.ecart_stock
+          : (typeof item.quantite === 'number' ? item.quantite - item.stock_interne : 0))
+      : 'En attente';
+
+    return {
+      'N°': idx + 1,
+      'Statut Inventaire': item.statutInventaire,
+      'Code magasin': item.code_article,
+      'Désignation': item.designation,
+      'Référence manuel': item.reference,
+      'Famaille': item.famille || 'Général',
+      'S.famaille': item.sous_famille || '',
+      'Départ': item.depart || item.machine || 'Standard',
+      'Position': item.position || '',
+      'Emplacement': item.emplacement || item.position || 'Non assigné',
+      'Unité': item.unite,
+      'Géré /nn': item.gere_nn || 'G',
+      'Stock Interne (Catalogue)': item.stock_interne,
+      'Quantité Saisie (Physique)': item.quantite === '' ? 'Non saisi' : item.quantite,
+      'Écart de Stock': ecartVal,
+      'Qualité / État Réel': item.qualite,
+      'Opérateur': item.operator || (isSaisi ? 'Opérateur' : 'En attente'),
+      'Date & Heure': item.timestamp,
+      'Remarques & Observations': item.notes
+    };
+  });
 
   const globalHeaders = [
     'N°',
     'Statut Inventaire',
+    'Code magasin',
+    'Désignation',
+    'Référence manuel',
     'Famaille',
     'S.famaille',
     'Départ',
     'Position',
     'Emplacement',
-    'Désignation',
-    'Référence manuel',
-    'Code magasin',
     'Unité',
     'Géré /nn',
-    'Quantité Saisie',
+    'Stock Interne (Catalogue)',
+    'Quantité Saisie (Physique)',
+    'Écart de Stock',
     'Qualité / État Réel',
-    'Date & Heure',
     'Opérateur',
+    'Date & Heure',
     'Remarques & Observations'
   ];
 
@@ -272,20 +308,22 @@ export function exportInventoryToExcel(
   wsGlobal['!cols'] = [
     { wch: 6 },  // N°
     { wch: 22 }, // Statut Inventaire
+    { wch: 18 }, // Code magasin
+    { wch: 38 }, // Désignation
+    { wch: 22 }, // Référence manuel
     { wch: 18 }, // Famaille
     { wch: 18 }, // S.famaille
     { wch: 18 }, // Départ
     { wch: 16 }, // Position
     { wch: 20 }, // Emplacement
-    { wch: 38 }, // Désignation
-    { wch: 22 }, // Référence manuel
-    { wch: 18 }, // Code magasin
     { wch: 10 }, // Unité
     { wch: 12 }, // Géré /nn
-    { wch: 16 }, // Quantité
+    { wch: 22 }, // Stock Interne (Catalogue)
+    { wch: 24 }, // Quantité Saisie
+    { wch: 16 }, // Écart de Stock
     { wch: 26 }, // Qualité
+    { wch: 20 }, // Opérateur
     { wch: 20 }, // Date
-    { wch: 16 }, // Opérateur
     { wch: 30 }  // Notes
   ];
 
@@ -296,33 +334,37 @@ export function exportInventoryToExcel(
   if (aFaireItems.length > 0) {
     const rowsAFaire = aFaireItems.map((item, idx) => ({
       'N°': idx + 1,
+      'Statut': 'À FAIRE (NON INVENTORIÉ)',
+      'Code magasin': item.code_article,
+      'Désignation': item.designation,
+      'Référence manuel': item.reference,
       'Famaille': item.famille || 'Général',
       'S.famaille': item.sous_famille || '',
       'Départ': item.depart || item.machine || 'Standard',
       'Position': item.position || '',
       'Emplacement': item.emplacement || item.position || 'Non assigné',
-      'Désignation': item.designation,
-      'Référence manuel': item.reference,
-      'Code magasin': item.code_article,
       'Unité': item.unite,
       'Géré /nn': item.gere_nn || 'G',
-      'Statut': 'À FAIRE (NON INVENTORIÉ)'
+      'Stock Interne (Catalogue)': item.stock_interne,
+      'Opérateur': 'Non inventorié / En attente'
     }));
 
     const wsAFaire = XLSX.utils.json_to_sheet(rowsAFaire);
     wsAFaire['!cols'] = [
       { wch: 6 },
+      { wch: 26 },
+      { wch: 18 },
+      { wch: 38 },
+      { wch: 22 },
       { wch: 18 },
       { wch: 18 },
       { wch: 18 },
       { wch: 16 },
       { wch: 20 },
-      { wch: 38 },
-      { wch: 22 },
-      { wch: 18 },
       { wch: 10 },
       { wch: 12 },
-      { wch: 28 }
+      { wch: 22 },
+      { wch: 24 }
     ];
     safeAppendSheet(wb, wsAFaire, 'Articles_À_Faire_Contrôle');
   }
@@ -340,10 +382,14 @@ export function exportInventoryToExcel(
       'Position': item.position || '',
       'Emplacement': item.emplacement || item.position || 'Non assigné',
       'Unité': item.unite,
-      'Quantité Comptée': item.quantite,
+      'Stock Interne (Catalogue)': item.stock_interne,
+      'Quantité Comptée (Physique)': item.quantite,
+      'Écart de Stock': typeof item.ecart_stock === 'number'
+        ? item.ecart_stock
+        : (typeof item.quantite === 'number' ? item.quantite - item.stock_interne : 0),
       'Qualité / État': item.qualite,
+      'Opérateur': item.operator || 'Opérateur',
       'Date & Heure': item.timestamp,
-      'Opérateur': item.operator,
       'Remarques': item.notes
     }));
 
@@ -358,21 +404,24 @@ export function exportInventoryToExcel(
       { wch: 16 }, // Position
       { wch: 20 }, // Emplacement
       { wch: 10 }, // Unité
-      { wch: 16 }, // Quantité Comptée
+      { wch: 22 }, // Stock Interne (Catalogue)
+      { wch: 24 }, // Quantité Comptée
+      { wch: 16 }, // Écart de Stock
       { wch: 26 }, // Qualité
+      { wch: 22 }, // Opérateur
       { wch: 20 }, // Date
-      { wch: 16 }, // Opérateur
       { wch: 30 }  // Notes
     ];
     safeAppendSheet(wb, wsSaisis, 'Articles_Saisis');
   }
 
-  // 4. Machine Summary Sheet (avec taux d'avancement)
-  const machineMap = new Map<string, { total: number; saisis: number; aFaire: number; totalQty: number }>();
+  // 4. Machine Summary Sheet (avec Stock Interne Total vs Quantité Totale Comptée)
+  const machineMap = new Map<string, { total: number; saisis: number; aFaire: number; totalStockInterne: number; totalQty: number }>();
   filtered.forEach(item => {
     const m = item.machine || 'Non assigné';
-    const curr = machineMap.get(m) || { total: 0, saisis: 0, aFaire: 0, totalQty: 0 };
+    const curr = machineMap.get(m) || { total: 0, saisis: 0, aFaire: 0, totalStockInterne: 0, totalQty: 0 };
     curr.total += 1;
+    curr.totalStockInterne += item.stock_interne || 0;
     if (item.statutInventaire === 'Saisi') {
       curr.saisis += 1;
       curr.totalQty += typeof item.quantite === 'number' ? item.quantite : 0;
@@ -389,20 +438,23 @@ export function exportInventoryToExcel(
       'Articles Saisis': stats.saisis,
       'Articles À Faire (Non saisis)': stats.aFaire,
       'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
-      'Quantité Totale Comptée': stats.totalQty
+      'Stock Interne Total': stats.totalStockInterne,
+      'Quantité Totale Comptée': stats.totalQty,
+      'Écart Global': stats.totalQty - stats.totalStockInterne
     }));
 
     const wsMachine = XLSX.utils.json_to_sheet(machineRows);
-    wsMachine['!cols'] = [{ wch: 35 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 20 }, { wch: 24 }];
+    wsMachine['!cols'] = [{ wch: 35 }, { wch: 20 }, { wch: 16 }, { wch: 24 }, { wch: 18 }, { wch: 20 }, { wch: 22 }, { wch: 16 }];
     safeAppendSheet(wb, wsMachine, 'Synthèse_Machines');
   }
 
-  // 5. Family Summary Sheet (avec taux d'avancement)
-  const familleMap = new Map<string, { total: number; saisis: number; aFaire: number; totalQty: number }>();
+  // 5. Family Summary Sheet (avec Stock Interne Total vs Quantité Totale Comptée)
+  const familleMap = new Map<string, { total: number; saisis: number; aFaire: number; totalStockInterne: number; totalQty: number }>();
   filtered.forEach(item => {
     const f = item.famille || 'Général';
-    const curr = familleMap.get(f) || { total: 0, saisis: 0, aFaire: 0, totalQty: 0 };
+    const curr = familleMap.get(f) || { total: 0, saisis: 0, aFaire: 0, totalStockInterne: 0, totalQty: 0 };
     curr.total += 1;
+    curr.totalStockInterne += item.stock_interne || 0;
     if (item.statutInventaire === 'Saisi') {
       curr.saisis += 1;
       curr.totalQty += typeof item.quantite === 'number' ? item.quantite : 0;
@@ -419,20 +471,23 @@ export function exportInventoryToExcel(
       'Articles Saisis': stats.saisis,
       'Articles À Faire (Non saisis)': stats.aFaire,
       'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
-      'Quantité Totale Comptée': stats.totalQty
+      'Stock Interne Total': stats.totalStockInterne,
+      'Quantité Totale Comptée': stats.totalQty,
+      'Écart Global': stats.totalQty - stats.totalStockInterne
     }));
 
     const wsFamille = XLSX.utils.json_to_sheet(familleRows);
-    wsFamille['!cols'] = [{ wch: 30 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 20 }, { wch: 24 }];
+    wsFamille['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 16 }, { wch: 24 }, { wch: 18 }, { wch: 20 }, { wch: 22 }, { wch: 16 }];
     safeAppendSheet(wb, wsFamille, 'Synthèse_Familles');
   }
 
-  // 6. Emplacement Summary Sheet (avec taux d'avancement par zone/emplacement)
-  const locMap = new Map<string, { total: number; saisis: number; aFaire: number; totalQty: number }>();
+  // 6. Emplacement Summary Sheet (avec Stock Interne Total vs Quantité Totale Comptée)
+  const locMap = new Map<string, { total: number; saisis: number; aFaire: number; totalStockInterne: number; totalQty: number }>();
   filtered.forEach(item => {
     const loc = item.emplacement || 'Non assigné';
-    const curr = locMap.get(loc) || { total: 0, saisis: 0, aFaire: 0, totalQty: 0 };
+    const curr = locMap.get(loc) || { total: 0, saisis: 0, aFaire: 0, totalStockInterne: 0, totalQty: 0 };
     curr.total += 1;
+    curr.totalStockInterne += item.stock_interne || 0;
     if (item.statutInventaire === 'Saisi') {
       curr.saisis += 1;
       curr.totalQty += typeof item.quantite === 'number' ? item.quantite : 0;
@@ -449,11 +504,13 @@ export function exportInventoryToExcel(
       'Articles Saisis': stats.saisis,
       'Articles À Faire (Non saisis)': stats.aFaire,
       'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
-      'Quantité Totale Comptée': stats.totalQty
+      'Stock Interne Total': stats.totalStockInterne,
+      'Quantité Totale Comptée': stats.totalQty,
+      'Écart Global': stats.totalQty - stats.totalStockInterne
     }));
 
     const wsLoc = XLSX.utils.json_to_sheet(locRows);
-    wsLoc['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 20 }, { wch: 24 }];
+    wsLoc['!cols'] = [{ wch: 28 }, { wch: 20 }, { wch: 16 }, { wch: 24 }, { wch: 18 }, { wch: 20 }, { wch: 22 }, { wch: 16 }];
     safeAppendSheet(wb, wsLoc, 'Synthèse_Emplacements');
   }
 
