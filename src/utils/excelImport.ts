@@ -10,6 +10,44 @@ function normalizeHeader(str: string): string {
     .replace(/[^a-z0-9]/g, '');
 }
 
+export function isValidLocation(loc: string | undefined | null): boolean {
+  if (!loc || typeof loc !== 'string') return false;
+  const clean = loc.trim().toLowerCase();
+  if (!clean) return false;
+
+  const invalidValues = [
+    'non renseigné',
+    'non renseigne',
+    'non assigné',
+    'non assigne',
+    'non',
+    'aucun',
+    'sans',
+    '-',
+    '--',
+    '---',
+    '/',
+    '\\',
+    'n/a',
+    'na',
+    'null',
+    'undefined',
+    '0',
+    'standard',
+    'général',
+    'general',
+    'g',
+    'nn',
+    'position',
+    'emplacement',
+    'opt',
+    'optionnel'
+  ];
+  if (invalidValues.includes(clean)) return false;
+  if (/^[\-_/\\.,;:!?*+=0\s]+$/.test(clean)) return false;
+  return true;
+}
+
 export function detectColumnMapping(headers: string[]): ColumnMapping {
   const mapping: ColumnMapping = {
     famille: '',
@@ -329,14 +367,17 @@ export function convertRawRowsToArticles(
     ).trim() || 'Standard';
     const machine = depart;
 
-    // 4. Position (Emplacement)
-    const rawPos = String(
-      (mapping.position ? row[mapping.position] : '') ||
-      (mapping.emplacement ? row[mapping.emplacement] : '') ||
-      ''
-    ).trim();
-    const position = rawPos === 'Non renseigné' ? '' : rawPos;
-    const emplacement = position;
+    // 4. Position & Emplacement (Stockage)
+    // Extraire spécifiquement l'emplacement de stockage indiqué par le fichier Excel
+    const rawEmp = mapping.emplacement ? String(row[mapping.emplacement] || '').trim() : '';
+    const rawPos = mapping.position ? String(row[mapping.position] || '').trim() : '';
+
+    const cleanEmp = isValidLocation(rawEmp) ? rawEmp : '';
+    const cleanPos = isValidLocation(rawPos) ? rawPos : '';
+
+    // Si une colonne Emplacement dédiée existe dans l'Excel, elle est prioritaire pour le stockage
+    const emplacement = cleanEmp || cleanPos || '';
+    const position = cleanPos || cleanEmp || '';
 
     // 5. Désignation
     const designation = String(row[mapping.designation] || '').trim();
@@ -361,7 +402,13 @@ export function convertRawRowsToArticles(
 
     if (depart && depart !== 'Standard') machinesSet.add(depart);
     if (famille && famille !== 'Général') famillesSet.add(famille);
-    if (position && position !== 'Non renseigné') emplacementsSet.add(position);
+
+    // Insérer seulement les emplacements réels et valides présents dans le fichier Excel
+    if (cleanEmp) {
+      emplacementsSet.add(cleanEmp);
+    } else if (!mapping.emplacement && cleanPos) {
+      emplacementsSet.add(cleanPos);
+    }
 
     articles.push({
       id: `art-import-${Date.now()}-${index}`,
@@ -392,6 +439,7 @@ export function convertRawRowsToArticles(
 
 export function parseEmplacementsExcel(rawRows: Record<string, any>[]): EmplacementItem[] {
   const emplacements: EmplacementItem[] = [];
+  const seen = new Set<string>();
   
   rawRows.forEach((row, idx) => {
     const keys = Object.keys(row);
@@ -400,6 +448,36 @@ export function parseEmplacementsExcel(rawRows: Record<string, any>[]): Emplacem
     let zone = '';
 
     keys.forEach(k => {
+      const norm = normalizeHeader(k);
+      if (norm.includes('emplacement') || norm.includes('casier') || norm.includes('bac') || norm.includes('rayon') || norm === 'pos') {
+        code = String(row[k] || '');
+      } else if (norm.includes('code') || norm.includes('id')) {
+        if (!code) code = String(row[k] || '');
+      } else if (norm.includes('nom') || norm.includes('lib') || norm.includes('desig')) {
+        nom = String(row[k] || '');
+      } else if (norm.includes('zone') || norm.includes('secteur') || norm.includes('mag') || norm.includes('depart')) {
+        zone = String(row[k] || '');
+      }
+    });
+
+    if (!code && keys[0]) code = String(row[keys[0]] || '');
+    if (!nom && keys[1]) nom = String(row[keys[1]] || '');
+    if (!zone && keys[2]) zone = String(row[keys[2]] || '');
+
+    const cleanCode = (code || nom).trim();
+    if (isValidLocation(cleanCode) && !seen.has(cleanCode.toLowerCase())) {
+      seen.add(cleanCode.toLowerCase());
+      emplacements.push({
+        id: `loc-imp-${Date.now()}-${idx}`,
+        code: cleanCode,
+        nom: (nom || cleanCode).trim(),
+        zone: (zone || 'Magasin').trim()
+      });
+    }
+  });
+
+  return emplacements;
+}
       const norm = normalizeHeader(k);
       if (norm.includes('code') || norm.includes('id') || norm.includes('bac') || norm.includes('casier') || norm.includes('pos')) {
         code = String(row[k]);

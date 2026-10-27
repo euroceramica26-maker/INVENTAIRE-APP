@@ -41,8 +41,8 @@ import {
   getStoredCurrentUser,
   saveStoredCurrentUser,
   clearStoredCurrentUser
-} from '../utils/storage';
 import { ADMIN_CREDENTIALS } from '../utils/auth';
+import { isValidLocation } from '../utils/excelImport';
 import { INITIAL_ARTICLES, INITIAL_EMPLACEMENTS, INITIAL_FAMILLES, INITIAL_MACHINES } from '../data/initialCatalog';
 import { syncService, RemoteServerState } from '../utils/syncService';
 import { matchScannedDataWithArticles, ScanMatchResult } from '../utils/scanParser';

@@ -6,12 +6,16 @@ import {
   EyeOff,
   AlertCircle,
   ScanLine,
-  ArrowRight
+  ArrowRight,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
+import { useTheme } from '../context/ThemeContext';
 
 export const LoginScreen: React.FC = () => {
   const { loginUser } = useInventory();
+  const { isDark, toggleTheme } = useTheme();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -42,7 +46,27 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col items-center justify-center p-4 sm:p-6 text-slate-100">
+    <div className="relative min-h-screen bg-slate-900 via-slate-950 to-slate-900 flex flex-col items-center justify-center p-4 sm:p-6 text-slate-100">
+      {/* Bouton pour changer du mode clair au mode sombre */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer select-none shadow-xs active:scale-95 ${
+            isDark
+              ? 'bg-slate-800 hover:bg-slate-700 border-amber-500/40 text-amber-300'
+              : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800'
+          }`}
+          title={isDark ? "Passer en Mode Clair" : "Passer en Mode Sombre"}
+        >
+          {isDark ? (
+            <Sun className="w-4 h-4 text-amber-400 shrink-0" />
+          ) : (
+            <Moon className="w-4 h-4 text-indigo-600 shrink-0" />
+          )}
+          <span>{isDark ? 'Mode Clair' : 'Mode Sombre'}</span>
+        </button>
+      </div>
       <div className="w-full max-w-md">
         {/* Brand & App Identity */}
         <div className="text-center mb-8">

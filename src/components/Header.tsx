@@ -364,20 +364,41 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Cloud & Local storage state */}
             <SyncStatusBadge />
 
-            {/* Dark Theme Switcher Button */}
+            {/* Bouton pour changer du mode clair au mode sombre */}
             <button
               type="button"
               data-testid="theme-toggle-button"
               onClick={toggleTheme}
-              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-amber-400 transition-all cursor-pointer select-none flex items-center justify-center shrink-0 shadow-2xs active:scale-95"
-              title={isDark ? "Passer en mode clair" : "Mode sombre industriel (confort visuel)"}
-              aria-label={isDark ? "Passer en mode clair" : "Mode sombre industriel"}
+              className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer select-none shrink-0 shadow-2xs active:scale-95 ${
+                isDark
+                  ? 'bg-slate-800 hover:bg-slate-700/90 border-amber-500/40 text-amber-300'
+                  : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800'
+              }`}
+              title={isDark ? "Passer en Mode Clair" : "Passer en Mode Sombre"}
+              aria-label={isDark ? "Passer en Mode Clair" : "Passer en Mode Sombre"}
             >
               {isDark ? (
-                <Sun className="w-4 h-4 text-amber-400 transition-transform hover:rotate-45" />
+                <Sun className="w-4 h-4 text-amber-400 shrink-0 transition-transform hover:rotate-45" />
               ) : (
-                <Moon className="w-4 h-4 text-slate-600 transition-transform hover:-rotate-12" />
+                <Moon className="w-4 h-4 text-indigo-600 shrink-0 transition-transform hover:-rotate-12" />
               )}
+              
+              <span className="hidden sm:inline">
+                {isDark ? 'Mode Clair' : 'Mode Sombre'}
+              </span>
+              <span className="sm:hidden text-[11px]">
+                {isDark ? 'Clair' : 'Sombre'}
+              </span>
+
+              {/* Slider switch track indicator */}
+              <div
+                className={`w-7 h-4 rounded-full p-0.5 flex items-center transition-colors shrink-0 ${
+                  isDark ? 'bg-amber-500 justify-end' : 'bg-slate-300 justify-start'
+                }`}
+                aria-hidden="true"
+              >
+                <div className="w-3 h-3 rounded-full bg-white shadow-xs" />
+              </div>
             </button>
 
             {/* Excel Import button (Admin uniquement) */}
