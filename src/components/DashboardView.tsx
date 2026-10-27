@@ -16,7 +16,10 @@ import {
   Clock,
   X,
   User,
-  MapPin
+  MapPin,
+  Equal,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { Article, InventoryEntry, QualiteEtat } from '../types/inventory';
@@ -862,7 +865,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <span>Emplacement</span>
                     </div>
                   </th>
-                  <th className="py-3 px-4 text-right">Quantité Saisie</th>
+                  <th className="py-3 px-3 text-right">Stock Interne</th>
+                  <th className="py-3 px-3 text-right">Quantité Saisie</th>
+                  <th className="py-3 px-3 text-right">Écart</th>
                   <th className="py-3 px-4">Qualité Réelle</th>
                   <th className="py-3 px-4">Date / Opérateur</th>
                   <th className="py-3 px-4 text-right">Actions</th>
@@ -953,8 +958,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         })()}
                       </td>
 
+                      {/* Stock Interne */}
+                      <td className="py-3 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap bg-sky-50/20 dark:bg-sky-950/10">
+                        <span className="text-sky-700 dark:text-sky-300 font-extrabold text-[12px] bg-sky-50 dark:bg-sky-950/50 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+                          {typeof item.stock_interne === 'number' ? item.stock_interne.toFixed(2) : '0.00'}
+                        </span>
+                      </td>
+
                       {/* Quantité Saisie */}
-                      <td className="py-3 px-4 text-right font-mono tabular-nums font-bold whitespace-nowrap">
+                      <td className="py-3 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap bg-emerald-50/20 dark:bg-emerald-950/10">
                         {isSaisi ? (
                           <>
                             <span className="text-base text-amber-600 dark:text-amber-400">{item.quantite}</span>{' '}
@@ -962,6 +974,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           </>
                         ) : (
                           <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">Non saisi</span>
+                        )}
+                      </td>
+
+                      {/* Écart de Stock */}
+                      <td className="py-3 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
+                        {isSaisi ? (() => {
+                          const stockInt = typeof item.stock_interne === 'number' ? item.stock_interne : 0;
+                          const ecartVal = (typeof item.quantite === 'number' ? item.quantite : 0) - stockInt;
+                          return ecartVal === 0 ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800">
+                              <Equal className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                              0.00
+                            </span>
+                          ) : ecartVal > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-100/70 dark:bg-sky-950/50 px-2 py-0.5 rounded border border-sky-300 dark:border-sky-800">
+                              <TrendingUp className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                              +{ecartVal.toFixed(2)}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 bg-rose-100/70 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-300 dark:border-rose-800">
+                              <TrendingDown className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                              {ecartVal.toFixed(2)}
+                            </span>
+                          );
+                        })() : (
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">-</span>
                         )}
                       </td>
 

@@ -441,7 +441,7 @@ export const ExportView: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-1.5 mt-1">
             <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-sky-300">
-              {stats.totalStockInterne}
+              {Number(stats.totalStockInterne || 0).toFixed(2)}
             </span>
             <span className="text-xs text-slate-400">unités</span>
           </div>
@@ -460,7 +460,7 @@ export const ExportView: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-1.5 mt-1">
             <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-emerald-300">
-              {stats.totalQty}
+              {Number(stats.totalQty || 0).toFixed(2)}
             </span>
             <span className="text-xs text-slate-400">unités</span>
           </div>
@@ -493,7 +493,7 @@ export const ExportView: React.FC = () => {
                   : 'text-rose-400'
               }`}
             >
-              {stats.ecartGlobal > 0 ? `+${stats.ecartGlobal}` : stats.ecartGlobal}
+              {stats.ecartGlobal > 0 ? `+${stats.ecartGlobal.toFixed(2)}` : stats.ecartGlobal.toFixed(2)}
             </span>
             <span className="text-xs text-slate-400">
               {stats.ecartGlobal === 0 ? 'conforme' : stats.ecartGlobal > 0 ? 'surplus' : 'déficit'}
@@ -524,223 +524,268 @@ export const ExportView: React.FC = () => {
         </div>
       </div>
 
-      {/* PREVIEW TABLE WITH NEW COLUMNS */}
+      {/* PREVIEW TABLE IDENTIQUE À LA BASE D'INVENTAIRE & ARTICLES SAISIS */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs transition-colors">
-        <div className="p-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              Aperçu des données du classeur Excel ({filteredData.length} articles)
-            </span>
+        <div className="p-4 sm:p-5 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Aperçu des données du classeur Excel
+              </h3>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                <span className="font-mono text-amber-700 dark:text-amber-400 font-bold">{filteredData.length}</span>
+                <span>articles</span>
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Présentation identique à la base d'inventaire : statut (saisi/à faire), emplacement, stock interne, quantité saisie, écart et opérateur.
+            </p>
           </div>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            Comprend Stock Interne, Quantité Saisie, Écart de Stock et Opérateur pour chaque article (Saisi et À Faire).
-          </span>
+
+          {/* Quick Status Filter Tabs */}
+          <div className="flex items-center bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-200/70 dark:border-slate-700/70 text-xs self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => setFilters({ ...filters, statusFilter: 'saisi' })}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                filters.statusFilter === 'saisi'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs font-bold border border-slate-200/60 dark:border-slate-700'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Articles Saisis</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                filters.statusFilter === 'saisi'
+                  ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}>
+                {stats.countSaisis}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilters({ ...filters, statusFilter: 'all' })}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                filters.statusFilter === 'all'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold border border-slate-200/60 dark:border-slate-700'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <span>Base Complète</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                filters.statusFilter === 'all'
+                  ? 'bg-slate-800 dark:bg-slate-700 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}>
+                {allCombined.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilters({ ...filters, statusFilter: 'a_faire' })}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                filters.statusFilter === 'a_faire'
+                  ? 'bg-white dark:bg-slate-900 text-amber-800 dark:text-amber-300 shadow-xs font-bold border border-slate-200/60 dark:border-slate-700'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>En attente</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                filters.statusFilter === 'a_faire'
+                  ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}>
+                {stats.countAFaire}
+              </span>
+            </button>
+          </div>
         </div>
 
         {filteredData.length === 0 ? (
-          <div className="p-10 text-center text-slate-400 dark:text-slate-500 text-xs">
+          <div className="p-12 text-center text-slate-400 dark:text-slate-500 text-xs">
             Aucun article ne correspond aux filtres appliqués.
           </div>
         ) : (
-          <div className="overflow-x-auto max-h-[500px]">
+          <div className="overflow-x-auto max-h-[600px] bg-white dark:bg-slate-900 transition-colors">
             <table className="w-full text-left text-xs divide-y divide-slate-100 dark:divide-slate-800">
-              <thead className="bg-[#f28e2b] text-white font-bold sticky top-0 shadow-xs z-10">
-                <tr className="divide-x divide-orange-300/60">
-                  <th className="py-2.5 px-3 whitespace-nowrap text-center">Statut</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Famaille</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">S.famaille</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Départ</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Position</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-amber-100" />
+              <thead className="bg-slate-50 dark:bg-slate-950/80 text-slate-600 dark:text-slate-400 font-semibold sticky top-0 shadow-2xs z-10">
+                <tr>
+                  <th className="py-3 px-4">Statut</th>
+                  <th className="py-3 px-4">Code Article</th>
+                  <th className="py-3 px-4">Désignation</th>
+                  <th className="py-3 px-4">Machine & Famille</th>
+                  <th className="py-3 px-4">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                       <span>Emplacement</span>
                     </div>
                   </th>
-                  <th className="py-2.5 px-3 min-w-[170px]">Désignation</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Référence manuel</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Code magasin</th>
-                  <th className="py-2.5 px-2 text-center whitespace-nowrap">Unité</th>
-                  <th className="py-2.5 px-2 text-center whitespace-nowrap">Géré /nn</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap bg-sky-700/40">
-                    Stock Interne
-                  </th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap bg-emerald-700/40">
-                    Qté Saisie
-                  </th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">
-                    Écart
-                  </th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Qualité</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      <User className="w-3.5 h-3.5 text-amber-100" />
-                      <span>Opérateur d'inventaire</span>
-                    </div>
-                  </th>
+                  <th className="py-3 px-3 text-right">Stock Interne</th>
+                  <th className="py-3 px-3 text-right">Quantité Saisie</th>
+                  <th className="py-3 px-3 text-right">Écart</th>
+                  <th className="py-3 px-4">Qualité Réelle</th>
+                  <th className="py-3 px-4">Date / Opérateur</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                 {filteredData.map((item) => {
                   const isSaisi = item.statutInventaire === 'Saisi';
                   const ecart = typeof item.ecart_stock === 'number' ? item.ecart_stock : null;
+                  const displayLoc = item.emplacement || item.position || 'Non assigné';
 
                   return (
                     <tr
                       key={item.id}
-                      className={`hover:bg-amber-50/40 dark:hover:bg-slate-800/60 divide-x divide-slate-100/70 dark:divide-slate-800/70 transition-colors ${
-                        !isSaisi ? 'bg-amber-50/20 dark:bg-amber-950/10' : ''
+                      className={`transition-colors ${
+                        isSaisi
+                          ? 'bg-emerald-50/20 dark:bg-emerald-950/20 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/40'
+                          : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
                       }`}
                     >
-                      {/* Statut Inventaire */}
-                      <td className="py-2.5 px-3 whitespace-nowrap text-center">
+                      {/* Statut : (saisi) ou À faire */}
+                      <td className="py-3 px-4 whitespace-nowrap">
                         {isSaisi ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-800">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                            Saisi
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            (saisi)
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-300 dark:border-amber-800">
-                            <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                            <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                             À faire
                           </span>
                         )}
                       </td>
 
-                      {/* 1. Famaille */}
-                      <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap truncate max-w-[130px]">
-                        {item.famille || 'Général'}
+                      {/* Code Article */}
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                        {item.code_article}
                       </td>
 
-                      {/* 2. S.famaille */}
-                      <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap truncate max-w-[120px]">
-                        {item.sous_famille || '-'}
+                      {/* Désignation & Référence */}
+                      <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200 max-w-[220px]">
+                        <div className="truncate font-semibold">{item.designation}</div>
+                        {item.reference && item.reference !== '-' && (
+                          <div className="text-[11px] text-slate-400 dark:text-slate-500 font-mono truncate">
+                            Réf: {item.reference}
+                          </div>
+                        )}
                       </td>
 
-                      {/* 3. Départ */}
-                      <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200 whitespace-nowrap truncate max-w-[130px] font-semibold">
-                        <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-[11px]">
-                          {item.depart || item.machine || 'Standard'}
-                        </span>
+                      {/* Machine & Famille */}
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                        <div className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[160px]">
+                          {item.machine || item.depart || 'Standard'}
+                        </div>
+                        <div className="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-[160px]">
+                          {item.famille || 'Général'}
+                        </div>
                       </td>
 
-                      {/* 4. Position */}
-                      <td className="py-2.5 px-3 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        <span className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800 text-[11px]">
-                          {item.position || '-'}
-                        </span>
-                      </td>
-
-                      {/* 4b. Emplacement */}
-                      <td className="py-2.5 px-3 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 text-[11px] font-semibold">
+                      {/* Emplacement */}
+                      <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center gap-1 font-mono font-semibold px-2 py-0.5 rounded text-[11px] border ${
+                            isSaisi
+                              ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 border-amber-300 dark:border-amber-700'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
                           <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                          {item.emplacement || item.position || 'Non assigné'}
+                          <span>{displayLoc}</span>
                         </span>
                       </td>
 
-                      {/* 5. Désignation */}
-                      <td className="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-200 max-w-[200px] truncate">
-                        {item.designation}
-                      </td>
-
-                      {/* 6. Référence manuel */}
-                      <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                        {item.reference || '-'}
-                      </td>
-
-                      {/* 7. Code magasin */}
-                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                        <span className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white px-2 py-0.5 rounded font-mono font-bold text-[11px] border border-slate-300 dark:border-slate-700">
-                          {item.code_article}
-                        </span>
-                      </td>
-
-                      {/* 8. Unité */}
-                      <td className="py-2.5 px-2 text-center whitespace-nowrap text-slate-600 dark:text-slate-400">
-                        {item.unite || 'Pièce'}
-                      </td>
-
-                      {/* 9. Géré /nn */}
-                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                          {item.gere_nn || 'G'}
-                        </span>
-                      </td>
-
-                      {/* Stock Interne (Catalogue) */}
-                      <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap bg-sky-50/40 dark:bg-sky-950/20">
-                        <span className="text-sky-700 dark:text-sky-300">
-                          {item.stock_interne}
+                      {/* Stock Interne (Théorique) */}
+                      <td className="py-3 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap bg-sky-50/20 dark:bg-sky-950/10">
+                        <span className="text-sky-700 dark:text-sky-300 font-extrabold text-[12px] bg-sky-50 dark:bg-sky-950/50 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+                          {typeof item.stock_interne === 'number' ? item.stock_interne.toFixed(2) : '0.00'}
                         </span>
                       </td>
 
                       {/* Quantité Saisie (Physique) */}
-                      <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap bg-emerald-50/40 dark:bg-emerald-950/20">
+                      <td className="py-3 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap bg-emerald-50/20 dark:bg-emerald-950/10">
                         {isSaisi ? (
-                          <span className="text-emerald-700 dark:text-emerald-400">
-                            {item.quantite}
-                          </span>
+                          <>
+                            <span className="text-base text-amber-600 dark:text-amber-400">
+                              {typeof item.quantite === 'number' ? item.quantite.toFixed(2) : item.quantite}
+                            </span>{' '}
+                            <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">
+                              {item.unite || 'Pièce'}
+                            </span>
+                          </>
                         ) : (
-                          <span className="text-slate-400 dark:text-slate-500 font-normal italic">
-                            Non saisi
-                          </span>
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">Non saisi</span>
                         )}
                       </td>
 
                       {/* Écart de Stock */}
-                      <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
+                      <td className="py-3 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
                         {isSaisi && ecart !== null ? (
                           ecart === 0 ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800">
                               <Equal className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                              0
+                              0.00
                             </span>
                           ) : ecart > 0 ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-100/70 dark:bg-sky-950/50 px-2 py-0.5 rounded border border-sky-300 dark:border-sky-800">
                               <TrendingUp className="w-3 h-3 text-sky-600 dark:text-sky-400" />
-                              +{ecart}
+                              +{ecart.toFixed(2)}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 bg-rose-100/70 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-300 dark:border-rose-800">
                               <TrendingDown className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-                              {ecart}
+                              {ecart.toFixed(2)}
                             </span>
                           )
                         ) : (
-                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">
-                            -
-                          </span>
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">-</span>
                         )}
                       </td>
 
                       {/* Qualité */}
-                      <td className="py-2.5 px-3 whitespace-nowrap text-[11px]">
+                      <td className="py-3 px-4 whitespace-nowrap">
                         {isSaisi ? (
-                          <span className="text-slate-800 dark:text-slate-200">{item.qualite}</span>
+                          <span
+                            className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                              item.qualite.includes('Conforme') || item.qualite.includes('Bon') || item.qualite.includes('Neuf')
+                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                : item.qualite.includes('réparer') || item.qualite.includes('Dégradé')
+                                ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                : 'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                            }`}
+                          >
+                            {item.qualite}
+                          </span>
                         ) : (
-                          <span className="text-slate-400 dark:text-slate-500 italic">En attente</span>
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 italic">En attente</span>
                         )}
                       </td>
 
-                      {/* Opérateur qui a réalisé l'inventaire */}
-                      <td className="py-2.5 px-3 whitespace-nowrap text-[11px]">
-                        {isSaisi && item.operator && item.operator !== '-' && item.operator !== 'En attente' ? (
-                          <div className="flex flex-col">
-                            <span className="inline-flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 w-fit">
-                              <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                              <span>{item.operator}</span>
-                            </span>
+                      {/* Date & Opérateur */}
+                      <td className="py-3 px-4 whitespace-nowrap text-slate-500 dark:text-slate-400 text-[11px]">
+                        {isSaisi ? (
+                          <div className="space-y-1">
                             {item.timestamp && item.timestamp !== '-' && (
-                              <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-mono">
+                              <div className="text-slate-600 dark:text-slate-400 font-mono text-[10px]">
                                 {item.timestamp}
+                              </div>
+                            )}
+                            {item.operator && item.operator !== '-' && item.operator !== 'En attente' ? (
+                              <span className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded text-[10px]">
+                                <User className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                                <span className="truncate max-w-[120px]">{item.operator}</span>
                               </span>
+                            ) : (
+                              <span className="text-slate-400">-</span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">
-                            En attente
-                          </span>
+                          <span className="text-slate-400 dark:text-slate-500">-</span>
                         )}
                       </td>
                     </tr>

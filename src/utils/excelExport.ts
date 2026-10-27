@@ -269,9 +269,9 @@ export function exportInventoryToExcel(
       'Emplacement': item.emplacement || item.position || 'Non assigné',
       'Unité': item.unite,
       'Géré /nn': item.gere_nn || 'G',
-      'Stock Interne (Catalogue)': item.stock_interne,
-      'Quantité Saisie (Physique)': item.quantite === '' ? 'Non saisi' : item.quantite,
-      'Écart de Stock': ecartVal,
+      'Stock Interne (Catalogue)': typeof item.stock_interne === 'number' ? Number(item.stock_interne.toFixed(2)) : item.stock_interne,
+      'Quantité Saisie (Physique)': typeof item.quantite === 'number' ? Number(item.quantite.toFixed(2)) : (item.quantite === '' ? 'Non saisi' : item.quantite),
+      'Écart de Stock': typeof ecartVal === 'number' ? Number(ecartVal.toFixed(2)) : ecartVal,
       'Qualité / État Réel': item.qualite,
       'Opérateur': item.operator || (isSaisi ? 'Opérateur' : 'En attente'),
       'Date & Heure': item.timestamp,
@@ -382,11 +382,11 @@ export function exportInventoryToExcel(
       'Position': item.position || '',
       'Emplacement': item.emplacement || item.position || 'Non assigné',
       'Unité': item.unite,
-      'Stock Interne (Catalogue)': item.stock_interne,
-      'Quantité Comptée (Physique)': item.quantite,
+      'Stock Interne (Catalogue)': typeof item.stock_interne === 'number' ? Number(item.stock_interne.toFixed(2)) : item.stock_interne,
+      'Quantité Comptée (Physique)': typeof item.quantite === 'number' ? Number(item.quantite.toFixed(2)) : item.quantite,
       'Écart de Stock': typeof item.ecart_stock === 'number'
-        ? item.ecart_stock
-        : (typeof item.quantite === 'number' ? item.quantite - item.stock_interne : 0),
+        ? Number(item.ecart_stock.toFixed(2))
+        : (typeof item.quantite === 'number' ? Number((item.quantite - item.stock_interne).toFixed(2)) : 0),
       'Qualité / État': item.qualite,
       'Opérateur': item.operator || 'Opérateur',
       'Date & Heure': item.timestamp,
@@ -438,9 +438,9 @@ export function exportInventoryToExcel(
       'Articles Saisis': stats.saisis,
       'Articles À Faire (Non saisis)': stats.aFaire,
       'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
-      'Stock Interne Total': stats.totalStockInterne,
-      'Quantité Totale Comptée': stats.totalQty,
-      'Écart Global': stats.totalQty - stats.totalStockInterne
+      'Stock Interne Total': Number(stats.totalStockInterne.toFixed(2)),
+      'Quantité Totale Comptée': Number(stats.totalQty.toFixed(2)),
+      'Écart Global': Number((stats.totalQty - stats.totalStockInterne).toFixed(2))
     }));
 
     const wsMachine = XLSX.utils.json_to_sheet(machineRows);
@@ -471,9 +471,9 @@ export function exportInventoryToExcel(
       'Articles Saisis': stats.saisis,
       'Articles À Faire (Non saisis)': stats.aFaire,
       'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
-      'Stock Interne Total': stats.totalStockInterne,
-      'Quantité Totale Comptée': stats.totalQty,
-      'Écart Global': stats.totalQty - stats.totalStockInterne
+      'Stock Interne Total': Number(stats.totalStockInterne.toFixed(2)),
+      'Quantité Totale Comptée': Number(stats.totalQty.toFixed(2)),
+      'Écart Global': Number((stats.totalQty - stats.totalStockInterne).toFixed(2))
     }));
 
     const wsFamille = XLSX.utils.json_to_sheet(familleRows);
@@ -504,9 +504,9 @@ export function exportInventoryToExcel(
       'Articles Saisis': stats.saisis,
       'Articles À Faire (Non saisis)': stats.aFaire,
       'Taux d\'Avancement': stats.total > 0 ? `${Math.round((stats.saisis / stats.total) * 100)}%` : '0%',
-      'Stock Interne Total': stats.totalStockInterne,
-      'Quantité Totale Comptée': stats.totalQty,
-      'Écart Global': stats.totalQty - stats.totalStockInterne
+      'Stock Interne Total': Number(stats.totalStockInterne.toFixed(2)),
+      'Quantité Totale Comptée': Number(stats.totalQty.toFixed(2)),
+      'Écart Global': Number((stats.totalQty - stats.totalStockInterne).toFixed(2))
     }));
 
     const wsLoc = XLSX.utils.json_to_sheet(locRows);

@@ -243,7 +243,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           </div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl sm:text-3xl font-bold font-mono text-slate-900 dark:text-white tabular-nums">
-              {stockStats.totalStockInterne}
+              {Number(stockStats.totalStockInterne || 0).toFixed(2)}
             </span>
             <span className="text-xs text-slate-400 dark:text-slate-500">unités théoriques</span>
           </div>
@@ -260,7 +260,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           </div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl sm:text-3xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tabular-nums">
-              {stockStats.totalCompté}
+              {Number(stockStats.totalCompté || 0).toFixed(2)}
             </span>
             <span className="text-xs text-slate-500 dark:text-slate-400">unités inventoriées</span>
           </div>
@@ -291,7 +291,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                   : 'text-rose-600 dark:text-rose-400'
               }`}
             >
-              {stockStats.ecartGlobal > 0 ? `+${stockStats.ecartGlobal}` : stockStats.ecartGlobal}
+              {stockStats.ecartGlobal > 0
+                ? `+${stockStats.ecartGlobal.toFixed(2)}`
+                : stockStats.ecartGlobal.toFixed(2)}
             </span>
             <span className="text-xs text-slate-500 dark:text-slate-400">
               {stockStats.ecartGlobal === 0 ? 'conforme' : stockStats.ecartGlobal > 0 ? 'surplus' : 'déficit'}
@@ -528,7 +530,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                       {/* Stock Interne (Théorique) */}
                       <td className="py-3 px-3 text-right font-mono font-bold whitespace-nowrap bg-amber-50/30 dark:bg-amber-950/20">
                         <span className="text-amber-950 dark:text-amber-300 font-extrabold text-[12px] bg-amber-100/70 dark:bg-amber-900/50 px-2 py-0.5 rounded border border-amber-300/80 dark:border-amber-700">
-                          {stockInterne}
+                          {typeof stockInterne === 'number' ? stockInterne.toFixed(2) : stockInterne}
                         </span>
                       </td>
 
@@ -536,7 +538,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                       <td className="py-3 px-3 text-right font-mono font-bold whitespace-nowrap bg-emerald-50/20 dark:bg-emerald-950/20">
                         {qteSaisie !== null ? (
                           <span className="text-emerald-700 dark:text-emerald-400 font-extrabold text-[12px]">
-                            {qteSaisie}
+                            {typeof qteSaisie === 'number' ? qteSaisie.toFixed(2) : qteSaisie}
                           </span>
                         ) : (
                           <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">-</span>
@@ -555,7 +557,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                                 : 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700'
                             }`}
                           >
-                            {ecart > 0 ? `+${ecart}` : ecart}
+                            {ecart > 0 ? `+${ecart.toFixed(2)}` : ecart.toFixed(2)}
                           </span>
                         ) : (
                           <span className="text-slate-400 dark:text-slate-500 text-[11px]">-</span>
