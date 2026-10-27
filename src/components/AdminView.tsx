@@ -33,6 +33,7 @@ import { useInventory } from '../context/InventoryContext';
 import { InventoryCampaign, AppUser } from '../types/inventory';
 import { CreateInventoryModal } from './CreateInventoryModal';
 import { ConfirmModal } from './ConfirmModal';
+import { ClearDatabaseModal } from './ClearDatabaseModal';
 import { exportFullJsonBackup } from '../utils/storage';
 import { UserManagementView } from './UserManagementView';
 
@@ -609,18 +610,16 @@ export const AdminView: React.FC = () => {
         onCancel={() => setInventoryToDelete(null)}
       />
 
-      {/* Confirmation Vider Toute la Base */}
-      <ConfirmModal
+      {/* Sécurisation Vider Toute la Base avec mot de passe admin obligatoire */}
+      <ClearDatabaseModal
         isOpen={isConfirmClearOpen}
-        title="Vider toute la base de données (Admin)"
-        message="Attention : Vous êtes sur le point de supprimer définitivement tous les inventaires, tous les articles, toutes les saisies, machines, familles et emplacements pour repartir d'une base 100% vide. Confirmez-vous cette action d'administration ?"
-        confirmLabel="Vider complètement la base"
-        isDestructive={true}
+        onClose={() => setIsConfirmClearOpen(false)}
         onConfirm={() => {
           clearEntireDatabase();
           setIsConfirmClearOpen(false);
         }}
-        onCancel={() => setIsConfirmClearOpen(false)}
+        title="Vider toute la base de données (Admin)"
+        message="Attention : Vous êtes sur le point de supprimer définitivement tous les inventaires, tous les articles, toutes les saisies, machines, familles et emplacements pour repartir d'une base 100% vide."
       />
     </div>
   );

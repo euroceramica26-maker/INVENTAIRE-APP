@@ -23,6 +23,7 @@ import { Article, InventoryEntry, QualiteEtat } from '../types/inventory';
 import { QUALITE_LABELS, buildCombinedInventoryList, exportInventoryToExcel } from '../utils/excelExport';
 import { exportFullJsonBackup } from '../utils/storage';
 import { ConfirmModal } from './ConfirmModal';
+import { ClearDatabaseModal } from './ClearDatabaseModal';
 
 interface DashboardViewProps {
   onOpenScanner: () => void;
@@ -765,14 +766,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </button>
                 {(entries.length > 0 || articles.length > 0) && (
                   <button
-                    onClick={() => {
-                      requestAdminAction(
-                        () => setIsConfirmClearOpen(true),
-                        "Seul l'administrateur (ouaradtech) a le droit de vider ou réinitialiser la base de données."
-                      );
-                    }}
+                    onClick={() => setIsConfirmClearOpen(true)}
                     className="p-1.5 text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors flex items-center gap-1 text-xs cursor-pointer"
-                    title="Vider toute la base (Admin)"
+                    title="Vider toute la base (Mot de passe administrateur obligatoire)"
                   >
                     <Trash2 className="w-4 h-4" />
                     <span className="hidden sm:inline font-medium">Vider la base</span>
@@ -1105,18 +1101,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         onCancel={() => setEntryToDelete(null)}
       />
 
-      {/* Modal confirmation effacement complet de la base */}
-      <ConfirmModal
+      {/* Modal sécurisée effacement complet de la base avec mot de passe admin obligatoire */}
+      <ClearDatabaseModal
         isOpen={isConfirmClearOpen}
-        title="Vider toute la base de données"
-        message="Attention : Cette action va effacer définitivement tous les articles importés, les machines, familles, emplacements et toutes les saisies d'inventaire pour repartir d'une base 100% vide."
-        confirmLabel="Tout supprimer (Remise à zéro)"
-        isDestructive={true}
+        onClose={() => setIsConfirmClearOpen(false)}
         onConfirm={() => {
           clearEntireDatabase();
           setIsConfirmClearOpen(false);
         }}
-        onCancel={() => setIsConfirmClearOpen(false)}
+        title="Vider toute la base de données"
+        message="Attention : Cette action va effacer définitivement tous les articles importés, les machines, familles, emplacements et toutes les saisies d'inventaire pour repartir d'une base 100% vide."
       />
     </div>
   );

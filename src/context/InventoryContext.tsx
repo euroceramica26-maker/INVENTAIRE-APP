@@ -42,6 +42,7 @@ import {
   saveStoredCurrentUser,
   clearStoredCurrentUser
 } from '../utils/storage';
+import { ADMIN_CREDENTIALS } from '../utils/auth';
 import { INITIAL_ARTICLES, INITIAL_EMPLACEMENTS, INITIAL_FAMILLES, INITIAL_MACHINES } from '../data/initialCatalog';
 import { syncService, RemoteServerState } from '../utils/syncService';
 import { matchScannedDataWithArticles, ScanMatchResult } from '../utils/scanParser';
@@ -73,6 +74,7 @@ interface InventoryContextType {
   isAdmin: boolean;
   adminUser: string | null;
   loginAdmin: (login: string, mdp: string) => boolean;
+  verifyAdminPassword: (password: string) => boolean;
   logoutAdmin: () => void;
   isAdminLoginModalOpen: boolean;
   setIsAdminLoginModalOpen: (open: boolean) => void;
@@ -1101,6 +1103,22 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return false;
   }, [loginUser]);
 
+  const verifyAdminPassword = useCallback((password: string): boolean => {
+    if (!password) return false;
+    const trimmed = password.trim();
+    // 1. Check against master admin password
+    if (trimmed === ADMIN_CREDENTIALS.PASSWORD) return true;
+    // 2. Check if currently logged in user is admin and has this password
+    if (currentUser?.role === 'admin' && currentUser.motDePasse === trimmed) {
+      return true;
+    }
+    // 3. Check all users in database with admin role or username ouaradtech
+    const allUsers = getStoredUsers();
+    return allUsers.some(
+      (u) => (u.role === 'admin' || u.username.toLowerCase() === 'ouaradtech') && u.actif && u.motDePasse === trimmed
+    );
+  }, [currentUser]);
+
   const logoutAdmin = useCallback(() => {
     logoutUser();
   }, [logoutUser]);
@@ -1414,6 +1432,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isAdmin: adminAuth.isAdmin,
         adminUser: adminAuth.username,
         loginAdmin,
+        verifyAdminPassword,
         logoutAdmin,
         isAdminLoginModalOpen,
         setIsAdminLoginModalOpen,
