@@ -478,32 +478,6 @@ export function parseEmplacementsExcel(rawRows: Record<string, any>[]): Emplacem
 
   return emplacements;
 }
-      const norm = normalizeHeader(k);
-      if (norm.includes('code') || norm.includes('id') || norm.includes('bac') || norm.includes('casier') || norm.includes('pos')) {
-        code = String(row[k]);
-      } else if (norm.includes('nom') || norm.includes('lib') || norm.includes('desig')) {
-        nom = String(row[k]);
-      } else if (norm.includes('zone') || norm.includes('secteur') || norm.includes('mag') || norm.includes('depart')) {
-        zone = String(row[k]);
-      }
-    });
-
-    if (!code && keys[0]) code = String(row[keys[0]]);
-    if (!nom && keys[1]) nom = String(row[keys[1]]);
-    if (!zone && keys[2]) zone = String(row[keys[2]]);
-
-    if (code || nom) {
-      emplacements.push({
-        id: `loc-imp-${Date.now()}-${idx}`,
-        code: (code || nom).trim(),
-        nom: (nom || code).trim(),
-        zone: (zone || 'Général').trim()
-      });
-    }
-  });
-
-  return emplacements;
-}
 
 export function generateSampleArticlesExcel(): void {
   // Format exact des 9 colonnes demandées (voir image modèle utilisateur)

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { InventoryProvider, useInventory } from './context/InventoryContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Header, ActiveTab } from './components/Header';
+import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
 import { CatalogView } from './components/CatalogView';
 import { LocationsMachinesView } from './components/LocationsMachinesView';
@@ -47,6 +48,8 @@ function AuthenticatedApp() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<InventoryEntry | null>(null);
@@ -127,17 +130,32 @@ function AuthenticatedApp() {
   }, [isAdmin, activeTab]);
 
   return (
-    <div className={`min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-150 ${isAdmin ? 'pb-20 md:pb-8' : 'pb-8'} flex flex-col`}>
-      {/* Top Bar Header */}
-      <Header
+    <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors duration-150">
+      {/* Menu Navigation Vertical (Sidebar) */}
+      <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        isMobileOpen={isMobileMenuOpen}
+        setIsMobileOpen={setIsMobileMenuOpen}
+        isCollapsed={isSidebarCollapsed}
+        setIsCollapsed={setIsSidebarCollapsed}
         onOpenScanner={() => setIsScannerOpen(true)}
         onOpenImport={() => setIsImportOpen(true)}
       />
 
-      {/* Main Content Area (Comptage & Saisie pour utilisateurs, Vues complètes pour Admin) */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6">
+      {/* Main App Layout Container */}
+      <div className={`flex-1 min-w-0 flex flex-col min-h-screen ${isAdmin ? 'pb-20 lg:pb-8' : 'pb-8'}`}>
+        {/* Top Bar Header */}
+        <Header
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onOpenScanner={() => setIsScannerOpen(true)}
+          onOpenImport={() => setIsImportOpen(true)}
+          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        />
+
+        {/* Main Content Area (Comptage & Saisie pour utilisateurs, Vues complètes pour Admin) */}
+        <main className="flex-1 w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6">
         {activeTab === 'dashboard' && (
           <DashboardView
             onOpenScanner={() => setIsScannerOpen(true)}
@@ -174,6 +192,7 @@ function AuthenticatedApp() {
           <AdminView />
         )}
       </main>
+    </div>
 
       {/* Mobile Ergonomic Bottom Tab Bar: Uniquement visible pour l'administrateur */}
       {isAdmin && (
