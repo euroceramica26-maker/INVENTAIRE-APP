@@ -21,7 +21,10 @@ import {
   Crosshair,
   Equal,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  CheckSquare,
+  Square,
+  MinusSquare
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { Article, InventoryEntry, QualiteEtat } from '../types/inventory';
@@ -55,6 +58,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     locations,
     lastLocation,
     deleteEntry,
+    deleteCombinedRowsBulk,
     searchArticles,
     matchScannedArticle,
     clearEntireDatabase,
@@ -95,9 +99,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [selectedOperator, setSelectedOperator] = useState<string>('all');
   const [exportToast, setExportToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Deletion modals state
+  // Deletion modals & multi-selection state
   const [entryToDelete, setEntryToDelete] = useState<InventoryEntry | null>(null);
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
 
   const handleQuickExport = () => {
     try {
@@ -233,6 +239,82 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       return true;
     });
   }, [combinedList, displayMode, selectedMachine, selectedFamille, selectedLocation, selectedOperator, selectedQualite, tableSearch]);
+
+  // Multi-row selection helpers
+  const isAllSelected = useMemo(() => {
+    return displayedRows.length > 0 && displayedRows.every((r) => selectedRowIds.has(r.id));
+  }, [displayedRows, selectedRowIds]);
+
+  const isSomeSelected = useMemo(() => {
+    return displayedRows.some((r) => selectedRowIds.has(r.id)) && !isAllSelected;
+  }, [displayedRows, selectedRowIds, isAllSelected]);
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedRowIds(new Set());
+    } else {
+      const next = new Set<string>();
+      displayedRows.forEach((r) => next.add(r.id));
+      setSelectedRowIds(next);
+    }
+  };
+
+  const handleToggleSelectRow = (id: string) => {
+    const next = new Set(selectedRowIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedRowIds(next);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedRowIds(new Set());
+  };
+
+  const selectedItems = useMemo(() => {
+    return displayedRows.filter((r) => selectedRowIds.has(r.id));
+  }, [displayedRows, selectedRowIds]);
+
+  const selectedCountSaisis = useMemo(() => {
+    return selectedItems.filter((i) => i.statutInventaire === 'Saisi').length;
+  }, [selectedItems]);
+
+  const selectedCountAFaire = useMemo(() => {
+    return selectedItems.filter((i) => i.statutInventaire !== 'Saisi').length;
+  }, [selectedItems]);
+
+  const handleRequestBulkDelete = () => {
+    if (selectedRowIds.size === 0) return;
+    if (isAdmin) {
+      setIsBulkDeleteModalOpen(true);
+    } else {
+      requestAdminAction(
+        () => setIsBulkDeleteModalOpen(true),
+        `Suppression de ${selectedRowIds.size} ligne(s) sélectionnée(s)`
+      );
+    }
+  };
+
+  const handleConfirmBulkDelete = () => {
+    if (selectedItems.length === 0) return;
+    const itemsToDelete = selectedItems.map((item) => ({
+      id: item.id,
+      code_article: item.code_article,
+      isSaisi: item.statutInventaire === 'Saisi'
+    }));
+
+    deleteCombinedRowsBulk(itemsToDelete);
+    setSelectedRowIds(new Set());
+    setIsBulkDeleteModalOpen(false);
+
+    setExportToast({
+      type: 'success',
+      message: `${itemsToDelete.length} ligne(s) supprimée(s) avec succès.`
+    });
+    setTimeout(() => setExportToast(null), 4000);
+  };
 
   // KPI Calculations (No ecart)
   const countSaisis = useMemo(() => {
@@ -781,6 +863,59 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
+        {/* Floating Bulk Selection Action Banner */}
+        {selectedRowIds.size > 0 && (
+          <div className="mx-4 sm:mx-5 my-3 p-3 sm:p-4 bg-gradient-to-r from-amber-500/10 via-amber-500/15 to-amber-500/10 dark:from-amber-950/40 dark:via-amber-900/40 dark:to-amber-950/40 border border-amber-300 dark:border-amber-700/80 rounded-xl shadow-xs flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 text-slate-950 font-black text-xs shadow-2xs">
+                {selectedRowIds.size}
+              </span>
+              <span className="text-xs font-bold text-slate-900 dark:text-amber-100">
+                {selectedRowIds.size} ligne{selectedRowIds.size > 1 ? 's' : ''} sélectionnée{selectedRowIds.size > 1 ? 's' : ''}
+              </span>
+              <span className="text-slate-300 dark:text-slate-600">|</span>
+              {selectedCountSaisis > 0 && (
+                <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-100/90 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                  <span>{selectedCountSaisis} saisie{selectedCountSaisis > 1 ? 's' : ''}</span>
+                </span>
+              )}
+              {selectedCountAFaire > 0 && (
+                <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-100/90 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                  <span>{selectedCountAFaire} à faire</span>
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={handleToggleSelectAll}
+                className="px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium hover:bg-white/80 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-300 dark:hover:border-slate-700"
+              >
+                {isAllSelected ? "Tout désélectionner" : `Tout sélectionner (${displayedRows.length})`}
+              </button>
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                className="px-2.5 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleRequestBulkDelete}
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-98 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                title={`Supprimer définitivement les ${selectedRowIds.size} lignes sélectionnées`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Supprimer la sélection ({selectedRowIds.size})</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Data Table */}
         {displayedRows.length === 0 ? (
           <div className="p-12 text-center bg-white dark:bg-slate-900 transition-colors">
@@ -854,6 +989,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <table className="w-full text-left text-xs divide-y divide-slate-100 dark:divide-slate-800">
               <thead className="bg-slate-50 dark:bg-slate-950/80 text-slate-600 dark:text-slate-400 font-semibold">
                 <tr>
+                  {/* Master Checkbox: Tout Sélectionner */}
+                  <th className="py-3 px-3 w-10 text-center">
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAll}
+                      title={isAllSelected ? "Tout désélectionner" : `Tout sélectionner (${displayedRows.length} lignes)`}
+                      className="p-1 rounded text-slate-400 hover:text-amber-600 dark:text-slate-500 dark:hover:text-amber-400 transition-colors cursor-pointer inline-flex items-center justify-center"
+                    >
+                      {isAllSelected ? (
+                        <CheckSquare className="w-4 h-4 text-amber-500" />
+                      ) : isSomeSelected ? (
+                        <MinusSquare className="w-4 h-4 text-amber-500" />
+                      ) : (
+                        <Square className="w-4 h-4" />
+                      )}
+                    </button>
+                  </th>
                   <th className="py-3 px-4">Statut</th>
                   <th className="py-3 px-4">Code Article</th>
                   <th className="py-3 px-4">Désignation</th>
@@ -897,6 +1049,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                 {displayedRows.map((item) => {
                   const isSaisi = item.statutInventaire === 'Saisi';
+                  const isRowSelected = selectedRowIds.has(item.id);
                   const matchingEntry = entries.find(
                     (e) => (e.code_article || '').toLowerCase() === item.code_article.toLowerCase()
                   );
@@ -905,11 +1058,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <tr
                       key={item.id}
                       className={`transition-colors ${
-                        isSaisi
+                        isRowSelected
+                          ? 'bg-amber-100/60 dark:bg-amber-950/50 hover:bg-amber-100/80 dark:hover:bg-amber-950/70'
+                          : isSaisi
                           ? 'bg-emerald-50/20 dark:bg-emerald-950/20 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/40'
                           : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
                       }`}
                     >
+                      {/* Row Checkbox */}
+                      <td className="py-3 px-3 w-10 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSelectRow(item.id)}
+                          title={isRowSelected ? "Désélectionner cette ligne" : "Sélectionner cette ligne"}
+                          className="p-1 rounded text-slate-400 hover:text-amber-600 dark:text-slate-500 dark:hover:text-amber-400 transition-colors cursor-pointer inline-flex items-center justify-center"
+                        >
+                          {isRowSelected ? (
+                            <CheckSquare className="w-4 h-4 text-amber-500" />
+                          ) : (
+                            <Square className="w-4 h-4" />
+                          )}
+                        </button>
+                      </td>
+
                       {/* Statut : (saisi) ou (À faire) */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         {isSaisi ? (
@@ -1173,6 +1344,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           }
         }}
         onCancel={() => setEntryToDelete(null)}
+      />
+
+      {/* Modal confirmation suppression de plusieurs lignes d'inventaire */}
+      <ConfirmModal
+        isOpen={isBulkDeleteModalOpen}
+        title="Supprimer les lignes sélectionnées"
+        message={`Êtes-vous sûr de vouloir supprimer définitivement les ${selectedRowIds.size} ligne(s) sélectionnée(s) ?${
+          selectedCountSaisis > 0 ? `\n• ${selectedCountSaisis} saisie(s) d'inventaire seront supprimées.` : ''
+        }${
+          selectedCountAFaire > 0 ? `\n• ${selectedCountAFaire} article(s) non inventorié(s) seront supprimés du catalogue.` : ''
+        }`}
+        confirmLabel={`Supprimer définitivement (${selectedRowIds.size})`}
+        isDestructive={true}
+        onConfirm={handleConfirmBulkDelete}
+        onCancel={() => setIsBulkDeleteModalOpen(false)}
       />
 
       {/* Modal sécurisée effacement complet de la base avec mot de passe admin obligatoire */}

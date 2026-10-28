@@ -97,6 +97,7 @@ interface InventoryContextType {
   // Entries & Catalog Operations
   addOrUpdateEntry: (entryData: Omit<InventoryEntry, 'id' | 'timestamp' | 'syncStatus'>, existingId?: string) => InventoryEntry;
   deleteEntry: (id: string) => void;
+  deleteEntriesBulk: (ids: string[]) => void;
   addArticle: (art: Omit<Article, 'id'>) => Article;
   addManualArticle: (
     art: Omit<Article, 'id'>,
@@ -106,6 +107,8 @@ interface InventoryContextType {
   ) => { article: Article; entry: InventoryEntry };
   updateArticle: (art: Article) => void;
   deleteArticle: (id: string) => void;
+  deleteArticlesBulk: (ids: string[]) => void;
+  deleteCombinedRowsBulk: (items: { id: string; code_article: string; isSaisi: boolean }[]) => void;
   importArticlesBulk: (newArticles: Article[], newMachines?: string[], newFamilles?: string[], newEmplacements?: string[]) => void;
   addLocation: (loc: Omit<EmplacementItem, 'id'>) => void;
   deleteLocation: (id: string) => void;
@@ -495,6 +498,32 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     syncService.sendAction('DELETE_ARTICLE', id);
   }, []);
 
+  const deleteArticlesBulk = useCallback((ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    const idSet = new Set(ids);
+    setArticles((prev) => {
+      const next = prev.filter((a) => !idSet.has(a.id));
+      saveStoredArticles(next);
+      return next;
+    });
+    setInventories((prevInvs) => {
+      const next = prevInvs.map((inv) => {
+        if (inv.id === activeInventoryId) {
+          return {
+            ...inv,
+            articles: (inv.articles || []).filter((a) => !idSet.has(a.id))
+          };
+        }
+        return inv;
+      });
+      saveStoredInventories(next);
+      return next;
+    });
+    ids.forEach((id) => {
+      syncService.sendAction('DELETE_ARTICLE', id);
+    });
+  }, [activeInventoryId]);
+
   const addOrUpdateEntry = useCallback(
     (
       entryData: Omit<InventoryEntry, 'id' | 'timestamp' | 'syncStatus'>,
@@ -730,6 +759,114 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // Broadcast delete to other devices
     syncService.sendAction('DELETE_ENTRY', id);
   }, []);
+
+  const deleteEntriesBulk = useCallback((ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    const idSet = new Set(ids);
+    setEntries((prev) => {
+      const removedEntries = prev.filter((e) => idSet.has(e.id));
+      const next = prev.filter((e) => !idSet.has(e.id));
+      saveStoredEntries(next);
+
+      // Determine which article codes now have no remaining entries
+      const remainingCodes = new Set(next.map((e) => (e.code_article || '').toLowerCase().trim()));
+      const codesToReset = new Set<string>();
+      removedEntries.forEach((e) => {
+        const code = (e.code_article || '').toLowerCase().trim();
+        if (code && !remainingCodes.has(code)) {
+          codesToReset.add(code);
+        }
+      });
+
+      if (codesToReset.size > 0) {
+        setArticles((prevArts) => {
+          let hasChanges = false;
+          const nextArts = prevArts.map((a) => {
+            const code = (a.code_article || '').toLowerCase().trim();
+            if (codesToReset.has(code) && a.status !== 'a_faire') {
+              hasChanges = true;
+              return { ...a, status: 'a_faire' as const };
+            }
+            return a;
+          });
+          if (hasChanges) {
+            saveStoredArticles(nextArts);
+          }
+          return nextArts;
+        });
+      }
+
+      setInventories((prevInvs) => {
+        const next = prevInvs.map((inv) => {
+          if (inv.id === activeInventoryId) {
+            return {
+              ...inv,
+              entries: (inv.entries || []).filter((e) => !idSet.has(e.id))
+            };
+          }
+          return inv;
+        });
+        saveStoredInventories(next);
+        return next;
+      });
+
+      return next;
+    });
+
+    ids.forEach((id) => {
+      syncService.sendAction('DELETE_ENTRY', id);
+    });
+  }, [activeInventoryId]);
+
+  const deleteCombinedRowsBulk = useCallback(
+    (items: { id: string; code_article: string; isSaisi: boolean }[]) => {
+      if (!items || items.length === 0) return;
+
+      const entryIdsToDelete: string[] = [];
+      const articleIdsToDelete: string[] = [];
+
+      const entriesByCode = new Map<string, InventoryEntry[]>();
+      entries.forEach((e) => {
+        const code = (e.code_article || '').toLowerCase().trim();
+        if (!entriesByCode.has(code)) entriesByCode.set(code, []);
+        entriesByCode.get(code)!.push(e);
+      });
+
+      const articlesByCode = new Map<string, Article>();
+      articles.forEach((a) => {
+        articlesByCode.set((a.code_article || '').toLowerCase().trim(), a);
+      });
+
+      items.forEach((item) => {
+        const code = (item.code_article || '').toLowerCase().trim();
+        if (item.isSaisi) {
+          const directEntry = entries.find((e) => e.id === item.id);
+          if (directEntry) {
+            entryIdsToDelete.push(directEntry.id);
+          } else {
+            const matched = entriesByCode.get(code);
+            if (matched && matched.length > 0) {
+              matched.forEach((m) => entryIdsToDelete.push(m.id));
+            }
+          }
+        } else {
+          const cleanId = item.id.startsWith('missing-') ? item.id.replace('missing-', '') : item.id;
+          const art = articles.find((a) => a.id === cleanId) || articlesByCode.get(code);
+          if (art) {
+            articleIdsToDelete.push(art.id);
+          }
+        }
+      });
+
+      if (entryIdsToDelete.length > 0) {
+        deleteEntriesBulk(entryIdsToDelete);
+      }
+      if (articleIdsToDelete.length > 0) {
+        deleteArticlesBulk(articleIdsToDelete);
+      }
+    },
+    [entries, articles, deleteEntriesBulk, deleteArticlesBulk]
+  );
 
   const clearAllEntries = useCallback(() => {
     setEntries([]);
@@ -1455,10 +1592,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Data Operations
         addOrUpdateEntry,
         deleteEntry,
+        deleteEntriesBulk,
         addArticle,
         addManualArticle,
         updateArticle,
         deleteArticle,
+        deleteArticlesBulk,
+        deleteCombinedRowsBulk,
         importArticlesBulk,
         addLocation,
         deleteLocation,

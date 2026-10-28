@@ -17,7 +17,10 @@ import {
   MapPin,
   TrendingUp,
   TrendingDown,
-  Equal
+  Equal,
+  CheckSquare,
+  Square,
+  MinusSquare
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { Article, InventoryEntry } from '../types/inventory';
@@ -42,6 +45,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     addManualArticle,
     updateArticle,
     deleteArticle,
+    deleteArticlesBulk,
     isAdmin,
     requestAdminAction,
     operator,
@@ -55,6 +59,8 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   const [filterStatus, setFilterStatus] = useState<'all' | 'counted' | 'not_counted'>('all');
   const [articleToDelete, setArticleToDelete] = useState<Article | null>(null);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const [selectedArticleIds, setSelectedArticleIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
 
   // New Article Modal
   const [isCreatingArticle, setIsCreatingArticle] = useState(false);
@@ -140,6 +146,46 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
       return true;
     });
   }, [articles, filterMachine, filterFamille, filterStatus, searchTerm, countedCodesSet]);
+
+  // Multi-row selection helpers
+  const isAllSelected = useMemo(() => {
+    return filteredArticles.length > 0 && filteredArticles.every((a) => selectedArticleIds.has(a.id));
+  }, [filteredArticles, selectedArticleIds]);
+
+  const isSomeSelected = useMemo(() => {
+    return filteredArticles.some((a) => selectedArticleIds.has(a.id)) && !isAllSelected;
+  }, [filteredArticles, selectedArticleIds, isAllSelected]);
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedArticleIds(new Set());
+    } else {
+      const next = new Set<string>();
+      filteredArticles.forEach((a) => next.add(a.id));
+      setSelectedArticleIds(next);
+    }
+  };
+
+  const handleToggleSelectRow = (id: string) => {
+    const next = new Set(selectedArticleIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedArticleIds(next);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedArticleIds(new Set());
+  };
+
+  const handleConfirmBulkDelete = () => {
+    if (selectedArticleIds.size === 0) return;
+    deleteArticlesBulk(Array.from(selectedArticleIds));
+    setSelectedArticleIds(new Set());
+    setIsBulkDeleteModalOpen(false);
+  };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -402,12 +448,69 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
         </div>
       </div>
 
+      {/* Bulk Selection Action Banner */}
+      {selectedArticleIds.size > 0 && (
+        <div className="p-3 sm:p-4 bg-gradient-to-r from-amber-500/10 via-amber-500/15 to-amber-500/10 dark:from-amber-950/40 dark:via-amber-900/40 dark:to-amber-950/40 border border-amber-300 dark:border-amber-700/80 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 text-slate-950 font-black text-xs shadow-2xs">
+              {selectedArticleIds.size}
+            </span>
+            <span className="text-xs font-bold text-slate-900 dark:text-amber-100">
+              {selectedArticleIds.size} article{selectedArticleIds.size > 1 ? 's' : ''} sélectionné{selectedArticleIds.size > 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleToggleSelectAll}
+              className="px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium hover:bg-white/80 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-300 dark:hover:border-slate-700"
+            >
+              {isAllSelected ? "Tout désélectionner" : `Tout sélectionner (${filteredArticles.length})`}
+            </button>
+            <button
+              type="button"
+              onClick={handleClearSelection}
+              className="px-2.5 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium cursor-pointer"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsBulkDeleteModalOpen(true)}
+              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-98 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              title={`Supprimer définitivement les ${selectedArticleIds.size} articles sélectionnés du catalogue`}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Supprimer la sélection ({selectedArticleIds.size})</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Catalog Table */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs transition-colors">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs divide-y divide-slate-100 dark:divide-slate-800">
             <thead className="bg-[#f28e2b] text-white font-bold text-[11px] shadow-xs">
               <tr className="divide-x divide-orange-400/80">
+                {/* Master Checkbox */}
+                <th className="py-3 px-3 w-10 text-center whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={handleToggleSelectAll}
+                    title={isAllSelected ? "Tout désélectionner" : `Tout sélectionner (${filteredArticles.length} articles)`}
+                    className="p-1 rounded text-orange-100 hover:text-white transition-colors cursor-pointer inline-flex items-center justify-center"
+                  >
+                    {isAllSelected ? (
+                      <CheckSquare className="w-4 h-4 text-white" />
+                    ) : isSomeSelected ? (
+                      <MinusSquare className="w-4 h-4 text-white" />
+                    ) : (
+                      <Square className="w-4 h-4 text-white/80" />
+                    )}
+                  </button>
+                </th>
                 <th className="py-3 px-3 whitespace-nowrap text-center">Statut</th>
                 <th className="py-3 px-3 whitespace-nowrap">Code magasin</th>
                 <th className="py-3 px-4 min-w-[180px]">Désignation</th>
@@ -439,7 +542,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
               {filteredArticles.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="py-12 text-center text-slate-400 dark:text-slate-500">
+                  <td colSpan={16} className="py-12 text-center text-slate-400 dark:text-slate-500">
                     {articles.length === 0
                       ? "Le catalogue est vide. Importez votre fichier Excel ou créez un article."
                       : "Aucun article ne correspond à votre recherche."}
@@ -447,6 +550,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                 </tr>
               ) : (
                 filteredArticles.map((art) => {
+                  const isSelected = selectedArticleIds.has(art.id);
                   const codeLower = (art.code_article || '').toLowerCase().trim();
                   const matchingEntry = entryByCodeMap.get(codeLower);
                   const isCounted = !!matchingEntry || art.status === 'saisi';
@@ -462,11 +566,29 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                     <tr
                       key={art.id}
                       className={`transition-colors divide-x divide-slate-100/60 dark:divide-slate-800/60 ${
-                        isCounted
+                        isSelected
+                          ? 'bg-amber-100/70 dark:bg-amber-950/60 hover:bg-amber-100/90 dark:hover:bg-amber-950/80'
+                          : isCounted
                           ? 'bg-emerald-50/20 dark:bg-emerald-950/20 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/40'
                           : 'hover:bg-amber-50/50 dark:hover:bg-slate-800/60'
                       }`}
                     >
+                      {/* Checkbox */}
+                      <td className="py-3 px-3 w-10 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSelectRow(art.id)}
+                          title={isSelected ? "Désélectionner" : "Sélectionner cet article"}
+                          className="p-1 rounded text-slate-400 hover:text-amber-600 dark:text-slate-500 dark:hover:text-amber-400 transition-colors cursor-pointer inline-flex items-center justify-center"
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-amber-500" />
+                          ) : (
+                            <Square className="w-4 h-4" />
+                          )}
+                        </button>
+                      </td>
+
                       {/* Statut */}
                       <td className="py-3 px-3 whitespace-nowrap text-center">
                         {isCounted ? (
@@ -996,6 +1118,17 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           }
         }}
         onCancel={() => setArticleToDelete(null)}
+      />
+
+      {/* Confirmation Modal Suppression Multiple Articles */}
+      <ConfirmModal
+        isOpen={isBulkDeleteModalOpen}
+        title="Supprimer la sélection"
+        message={`Êtes-vous sûr de vouloir supprimer définitivement les ${selectedArticleIds.size} article(s) sélectionné(s) du catalogue ? Cette action est irréversible.`}
+        confirmLabel={`Supprimer définitivement (${selectedArticleIds.size})`}
+        isDestructive={true}
+        onConfirm={handleConfirmBulkDelete}
+        onCancel={() => setIsBulkDeleteModalOpen(false)}
       />
     </div>
   );
