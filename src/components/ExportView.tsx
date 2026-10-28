@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Cpu,
   FolderTree,
+  Crosshair,
   MapPin,
   AlertCircle,
   User,
@@ -413,10 +414,10 @@ export const ExportView: React.FC = () => {
         </div>
       </div>
 
-      {/* SUMMARY STATS BAR WITH STOCK INTERNE TOTAL & ÉCART GLOBAL */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 bg-slate-900 dark:bg-slate-950 text-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-800">
-        {/* Metric 1: Total Sélectionné */}
-        <div className="p-2 sm:p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+      {/* SUMMARY STATS BAR (SANS STOCK INTERNE TOTAL ET SANS ÉCART GLOBAL DE STOCK) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 bg-slate-900 dark:bg-slate-950 text-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-800">
+        {/* Metric 1: Total Articles */}
+        <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
           <span className="text-[11px] font-medium text-slate-400 block uppercase tracking-wider">
             Total Articles
           </span>
@@ -424,34 +425,15 @@ export const ExportView: React.FC = () => {
             <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-white">
               {stats.total}
             </span>
-            <span className="text-xs text-slate-400">réf.</span>
+            <span className="text-xs text-slate-400">références</span>
           </div>
           <span className="text-[11px] text-slate-400 block mt-1">
             {stats.countSaisis} saisis • {stats.countAFaire} à faire
           </span>
         </div>
 
-        {/* Metric 2: Stock Interne Total */}
-        <div className="p-2 sm:p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-sky-400 block uppercase tracking-wider">
-              Stock Interne Total
-            </span>
-            <Boxes className="w-4 h-4 text-sky-400" />
-          </div>
-          <div className="flex items-baseline gap-1.5 mt-1">
-            <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-sky-300">
-              {Number(stats.totalStockInterne || 0).toFixed(2)}
-            </span>
-            <span className="text-xs text-slate-400">unités</span>
-          </div>
-          <span className="text-[11px] text-slate-400 block mt-1">
-            Catalogue théorique initial
-          </span>
-        </div>
-
-        {/* Metric 3: Quantité Totale Comptée */}
-        <div className="p-2 sm:p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+        {/* Metric 2: Quantité Totale Comptée (Physique) */}
+        <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-emerald-400 block uppercase tracking-wider">
               Stock Compté (Physique)
@@ -462,50 +444,15 @@ export const ExportView: React.FC = () => {
             <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-emerald-300">
               {Number(stats.totalQty || 0).toFixed(2)}
             </span>
-            <span className="text-xs text-slate-400">unités</span>
+            <span className="text-xs text-slate-400">unités physiques</span>
           </div>
           <span className="text-[11px] text-slate-400 block mt-1">
-            Sur {stats.countSaisis} article(s) compté(s)
+            Comptées sur {stats.countSaisis} article(s) saisi(s)
           </span>
         </div>
 
-        {/* Metric 4: Écart Global de Stock */}
-        <div className="p-2 sm:p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-slate-300 block uppercase tracking-wider">
-              Écart Global Stock
-            </span>
-            {stats.ecartGlobal === 0 ? (
-              <Equal className="w-4 h-4 text-emerald-400" />
-            ) : stats.ecartGlobal > 0 ? (
-              <TrendingUp className="w-4 h-4 text-sky-400" />
-            ) : (
-              <TrendingDown className="w-4 h-4 text-rose-400" />
-            )}
-          </div>
-          <div className="flex items-baseline gap-1.5 mt-1">
-            <span
-              className={`text-2xl sm:text-3xl font-bold font-mono tabular-nums ${
-                stats.ecartGlobal === 0
-                  ? 'text-emerald-400'
-                  : stats.ecartGlobal > 0
-                  ? 'text-sky-300'
-                  : 'text-rose-400'
-              }`}
-            >
-              {stats.ecartGlobal > 0 ? `+${stats.ecartGlobal.toFixed(2)}` : stats.ecartGlobal.toFixed(2)}
-            </span>
-            <span className="text-xs text-slate-400">
-              {stats.ecartGlobal === 0 ? 'conforme' : stats.ecartGlobal > 0 ? 'surplus' : 'déficit'}
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-400 block mt-1">
-            Physique vs Catalogue
-          </span>
-        </div>
-
-        {/* Metric 5: Taux d'Avancement */}
-        <div className="p-2 sm:p-3 bg-slate-800/60 rounded-xl border border-slate-700/50 col-span-2 sm:col-span-1">
+        {/* Metric 3: Taux d'Avancement */}
+        <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-amber-400 block uppercase tracking-wider">
               Avancement Saisie
@@ -617,16 +564,38 @@ export const ExportView: React.FC = () => {
                   <th className="py-3 px-4">Statut</th>
                   <th className="py-3 px-4">Code Article</th>
                   <th className="py-3 px-4">Désignation</th>
-                  <th className="py-3 px-4">Machine & Famille</th>
-                  <th className="py-3 px-4">
-                    <div className="flex items-center gap-1.5">
+                  <th className="py-3 px-3">
+                    <div className="flex items-center gap-1.5" title="Famille de l'article">
+                      <FolderTree className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                      <span>Famille</span>
+                    </div>
+                  </th>
+                  <th className="py-3 px-3">
+                    <div className="flex items-center gap-1.5" title="Machine où la pièce est installée">
+                      <Cpu className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      <span>Machine (Installation)</span>
+                    </div>
+                  </th>
+                  <th className="py-3 px-3">
+                    <div className="flex items-center gap-1.5" title="Position de la pièce dans la machine">
+                      <Crosshair className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span>Position (Machine)</span>
+                    </div>
+                  </th>
+                  <th className="py-3 px-3">
+                    <div className="flex items-center gap-1.5" title="Position de la pièce dans le magasin (dépôt, rayonnage, bac... rempli lors de la saisie)">
                       <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                      <span>Emplacement</span>
+                      <span>Emplacement (Magasin)</span>
                     </div>
                   </th>
                   <th className="py-3 px-3 text-right">Stock Interne</th>
                   <th className="py-3 px-3 text-right">Quantité Saisie</th>
-                  <th className="py-3 px-3 text-right">Écart</th>
+                  <th className="py-3 px-3 text-right" title="Écart = Quantité Saisie - Stock Interne">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Écart</span>
+                      <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">(Qté - Stock)</span>
+                    </div>
+                  </th>
                   <th className="py-3 px-4">Qualité Réelle</th>
                   <th className="py-3 px-4">Date / Opérateur</th>
                 </tr>
@@ -634,8 +603,6 @@ export const ExportView: React.FC = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                 {filteredData.map((item) => {
                   const isSaisi = item.statutInventaire === 'Saisi';
-                  const ecart = typeof item.ecart_stock === 'number' ? item.ecart_stock : null;
-                  const displayLoc = item.emplacement || item.position || 'Non assigné';
 
                   return (
                     <tr
@@ -676,28 +643,51 @@ export const ExportView: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Machine & Famille */}
-                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                        <div className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[160px]">
-                          {item.machine || item.depart || 'Standard'}
-                        </div>
-                        <div className="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-[160px]">
-                          {item.famille || 'Général'}
-                        </div>
+                      {/* Famille (Catégorie d'articles) */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[11px] border border-slate-200 dark:border-slate-700">
+                          <FolderTree className="w-3 h-3 text-slate-500 dark:text-slate-400 shrink-0" />
+                          <span>{item.famille || 'Général'}</span>
+                        </span>
                       </td>
 
-                      {/* Emplacement */}
-                      <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 font-mono font-semibold px-2 py-0.5 rounded text-[11px] border ${
-                            isSaisi
-                              ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 border-amber-300 dark:border-amber-700'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                          }`}
-                        >
-                          <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                          <span>{displayLoc}</span>
+                      {/* Machine (Installation où la pièce est montée) */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 font-semibold text-blue-900 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded text-[11px] border border-blue-200 dark:border-blue-800">
+                          <Cpu className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
+                          <span className="truncate max-w-[140px]">{item.machine || item.depart || 'Standard'}</span>
                         </span>
+                      </td>
+
+                      {/* Position (Emplacement de la pièce dans la machine) */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        {item.position && item.position !== '-' ? (
+                          <span className="inline-flex items-center gap-1 font-medium text-indigo-900 dark:text-indigo-200 bg-indigo-50/80 dark:bg-indigo-950/40 px-2 py-0.5 rounded text-[11px] border border-indigo-200/80 dark:border-indigo-800">
+                            <Crosshair className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <span className="truncate max-w-[130px]" title={item.position}>{item.position}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px] pl-1">-</span>
+                        )}
+                      </td>
+
+                      {/* Emplacement (Magasin / Dépôt : UNIQUEMENT pour les articles saisis !) */}
+                      <td className="py-3 px-3 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                        {isSaisi && item.emplacement ? (
+                          (() => {
+                            const raw = (item.emplacement || '').trim();
+                            const cleanLoc = (raw && raw !== 'Non renseigné' && raw !== 'Non assigné') ? raw : '';
+                            if (!cleanLoc) return <span className="text-slate-400 dark:text-slate-500 italic text-[11px] pl-1">-</span>;
+                            return (
+                              <span className="inline-flex items-center gap-1 font-mono font-bold text-amber-950 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded text-[11px] border border-amber-300 dark:border-amber-700 shadow-2xs">
+                                <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                <span>{cleanLoc}</span>
+                              </span>
+                            );
+                          })()
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px] pl-1">-</span>
+                        )}
                       </td>
 
                       {/* Stock Interne (Théorique) */}
@@ -723,26 +713,29 @@ export const ExportView: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Écart de Stock */}
+                      {/* Écart de Stock = Quantité - Stock Interne */}
                       <td className="py-3 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
-                        {isSaisi && ecart !== null ? (
-                          ecart === 0 ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800">
+                        {isSaisi ? (() => {
+                          const stockInt = typeof item.stock_interne === 'number' ? item.stock_interne : 0;
+                          const qty = typeof item.quantite === 'number' ? item.quantite : 0;
+                          const ecartVal = qty - stockInt; // Quantité - Stock Interne
+                          return ecartVal === 0 ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800" title="Écart = 0.00 (Conforme)">
                               <Equal className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                               0.00
                             </span>
-                          ) : ecart > 0 ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-100/70 dark:bg-sky-950/50 px-2 py-0.5 rounded border border-sky-300 dark:border-sky-800">
+                          ) : ecartVal > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-100/70 dark:bg-sky-950/50 px-2 py-0.5 rounded border border-sky-300 dark:border-sky-800" title={`Surplus de +${ecartVal.toFixed(2)} (Quantité ${qty} - Stock ${stockInt})`}>
                               <TrendingUp className="w-3 h-3 text-sky-600 dark:text-sky-400" />
-                              +{ecart.toFixed(2)}
+                              +{ecartVal.toFixed(2)}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 bg-rose-100/70 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-300 dark:border-rose-800">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 bg-rose-100/70 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-300 dark:border-rose-800" title={`Déficit de ${ecartVal.toFixed(2)} (Quantité ${qty} - Stock ${stockInt})`}>
                               <TrendingDown className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-                              {ecart.toFixed(2)}
+                              {ecartVal.toFixed(2)}
                             </span>
-                          )
-                        ) : (
+                          );
+                        })() : (
                           <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">-</span>
                         )}
                       </td>

@@ -146,7 +146,8 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     if (!newArtForm.code_article.trim() || !newArtForm.designation.trim()) return;
 
     const departVal = newArtForm.depart?.trim() || newArtForm.machine?.trim() || 'Standard';
-    const positionVal = newArtForm.position?.trim() || newArtForm.emplacement?.trim() || lastLocation || 'Non assigné';
+    const positionVal = newArtForm.position?.trim() || '-';
+    const emplacementVal = newArtForm.emplacement?.trim() || lastLocation || '';
 
     addManualArticle(
       {
@@ -157,8 +158,8 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
         sous_famille: newArtForm.sous_famille?.trim() || '',
         depart: departVal,
         machine: departVal,
-        position: positionVal,
-        emplacement: positionVal,
+        position: positionVal, // Emplacement de la pièce dans la machine
+        emplacement: emplacementVal, // Emplacement dans le magasin
         unite: newArtForm.unite || 'Pièce',
         gere_nn: newArtForm.gere_nn || 'G',
         quantite: Number(newArtForm.quantite) || 1,

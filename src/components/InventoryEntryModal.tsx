@@ -6,6 +6,7 @@ import {
   MapPin,
   Cpu,
   FolderTree,
+  Crosshair,
   FileText,
   User,
   ScanLine,
@@ -52,6 +53,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
   const [quantite, setQuantite] = useState<number>(1);
   const [qualite, setQualite] = useState<QualiteEtat>('conforme');
   const [emplacement, setEmplacement] = useState<string>('');
+  const [position, setPosition] = useState<string>('');
   const [machine, setMachine] = useState<string>('');
   const [famille, setFamille] = useState<string>('');
   const [unite, setUnite] = useState<string>('Pièce');
@@ -76,9 +78,10 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       setReferenceInput(existingEntry.reference || '');
       setQuantite(existingEntry.quantite);
       setQualite(existingEntry.qualite);
-      const entLoc = (existingEntry.emplacement || existingEntry.position || '').trim();
+      const entLoc = (existingEntry.emplacement || '').trim();
       const cleanEntLoc = (entLoc && entLoc !== 'Non renseigné' && entLoc !== 'Non assigné') ? entLoc : '';
       setEmplacement(cleanEntLoc || lastLocation || '');
+      setPosition(existingEntry.position || '');
       setMachine(existingEntry.machine);
       setFamille(existingEntry.famille);
       setUnite(existingEntry.unite);
@@ -90,12 +93,12 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       setReferenceInput(article.reference || '');
       setQuantite(article.quantite && article.quantite > 0 ? article.quantite : 1);
       setQualite('conforme');
-      // Mémoriser le dernier emplacement réel saisi : si présent, il est repris automatiquement
-      const artLoc = (article.emplacement || article.position || '').trim();
+      const artLoc = (article.emplacement || '').trim();
       const cleanArtLoc = (artLoc && artLoc !== 'Non renseigné' && artLoc !== 'Non assigné') ? artLoc : '';
       const cleanLastLoc = (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné') ? lastLocation.trim() : '';
       const loc = cleanLastLoc || cleanArtLoc || (locations[0]?.code ?? '');
       setEmplacement(loc);
+      setPosition(article.position || '');
       setMachine(article.machine || (machines[0] ?? ''));
       setFamille(article.famille || (familles[0] ?? ''));
       setUnite(article.unite || 'Pièce');
@@ -113,6 +116,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
     reference: existingEntry?.reference || '',
     famille: existingEntry?.famille || '',
     machine: existingEntry?.machine || '',
+    position: existingEntry?.position || '',
     unite: existingEntry?.unite || 'Pièce',
     emplacement: existingEntry?.emplacement || ''
   };
@@ -172,16 +176,18 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       ? rawLoc
       : (cleanLastLoc || cleanArtLoc || 'Non assigné');
 
-    // 1. Ajouter à la liste des articles avec le statut (saisi) et l'emplacement réel
+    const finalMachinePos = position.trim() || currentArticle.position || '-';
+
+    // 1. Ajouter à la liste des articles avec le statut (saisi) et l'emplacement réel magasin
     addArticle({
       code_article: finalCode,
       designation: finalDesig,
       reference: finalRef,
       famille: famille || currentArticle.famille || 'Général',
       machine: machine || currentArticle.machine || 'Standard',
+      position: finalMachinePos, // Position de la pièce dans la machine
+      emplacement: realLocation, // Position de la pièce dans le magasin (dépôt, rayonnage, bac...)
       unite: unite || currentArticle.unite || 'Pièce',
-      emplacement: realLocation,
-      position: realLocation,
       quantite: quantite,
       status: 'saisi'
     });
@@ -195,9 +201,9 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
         reference: finalRef,
         famille: famille || currentArticle.famille || 'Général',
         machine: machine || currentArticle.machine || 'Standard',
+        position: finalMachinePos, // Position de la pièce dans la machine
+        emplacement: realLocation, // Position de la pièce dans le magasin (dépôt, rayonnage, bac...)
         unite: unite || currentArticle.unite || 'Pièce',
-        emplacement: realLocation,
-        position: realLocation,
         quantite: quantite,
         qualite,
         notes: notes.trim(),
@@ -435,7 +441,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
               <div className="flex items-center gap-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                  Emplacement Réel
+                  Emplacement dans le Magasin (Dépôt, Rayonnage, Bac...)
                 </label>
                 {lastLocation && (
                   <span className="text-[11px] font-mono font-semibold text-amber-900 dark:text-amber-200 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700 flex items-center gap-1">
@@ -524,14 +530,14 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
             )}
           </div>
 
-          {/* 4. MACHINE & FAMILLE */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* 4. MACHINE, POSITION DANS LA MACHINE & FAMILLE */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Machine */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Cpu className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                  Machine Affectée
+                  Machine d'Installation
                 </label>
                 <button
                   type="button"
@@ -581,6 +587,21 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                   )}
                 </select>
               )}
+            </div>
+
+            {/* Position dans la Machine */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Crosshair className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                Position dans la Machine
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Palier avant, Moteur..."
+                value={position}
+                onChange={(e) => setPosition(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+              />
             </div>
 
             {/* Famille */}

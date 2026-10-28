@@ -209,18 +209,27 @@ export function detectColumnMapping(headers: string[]): ColumnMapping {
       return;
     }
 
-    // 4. Position
+    // 4. Position (emplacement de la pièce dans la machine)
     if (!mapping.position && (
       norm.includes('posit') ||
-      norm.includes('pos') ||
-      norm.includes('empl') ||
-      norm.includes('loc') ||
-      norm.includes('casier') ||
-      norm.includes('bac') ||
-      norm.includes('rayon') ||
-      norm.includes('zone')
+      norm === 'pos' ||
+      norm.startsWith('pos_') ||
+      norm.includes('repere')
     )) {
       mapping.position = h;
+      return;
+    }
+
+    // Emplacement (position dans le magasin: dépôt, rayonnage, bac, casier...)
+    if (!mapping.emplacement && (
+      norm.includes('empl') ||
+      norm.includes('depot') ||
+      norm.includes('rayon') ||
+      norm.includes('casier') ||
+      norm.includes('bac') ||
+      norm.includes('etagere') ||
+      norm.includes('zone')
+    )) {
       mapping.emplacement = h;
       return;
     }
@@ -297,11 +306,9 @@ export function detectColumnMapping(headers: string[]): ColumnMapping {
     }
   });
 
-  // Synchronisation des alias rétrocompatibles
+  // Synchronisation des alias rétrocompatibles machine / départ
   if (!mapping.machine && mapping.depart) mapping.machine = mapping.depart;
-  if (!mapping.emplacement && mapping.position) mapping.emplacement = mapping.position;
   if (!mapping.depart && mapping.machine) mapping.depart = mapping.machine;
-  if (!mapping.position && mapping.emplacement) mapping.position = mapping.emplacement;
 
   return mapping;
 }
@@ -367,17 +374,13 @@ export function convertRawRowsToArticles(
     ).trim() || 'Standard';
     const machine = depart;
 
-    // 4. Position & Emplacement (Stockage)
-    // Extraire spécifiquement l'emplacement de stockage indiqué par le fichier Excel
-    const rawEmp = mapping.emplacement ? String(row[mapping.emplacement] || '').trim() : '';
+    // 4. Position dans la Machine vs Emplacement dans le Magasin
     const rawPos = mapping.position ? String(row[mapping.position] || '').trim() : '';
+    const rawEmp = mapping.emplacement ? String(row[mapping.emplacement] || '').trim() : '';
 
+    const position = rawPos || '-'; // Position de la pièce dans la machine
     const cleanEmp = isValidLocation(rawEmp) ? rawEmp : '';
-    const cleanPos = isValidLocation(rawPos) ? rawPos : '';
-
-    // Si une colonne Emplacement dédiée existe dans l'Excel, elle est prioritaire pour le stockage
-    const emplacement = cleanEmp || cleanPos || '';
-    const position = cleanPos || cleanEmp || '';
+    const emplacement = cleanEmp || ''; // Position dans le magasin (dépôt, rayonnage, bac...)
 
     // 5. Désignation
     const designation = String(row[mapping.designation] || '').trim();
@@ -403,11 +406,9 @@ export function convertRawRowsToArticles(
     if (depart && depart !== 'Standard') machinesSet.add(depart);
     if (famille && famille !== 'Général') famillesSet.add(famille);
 
-    // Insérer seulement les emplacements réels et valides présents dans le fichier Excel
+    // Insérer seulement les emplacements magasins réels et valides présents dans le fichier Excel
     if (cleanEmp) {
       emplacementsSet.add(cleanEmp);
-    } else if (!mapping.emplacement && cleanPos) {
-      emplacementsSet.add(cleanPos);
     }
 
     articles.push({

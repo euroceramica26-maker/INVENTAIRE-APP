@@ -17,6 +17,8 @@ import {
   X,
   User,
   MapPin,
+  FolderTree,
+  Crosshair,
   Equal,
   TrendingUp,
   TrendingDown
@@ -184,11 +186,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     entries.forEach((e) => {
       if (e.emplacement && e.emplacement !== 'Non renseigné' && e.emplacement !== 'Non assigné') set.add(e.emplacement);
     });
-    articles.forEach((a) => {
-      if (a.emplacement && a.emplacement !== 'Non renseigné' && a.emplacement !== 'Non assigné') set.add(a.emplacement);
-    });
     return Array.from(set).sort();
-  }, [locations, entries, articles]);
+  }, [locations, entries]);
 
   // Filtered rows depending on active displayMode ('saisis' | 'tous' | 'a_faire')
   const displayedRows = useMemo(() => {
@@ -858,16 +857,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <th className="py-3 px-4">Statut</th>
                   <th className="py-3 px-4">Code Article</th>
                   <th className="py-3 px-4">Désignation</th>
-                  <th className="py-3 px-4">Machine & Famille</th>
-                  <th className="py-3 px-4">
-                    <div className="flex items-center gap-1.5">
+                  <th className="py-3 px-3">
+                    <div className="flex items-center gap-1.5" title="Famille de l'article">
+                      <FolderTree className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                      <span>Famille</span>
+                    </div>
+                  </th>
+                  <th className="py-3 px-3">
+                    <div className="flex items-center gap-1.5" title="Machine où la pièce est installée">
+                      <Cpu className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      <span>Machine (Installation)</span>
+                    </div>
+                  </th>
+                  <th className="py-3 px-3">
+                    <div className="flex items-center gap-1.5" title="Position de la pièce dans la machine">
+                      <Crosshair className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span>Position (Machine)</span>
+                    </div>
+                  </th>
+                  <th className="py-3 px-3">
+                    <div className="flex items-center gap-1.5" title="Position de la pièce dans le magasin (dépôt, rayonnage, bac... rempli lors de la saisie)">
                       <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                      <span>Emplacement</span>
+                      <span>Emplacement (Magasin)</span>
                     </div>
                   </th>
                   <th className="py-3 px-3 text-right">Stock Interne</th>
                   <th className="py-3 px-3 text-right">Quantité Saisie</th>
-                  <th className="py-3 px-3 text-right">Écart</th>
+                  <th className="py-3 px-3 text-right" title="Écart = Quantité Saisie - Stock Interne">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Écart</span>
+                      <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">(Qté - Stock)</span>
+                    </div>
+                  </th>
                   <th className="py-3 px-4">Qualité Réelle</th>
                   <th className="py-3 px-4">Date / Opérateur</th>
                   <th className="py-3 px-4 text-right">Actions</th>
@@ -919,43 +940,58 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         )}
                       </td>
 
-                      {/* Machine & Famille */}
-                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                        <div className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[160px]">
-                          {item.machine}
-                        </div>
-                        <div className="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-[160px]">
-                          {item.famille}
-                        </div>
+                      {/* Famille (Catégorie d'articles) */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[11px] border border-slate-200 dark:border-slate-700">
+                          <FolderTree className="w-3 h-3 text-slate-500 dark:text-slate-400 shrink-0" />
+                          <span>{item.famille || 'Général'}</span>
+                        </span>
                       </td>
 
-                      {/* Emplacement */}
-                      <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        {(() => {
-                          const rawLoc = (item.emplacement || '').trim();
-                          const displayLoc = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
-                            ? rawLoc
-                            : (matchingEntry?.emplacement && matchingEntry.emplacement !== 'Non renseigné' && matchingEntry.emplacement !== 'Non assigné')
-                            ? matchingEntry.emplacement
-                            : (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné')
-                            ? lastLocation
-                            : (isSaisi ? 'Emplacement Saisi' : 'Non assigné');
-                          return (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedLocation(displayLoc !== 'Non assigné' ? displayLoc : 'all')}
-                              title={`Filtrer par cet emplacement (${displayLoc})`}
-                              className={`inline-flex items-center gap-1 font-mono font-semibold px-2 py-0.5 rounded text-[11px] transition-colors cursor-pointer border ${
-                                isSaisi
-                                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50'
-                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
-                              }`}
-                            >
-                              <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                              <span>{displayLoc}</span>
-                            </button>
-                          );
-                        })()}
+                      {/* Machine (Installation où la pièce est montée) */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 font-semibold text-blue-900 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded text-[11px] border border-blue-200 dark:border-blue-800">
+                          <Cpu className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
+                          <span className="truncate max-w-[140px]">{item.machine || 'Standard'}</span>
+                        </span>
+                      </td>
+
+                      {/* Position (Emplacement de la pièce dans la machine) */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        {item.position && item.position !== '-' ? (
+                          <span className="inline-flex items-center gap-1 font-medium text-indigo-900 dark:text-indigo-200 bg-indigo-50/80 dark:bg-indigo-950/40 px-2 py-0.5 rounded text-[11px] border border-indigo-200/80 dark:border-indigo-800">
+                            <Crosshair className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <span className="truncate max-w-[130px]" title={item.position}>{item.position}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px] pl-1">-</span>
+                        )}
+                      </td>
+
+                      {/* Emplacement (Magasin / Dépôt : UNIQUEMENT pour les articles saisis !) */}
+                      <td className="py-3 px-3 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                        {isSaisi && (item.emplacement || matchingEntry?.emplacement) ? (
+                          (() => {
+                            const rawLoc = (item.emplacement || matchingEntry?.emplacement || '').trim();
+                            const cleanLoc = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné') ? rawLoc : '';
+                            if (!cleanLoc) {
+                              return <span className="text-slate-400 dark:text-slate-500 italic text-[11px] pl-1">-</span>;
+                            }
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedLocation(cleanLoc)}
+                                title={`Filtrer par cet emplacement magasin (${cleanLoc})`}
+                                className="inline-flex items-center gap-1 font-mono font-bold text-amber-950 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/50 px-2 py-0.5 rounded text-[11px] border border-amber-300 dark:border-amber-700 transition-colors cursor-pointer shadow-2xs"
+                              >
+                                <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                <span>{cleanLoc}</span>
+                              </button>
+                            );
+                          })()
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px] pl-1">-</span>
+                        )}
                       </td>
 
                       {/* Stock Interne */}
