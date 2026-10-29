@@ -164,7 +164,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
 
     if (!finalCode) return;
 
-    // Déterminer l'emplacement réel : priorité à la valeur saisie, puis dernier emplacement, sans jamais 'Non renseigné'
+    // Déterminer l'emplacement réel magasin : priorité à la valeur saisie, puis dernier emplacement, sans jamais 'Non renseigné'
     const rawLoc = (emplacement || '').trim();
     const cleanArtLoc = (currentArticle.emplacement && currentArticle.emplacement !== 'Non renseigné' && currentArticle.emplacement !== 'Non assigné')
       ? currentArticle.emplacement.trim()
@@ -174,25 +174,34 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       : '';
     const realLocation = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
       ? rawLoc
-      : (cleanLastLoc || cleanArtLoc || 'Non assigné');
+      : (cleanLastLoc || cleanArtLoc || '');
 
-    const finalMachinePos = position.trim() || currentArticle.position || '-';
+    // Position dans la machine : si vide elle DOIT RESTER VIDE ! Ne jamais copier l'emplacement dans position.
+    const rawPos = position.trim();
+    const cleanPos = (rawPos && rawPos !== '-' && rawPos !== 'Non assigné' && rawPos !== 'Non renseigné')
+      ? rawPos
+      : (currentArticle.position && currentArticle.position !== '-' && currentArticle.position !== 'Non assigné' && currentArticle.position !== 'Non renseigné')
+      ? currentArticle.position.trim()
+      : '';
 
-    // 1. Ajouter à la liste des articles avec le statut (saisi) et l'emplacement réel magasin
+    // Stock interne théorique initial (Catalogue) : ne jamais écraser par la quantité saisie
+    const stockTheoriqueInitial = typeof currentArticle.quantite === 'number' ? currentArticle.quantite : 0;
+
+    // 1. Conserver l'article dans le catalogue avec son stock interne théorique inchangé
     addArticle({
       code_article: finalCode,
       designation: finalDesig,
       reference: finalRef,
       famille: famille || currentArticle.famille || 'Général',
       machine: machine || currentArticle.machine || 'Standard',
-      position: finalMachinePos, // Position de la pièce dans la machine
+      position: cleanPos, // Position de la pièce dans la machine (vide si vide)
       emplacement: realLocation, // Position de la pièce dans le magasin (dépôt, rayonnage, bac...)
       unite: unite || currentArticle.unite || 'Pièce',
-      quantite: quantite,
+      quantite: stockTheoriqueInitial, // Le stock interne théorique ne doit PAS être modifié !
       status: 'saisi'
     });
 
-    // 2. Ajouter dans la liste des saisis (entries) et changer le statut par (saisi)
+    // 2. Ajouter dans la liste des saisis (entries) : enregistre la quantité réelle comptée
     addOrUpdateEntry(
       {
         articleId: currentArticle.id,
@@ -201,10 +210,10 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
         reference: finalRef,
         famille: famille || currentArticle.famille || 'Général',
         machine: machine || currentArticle.machine || 'Standard',
-        position: finalMachinePos, // Position de la pièce dans la machine
-        emplacement: realLocation, // Position de la pièce dans le magasin (dépôt, rayonnage, bac...)
+        position: cleanPos, // Position dans la machine (reste vide si vide)
+        emplacement: realLocation, // Position dans le magasin
         unite: unite || currentArticle.unite || 'Pièce',
-        quantite: quantite,
+        quantite: quantite, // Quantité saisie réelle (stock physique)
         qualite,
         notes: notes.trim(),
         operator: currentOperator || operator,
@@ -398,6 +407,55 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Comparaison Stock Interne Théorique vs Quantité Saisie Réelle & Écart */}
+            <div className="mt-3 pt-3 border-t border-slate-200/80 dark:border-slate-700/80 grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+              <div className="p-2 rounded-xl bg-sky-50/80 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-sky-800 dark:text-sky-300">
+                  Stock Interne (Théorique)
+                </span>
+                <span className="text-sm font-black font-mono text-sky-950 dark:text-sky-100 tabular-nums">
+                  {(typeof currentArticle.quantite === 'number' ? currentArticle.quantite : 0).toFixed(2)}
+                </span>
+                <span className="text-[10px] text-sky-600 dark:text-sky-400 block">
+                  Catalogue (Inchangé)
+                </span>
+              </div>
+              <div className="p-2 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                  Qté Saisie (Stock Réel)
+                </span>
+                <span className="text-sm font-black font-mono text-amber-950 dark:text-amber-100 tabular-nums">
+                  {quantite.toFixed(2)}
+                </span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 block">
+                  Comptage physique
+                </span>
+              </div>
+              {(() => {
+                const stockTheorique = typeof currentArticle.quantite === 'number' ? currentArticle.quantite : 0;
+                const ecartPrevisionnel = quantite - stockTheorique;
+                return (
+                  <div className={`p-2 rounded-xl border ${
+                    ecartPrevisionnel === 0
+                      ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100'
+                      : ecartPrevisionnel > 0
+                      ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-950 dark:text-blue-100'
+                      : 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-950 dark:text-rose-100'
+                  }`}>
+                    <span className="block text-[10px] font-bold uppercase tracking-wider">
+                      Écart (Qté - Stock)
+                    </span>
+                    <span className="text-sm font-black font-mono tabular-nums">
+                      {ecartPrevisionnel > 0 ? `+${ecartPrevisionnel.toFixed(2)}` : ecartPrevisionnel.toFixed(2)}
+                    </span>
+                    <span className="text-[10px] block opacity-80 font-medium">
+                      {ecartPrevisionnel === 0 ? 'Conforme' : ecartPrevisionnel > 0 ? 'Surplus' : 'Déficit / Manquant'}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 

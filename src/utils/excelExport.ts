@@ -35,11 +35,11 @@ export function buildCombinedInventoryList(
     const machineVal = entry.machine || matchingArt?.machine || entry.depart || matchingArt?.depart || 'Standard';
     
     // Position de la pièce DANS LA MACHINE (ex: Palier avant, Réducteur principal, Tambour moteur...)
-    const positionVal = (entry.position && entry.position !== 'Non assigné' && entry.position !== 'Non renseigné')
+    const positionVal = (entry.position && entry.position !== '-' && entry.position !== 'Non assigné' && entry.position !== 'Non renseigné')
       ? entry.position.trim()
-      : (matchingArt?.position && matchingArt.position !== 'Non assigné' && matchingArt.position !== 'Non renseigné')
+      : (matchingArt?.position && matchingArt.position !== '-' && matchingArt.position !== 'Non assigné' && matchingArt.position !== 'Non renseigné')
       ? matchingArt.position.trim()
-      : '-';
+      : '';
 
     // Famille de l'article (catégorie)
     const familleVal = entry.famille || matchingArt?.famille || 'Général';
@@ -88,9 +88,9 @@ export function buildCombinedInventoryList(
       const machineVal = art.machine || art.depart || 'Standard';
       
       // Position de la pièce DANS LA MACHINE
-      const positionVal = (art.position && art.position !== 'Non assigné' && art.position !== 'Non renseigné')
+      const positionVal = (art.position && art.position !== '-' && art.position !== 'Non assigné' && art.position !== 'Non renseigné')
         ? art.position.trim()
-        : '-';
+        : '';
 
       // Famille d'articles
       const familleVal = art.famille || 'Général';
@@ -285,7 +285,7 @@ export function exportInventoryToExcel(
       'Famille': item.famille || 'Général',
       'Sous-Famille': item.sous_famille || '',
       'Machine (Installation)': item.machine || item.depart || 'Standard',
-      'Position (Dans la Machine)': item.position && item.position !== '-' ? item.position : '-',
+      'Position (Dans la Machine)': item.position && item.position !== '-' ? item.position : '',
       'Emplacement (Magasin)': isSaisi ? (item.emplacement || '') : '',
       'Unité': item.unite,
       'Géré /nn': item.gere_nn || 'G',
@@ -361,7 +361,7 @@ export function exportInventoryToExcel(
       'Famille': item.famille || 'Général',
       'Sous-Famille': item.sous_famille || '',
       'Machine (Installation)': item.machine || item.depart || 'Standard',
-      'Position (Dans la Machine)': item.position && item.position !== '-' ? item.position : '-',
+      'Position (Dans la Machine)': item.position && item.position !== '-' ? item.position : '',
       'Emplacement (Magasin)': '', // Rempli UNIQUEMENT lors de la saisie physique
       'Unité': item.unite,
       'Géré /nn': item.gere_nn || 'G',
@@ -399,7 +399,7 @@ export function exportInventoryToExcel(
       'Référence Fabricant': item.reference,
       'Famille': item.famille || 'Général',
       'Machine (Installation)': item.machine || 'Standard',
-      'Position (Dans la Machine)': item.position && item.position !== '-' ? item.position : '-',
+      'Position (Dans la Machine)': item.position && item.position !== '-' ? item.position : '',
       'Emplacement (Magasin)': item.emplacement || '',
       'Unité': item.unite,
       'Stock Interne': typeof item.stock_interne === 'number' ? Number(item.stock_interne.toFixed(2)) : item.stock_interne,

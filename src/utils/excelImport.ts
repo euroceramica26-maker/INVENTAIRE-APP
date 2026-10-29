@@ -101,9 +101,14 @@ export function detectColumnMapping(headers: string[]): ColumnMapping {
       return;
     }
 
-    // 4. Position (Position / Emplacement)
-    if (!mapping.position && (norm === 'position' || norm === 'pos' || norm === 'emplacement' || norm === 'casier' || norm === 'bac' || norm === 'rayon')) {
+    // 4. Position (Position de la pièce dans la machine)
+    if (!mapping.position && (norm === 'position' || norm === 'pos' || norm === 'repere' || rawLower === 'position' || rawLower === 'pos')) {
       mapping.position = h;
+      return;
+    }
+
+    // Emplacement (Stockage magasin : dépôt, rayonnage, bac...)
+    if (!mapping.emplacement && (norm === 'emplacement' || norm === 'depot' || norm === 'rayon' || norm === 'bac' || norm === 'casier' || rawLower === 'emplacement')) {
       mapping.emplacement = h;
       return;
     }
@@ -378,7 +383,8 @@ export function convertRawRowsToArticles(
     const rawPos = mapping.position ? String(row[mapping.position] || '').trim() : '';
     const rawEmp = mapping.emplacement ? String(row[mapping.emplacement] || '').trim() : '';
 
-    const position = rawPos || '-'; // Position de la pièce dans la machine
+    const cleanPos = (rawPos && rawPos !== '-' && rawPos !== 'Non assigné' && rawPos !== 'Non renseigné') ? rawPos : '';
+    const position = cleanPos; // Si vide elle doit rester vide ! Ne jamais copier l'emplacement dans position
     const cleanEmp = isValidLocation(rawEmp) ? rawEmp : '';
     const emplacement = cleanEmp || ''; // Position dans le magasin (dépôt, rayonnage, bac...)
 

@@ -448,10 +448,21 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const existingIdx = prev.findIndex(
         (a) => a.code_article.toLowerCase() === artData.code_article.toLowerCase()
       );
+
+      const rawPos = (artData.position || '').trim();
+      const cleanPos = (rawPos && rawPos !== '-' && rawPos !== 'Non assigné' && rawPos !== 'Non renseigné') ? rawPos : '';
+
       if (existingIdx >= 0) {
+        const curr = prev[existingIdx];
+        const currPos = (curr.position && curr.position !== '-' && curr.position !== 'Non assigné' && curr.position !== 'Non renseigné') ? curr.position.trim() : '';
+
         savedArt = {
-          ...prev[existingIdx],
+          ...curr,
           ...artData,
+          // Conserver impérativement le stock interne théorique initial !
+          quantite: typeof curr.quantite === 'number' ? curr.quantite : (artData.quantite ?? 0),
+          // Position dans la machine : si vide elle doit rester vide, ne jamais copier l'emplacement
+          position: cleanPos || currPos || '',
           status: artStatus
         };
         const next = [...prev];
@@ -463,6 +474,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       savedArt = {
         ...artData,
+        position: cleanPos, // Si vide elle reste vide
         status: artStatus,
         id: `art-${Date.now()}-${Math.floor(Math.random() * 1000)}`
       };
@@ -474,7 +486,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     if (artData.machine) addMachine(artData.machine);
     if (artData.famille) addFamille(artData.famille);
-    if (artData.emplacement)
+    if (artData.emplacement && artData.emplacement !== 'Non assigné' && artData.emplacement !== 'Non renseigné')
       addLocation({ code: artData.emplacement, nom: artData.emplacement, zone: 'Général' });
 
     return savedArt!;
@@ -533,18 +545,22 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const now = new Date().toISOString();
       const finalOperator = entryData.operator || currentUser?.nom || currentUser?.username || operator || 'Opérateur';
 
-      // Déterminer l'emplacement réel : priorité à la valeur saisie, puis lastLocation, sans jamais conserver "Non renseigné"
-      const rawLoc = (entryData.emplacement || entryData.position || '').trim();
+      // Déterminer l'emplacement réel du magasin : priorité à la valeur saisie, puis lastLocation, sans jamais conserver "Non renseigné"
+      const rawLoc = (entryData.emplacement || '').trim();
       const realLocation = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
         ? rawLoc
         : (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné')
         ? lastLocation
-        : 'Non assigné';
+        : '';
+
+      // Position de la pièce dans la machine : si vide elle DOIT RESTER VIDE ! Ne jamais copier l'emplacement dans position.
+      const rawPos = (entryData.position || '').trim();
+      const finalPosition = (rawPos && rawPos !== '-' && rawPos !== 'Non assigné' && rawPos !== 'Non renseigné') ? rawPos : '';
 
       const sanitizedData = {
         ...entryData,
         emplacement: realLocation,
-        position: realLocation,
+        position: finalPosition, // Si vide elle reste vide !
         operator: finalOperator,
         status: 'saisi' as const
       };
@@ -608,6 +624,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (artIdx >= 0) {
           const nextArts = [...prevArts];
           const curr = nextArts[artIdx];
+          const currPos = (curr.position && curr.position !== '-' && curr.position !== 'Non assigné' && curr.position !== 'Non renseigné') ? curr.position.trim() : '';
+
           nextArts[artIdx] = {
             ...curr,
             designation: sanitizedData.designation || curr.designation,
@@ -615,9 +633,11 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             famille: sanitizedData.famille || curr.famille,
             machine: sanitizedData.machine || curr.machine,
             unite: sanitizedData.unite || curr.unite,
-            emplacement: realLocation,
-            position: realLocation,
-            quantite: sanitizedData.quantite,
+            emplacement: realLocation, // Emplacement dans le magasin
+            position: finalPosition || currPos || '', // Ne jamais copier emplacement dans position ! Si vide, elle reste vide.
+            // CRITICAL: Stock Interne est le stock théorique et Qté Saisie est le stock réel !
+            // Ne PAS modifier le stock interne (curr.quantite), il doit rester le même pour voir l'écart.
+            quantite: typeof curr.quantite === 'number' ? curr.quantite : 0,
             status: 'saisi'
           };
           saveStoredArticles(nextArts);
@@ -625,6 +645,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           return nextArts;
         } else {
           // If not in articles, add to articles list with status: 'saisi'
+          // For an article not initially in the catalog, its theoretical internal stock is 0
           const newArt: Article = {
             id: sanitizedData.articleId || `art-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             code_article: sanitizedData.code_article,
@@ -634,8 +655,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             machine: sanitizedData.machine || 'Standard',
             unite: sanitizedData.unite || 'Pièce',
             emplacement: realLocation,
-            position: realLocation,
-            quantite: sanitizedData.quantite,
+            position: finalPosition || '', // Ne pas copier emplacement dans position ! Si vide, elle reste vide.
+            quantite: 0, // Stock interne théorique initial = 0 pour un article non présent au catalogue
             status: 'saisi'
           };
           const nextArts = [newArt, ...prevArts];
@@ -689,20 +710,23 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       qualite: QualiteEtat = 'conforme',
       notes = 'Saisie manuelle'
     ): { article: Article; entry: InventoryEntry } => {
-      const rawLoc = (artData.emplacement || artData.position || '').trim();
+      const rawLoc = (artData.emplacement || '').trim();
       const realLocation = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
         ? rawLoc
         : (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné')
         ? lastLocation
-        : 'Non assigné';
+        : '';
+
+      const rawPos = (artData.position || '').trim();
+      const cleanPosition = (rawPos && rawPos !== '-' && rawPos !== 'Non assigné' && rawPos !== 'Non renseigné') ? rawPos : '';
 
       // 1. Add/Update in articles list with status: 'saisi' and real location
       const savedArticle = addArticle({
         ...artData,
         emplacement: realLocation,
-        position: realLocation,
+        position: cleanPosition, // Si vide elle reste vide !
         status: 'saisi',
-        quantite: quantite
+        quantite: typeof artData.quantite === 'number' ? artData.quantite : 0 // Stock interne initial
       });
 
       // 2. Add to entries list (saisis) with status: 'saisi' and real location
@@ -715,7 +739,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         machine: savedArticle.machine || 'Standard',
         unite: savedArticle.unite || 'Pièce',
         emplacement: realLocation,
-        position: realLocation,
+        position: cleanPosition, // Ne pas copier emplacement dans position !
         quantite: quantite,
         qualite: qualite,
         notes: notes,

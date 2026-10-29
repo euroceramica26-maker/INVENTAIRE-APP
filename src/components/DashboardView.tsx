@@ -962,8 +962,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       famille: familles[0] || 'Général',
                       machine: machines[0] || 'Standard',
                       unite: 'Pièce',
+                      position: '',
                       emplacement: lastLocation || '',
-                      quantite: 1,
+                      quantite: 0,
                       status: 'saisi'
                     });
                   }

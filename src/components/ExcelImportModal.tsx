@@ -321,7 +321,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
                         columnMapping.famille,
                         columnMapping.sous_famille,
                         columnMapping.depart || columnMapping.machine,
-                        columnMapping.position || columnMapping.emplacement,
+                        columnMapping.position,
                         columnMapping.designation,
                         columnMapping.reference,
                         columnMapping.code_article,
@@ -421,17 +421,17 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
                             </div>
                           </td>
 
-                          {/* 4. Position */}
+                          {/* 4. Position (Machine) */}
                           <td className="p-2">
                             <div className="space-y-1">
                               <span className={`block text-[10px] font-semibold truncate ${
-                                (columnMapping.position || columnMapping.emplacement) ? 'text-emerald-700 font-bold' : 'text-slate-400'
+                                columnMapping.position ? 'text-emerald-700 font-bold' : 'text-slate-400'
                               }`}>
-                                {(columnMapping.position || columnMapping.emplacement) ? `✓ ${columnMapping.position || columnMapping.emplacement}` : 'Optionnel'}
+                                {columnMapping.position ? `✓ ${columnMapping.position}` : 'Optionnel'}
                               </span>
                               <select
-                                value={columnMapping.position || columnMapping.emplacement}
-                                onChange={(e) => setColumnMapping({ ...columnMapping, position: e.target.value, emplacement: e.target.value })}
+                                value={columnMapping.position}
+                                onChange={(e) => setColumnMapping({ ...columnMapping, position: e.target.value })}
                                 className="w-full text-[11px] p-1.5 bg-white border border-slate-300 rounded-md focus:border-orange-500 focus:outline-hidden"
                               >
                                 <option value="">-- Aucun --</option>
@@ -597,12 +597,13 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
                         <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
                           {parsedData.rawRows.slice(0, 4).map((row, idx) => {
                             const departKey = (columnMapping.depart || columnMapping.machine || '').trim();
-                            const positionKey = (columnMapping.position || columnMapping.emplacement || '').trim();
+                            const positionKey = (columnMapping.position || '').trim();
 
                             const valFamille = columnMapping.famille ? String(row[columnMapping.famille] || '') : 'Général';
                             const valSousFamille = columnMapping.sous_famille ? String(row[columnMapping.sous_famille] || '') : '-';
                             const valDepart = departKey ? String(row[departKey] || '') : 'Standard';
-                            const valPosition = positionKey ? String(row[positionKey] || '') : '-';
+                            const valPosRaw = positionKey ? String(row[positionKey] || '').trim() : '';
+                            const valPosition = (valPosRaw && valPosRaw !== '-' && valPosRaw !== 'Non assigné' && valPosRaw !== 'Non renseigné') ? valPosRaw : '';
                             const valDesignation = columnMapping.designation
                               ? String(row[columnMapping.designation] || '')
                               : '-';
@@ -633,9 +634,13 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
                                   </span>
                                 </td>
                                 <td className="py-2 px-2.5 whitespace-nowrap font-mono text-slate-700">
-                                  <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded text-[11px] font-semibold border border-amber-200">
-                                    {valPosition || '-'}
-                                  </span>
+                                  {valPosition ? (
+                                    <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded text-[11px] font-semibold border border-amber-200">
+                                      {valPosition}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 italic text-[11px] pl-1">-</span>
+                                  )}
                                 </td>
                                 <td className="py-2 px-3 font-semibold text-slate-900 max-w-[220px]">
                                   <div className="truncate">{valDesignation || '-'}</div>

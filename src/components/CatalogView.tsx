@@ -20,7 +20,8 @@ import {
   Equal,
   CheckSquare,
   Square,
-  MinusSquare
+  MinusSquare,
+  Crosshair
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { Article, InventoryEntry } from '../types/inventory';
@@ -192,8 +193,8 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     if (!newArtForm.code_article.trim() || !newArtForm.designation.trim()) return;
 
     const departVal = newArtForm.depart?.trim() || newArtForm.machine?.trim() || 'Standard';
-    const positionVal = newArtForm.position?.trim() || '-';
-    const emplacementVal = newArtForm.emplacement?.trim() || lastLocation || '';
+    const positionVal = newArtForm.position?.trim() || '';
+    const emplacementVal = newArtForm.emplacement?.trim() || '';
 
     addManualArticle(
       {
@@ -518,7 +519,18 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                 <th className="py-3 px-3 whitespace-nowrap">Famaille</th>
                 <th className="py-3 px-3 whitespace-nowrap">S.famaille</th>
                 <th className="py-3 px-3 whitespace-nowrap">Départ</th>
-                <th className="py-3 px-3 whitespace-nowrap">Position</th>
+                <th className="py-3 px-3 whitespace-nowrap" title="Position de la pièce dans la machine">
+                  <div className="flex items-center gap-1">
+                    <Crosshair className="w-3.5 h-3.5 text-indigo-200" />
+                    <span>Position</span>
+                  </div>
+                </th>
+                <th className="py-3 px-3 whitespace-nowrap" title="Emplacement dans le magasin (dépôt, rayonnage, bac...)">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-amber-200" />
+                    <span>Emplacement</span>
+                  </div>
+                </th>
                 <th className="py-3 px-2 text-center whitespace-nowrap">Unité</th>
                 <th className="py-3 px-3 text-right whitespace-nowrap bg-amber-600/90 font-black">
                   Stock Interne
@@ -542,7 +554,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
               {filteredArticles.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="py-12 text-center text-slate-400 dark:text-slate-500">
+                  <td colSpan={17} className="py-12 text-center text-slate-400 dark:text-slate-500">
                     {articles.length === 0
                       ? "Le catalogue est vide. Importez votre fichier Excel ou créez un article."
                       : "Aucun article ne correspond à votre recherche."}
@@ -555,7 +567,15 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                   const matchingEntry = entryByCodeMap.get(codeLower);
                   const isCounted = !!matchingEntry || art.status === 'saisi';
                   const departVal = art.depart || art.machine || '-';
-                  const positionVal = matchingEntry?.emplacement || art.position || art.emplacement || '-';
+                  
+                  // Position dans la machine : si vide elle reste vide !
+                  const rawPos = (art.position || '').trim();
+                  const positionMachine = (rawPos && rawPos !== '-' && rawPos !== 'Non assigné' && rawPos !== 'Non renseigné') ? rawPos : '';
+                  
+                  // Emplacement dans le magasin : uniquement si l'article a été saisi !
+                  const rawEmp = (matchingEntry?.emplacement || (art.status === 'saisi' ? art.emplacement : '') || '').trim();
+                  const emplacementMagasin = (rawEmp && rawEmp !== 'Non renseigné' && rawEmp !== 'Non assigné') ? rawEmp : '';
+
                   const gereVal = art.gere_nn || 'G';
                   const stockInterne = typeof art.quantite === 'number' ? art.quantite : 0;
                   const qteSaisie = matchingEntry ? matchingEntry.quantite : (art.status === 'saisi' ? (art.quantite || 1) : null);
@@ -638,11 +658,28 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                         </span>
                       </td>
 
-                      {/* 4. Position */}
+                      {/* 4. Position dans la machine */}
                       <td className="py-3 px-3 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        <span className="bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 text-[11px] font-semibold">
-                          {positionVal}
-                        </span>
+                        {positionMachine ? (
+                          <span className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800 text-[11px] font-semibold">
+                            <Crosshair className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <span>{positionMachine}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px] pl-1">-</span>
+                        )}
+                      </td>
+
+                      {/* Emplacement dans le magasin (dépôt, rayonnage, bac...) */}
+                      <td className="py-3 px-3 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                        {isCounted && emplacementMagasin ? (
+                          <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/50 text-amber-950 dark:text-amber-200 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700 text-[11px] font-bold">
+                            <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                            <span>{emplacementMagasin}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500 italic text-[11px] pl-1">-</span>
+                        )}
                       </td>
 
                       {/* Unité */}
