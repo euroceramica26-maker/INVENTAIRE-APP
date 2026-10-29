@@ -107,8 +107,6 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
     }
   }, [article, existingEntry, isOpen, lastLocation, locations, machines, familles, operator]);
 
-  if (!isOpen || (!article && !existingEntry)) return null;
-
   const matchingArt = useMemo(() => {
     if (article) return article;
     if (existingEntry) {
@@ -242,6 +240,8 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       onClose();
     }
   };
+
+  if (!isOpen || (!article && !existingEntry)) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
