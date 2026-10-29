@@ -73,10 +73,11 @@ function AuthenticatedApp() {
       designation: parsedData?.designation || `Nouvel article (${parsedData?.code_article || scannedCode})`,
       reference: parsedData?.reference || parsedData?.code_article || scannedCode,
       famille: parsedData?.famille || 'Général',
-      machine: parsedData?.machine || 'Ligne Principale',
+      machine: parsedData?.machine || 'Standard',
+      position: '',
       unite: parsedData?.unite || 'Pièce',
       emplacement: parsedData?.emplacement || '',
-      quantite: parsedData?.quantite || 1,
+      quantite: typeof parsedData?.quantite === 'number' ? parsedData.quantite : 0,
       status: 'saisi'
     };
     setSelectedArticle(tempArticle);
@@ -98,9 +99,10 @@ function AuthenticatedApp() {
       reference: '',
       famille: 'Général',
       machine: 'Standard',
+      position: '',
       unite: 'Pièce',
       emplacement: '',
-      quantite: 1,
+      quantite: 0,
       status: 'saisi'
     };
     setSelectedArticle(tempArticle);

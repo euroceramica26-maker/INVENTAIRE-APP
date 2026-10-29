@@ -578,7 +578,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
 
                   const gereVal = art.gere_nn || 'G';
                   const stockInterne = typeof art.quantite === 'number' ? art.quantite : 0;
-                  const qteSaisie = matchingEntry ? matchingEntry.quantite : (art.status === 'saisi' ? (art.quantite || 1) : null);
+                  const qteSaisie = matchingEntry
+                    ? (typeof matchingEntry.quantite === 'number' ? matchingEntry.quantite : 0)
+                    : (art.status === 'saisi' ? (typeof art.quantite === 'number' ? art.quantite : 0) : null);
                   const ecart = qteSaisie !== null ? qteSaisie - stockInterne : null;
                   const operatorName = matchingEntry?.operator || (art.status === 'saisi' ? (operator || 'Opérateur') : null);
 

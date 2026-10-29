@@ -100,9 +100,9 @@ export function buildCombinedInventoryList(
       const emplacementVal = isSaisi ? (art.emplacement || '').trim() : '';
 
       const stockInterne = typeof art.quantite === 'number' ? art.quantite : 0;
-      const quantite = isSaisi ? (art.quantite || 1) : '';
-      // Écart = Quantité - Stock Interne
-      const ecartStock = isSaisi ? (Number(quantite) - stockInterne) : '';
+      const quantite = isSaisi ? (typeof art.quantite === 'number' ? art.quantite : 0) : '';
+      // Écart = Quantité Saisie - Stock Interne
+      const ecartStock = isSaisi ? ((typeof quantite === 'number' ? quantite : 0) - stockInterne) : '';
 
       combined.push({
         id: `missing-${art.id}`,

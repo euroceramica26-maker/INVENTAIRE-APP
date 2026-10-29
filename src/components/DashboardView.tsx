@@ -1177,8 +1177,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <td className="py-3 px-3 text-right font-mono tabular-nums font-bold whitespace-nowrap bg-emerald-50/20 dark:bg-emerald-950/10">
                         {isSaisi ? (
                           <>
-                            <span className="text-base text-amber-600 dark:text-amber-400">{item.quantite}</span>{' '}
+                            <span className="text-base text-amber-600 dark:text-amber-400">
+                              {typeof item.quantite === 'number' ? item.quantite.toFixed(2) : (item.quantite !== '' ? item.quantite : '0.00')}
+                            </span>{' '}
                             <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">{item.unite}</span>
+                            {item.quantite === 0 && (
+                              <span className="ml-1 text-[10px] font-bold text-rose-700 dark:text-rose-300 bg-rose-100/80 dark:bg-rose-950/60 px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-800">
+                                0
+                              </span>
+                            )}
                           </>
                         ) : (
                           <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">Non saisi</span>

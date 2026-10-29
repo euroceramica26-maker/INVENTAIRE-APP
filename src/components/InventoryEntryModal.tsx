@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Minus,
@@ -109,16 +109,26 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
 
   if (!isOpen || (!article && !existingEntry)) return null;
 
+  const matchingArt = useMemo(() => {
+    if (article) return article;
+    if (existingEntry) {
+      const code = (existingEntry.code_article || '').trim().toLowerCase();
+      return articles.find((a) => (a.code_article || '').trim().toLowerCase() === code);
+    }
+    return undefined;
+  }, [article, existingEntry, articles]);
+
   const currentArticle = article || {
-    id: existingEntry?.articleId || 'temp',
-    code_article: existingEntry?.code_article || '',
-    designation: existingEntry?.designation || '',
-    reference: existingEntry?.reference || '',
-    famille: existingEntry?.famille || '',
-    machine: existingEntry?.machine || '',
-    position: existingEntry?.position || '',
-    unite: existingEntry?.unite || 'Pièce',
-    emplacement: existingEntry?.emplacement || ''
+    id: existingEntry?.articleId || matchingArt?.id || 'temp',
+    code_article: existingEntry?.code_article || matchingArt?.code_article || '',
+    designation: existingEntry?.designation || matchingArt?.designation || '',
+    reference: existingEntry?.reference || matchingArt?.reference || '',
+    famille: existingEntry?.famille || matchingArt?.famille || '',
+    machine: existingEntry?.machine || matchingArt?.machine || '',
+    position: existingEntry?.position || matchingArt?.position || '',
+    unite: existingEntry?.unite || matchingArt?.unite || 'Pièce',
+    emplacement: existingEntry?.emplacement || matchingArt?.emplacement || '',
+    quantite: matchingArt?.quantite ?? 0
   };
 
   const isKnownArticle = articles.some(
@@ -369,6 +379,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                   type="button"
                   onClick={() => handleAdjustQty(-1)}
                   className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 flex items-center justify-center font-bold text-lg shadow-xs transition-all cursor-pointer"
+                  title="Diminuer la quantité (-1)"
                 >
                   <Minus className="w-5 h-5" />
                 </button>
@@ -378,8 +389,21 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                     step="any"
                     min="0"
                     value={quantite}
-                    onChange={(e) => setQuantite(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className="w-full h-12 text-center font-mono text-2xl font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl focus:border-amber-500 focus:outline-none tabular-nums"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setQuantite(0);
+                      } else {
+                        const num = parseFloat(val);
+                        setQuantite(isNaN(num) ? 0 : Math.max(0, Math.round(num * 100) / 100));
+                      }
+                    }}
+                    className={`w-full h-12 text-center font-mono text-2xl font-bold bg-white dark:bg-slate-950 border-2 rounded-xl focus:border-amber-500 focus:outline-none tabular-nums transition-colors ${
+                      quantite === 0
+                        ? 'border-rose-400 text-rose-700 dark:text-rose-300 dark:border-rose-600'
+                        : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white'
+                    }`}
+                    placeholder="0"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 dark:text-slate-500 pointer-events-none">
                     {unite}
@@ -389,19 +413,45 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                   type="button"
                   onClick={() => handleAdjustQty(1)}
                   className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 flex items-center justify-center font-bold text-lg shadow-xs transition-all cursor-pointer"
+                  title="Augmenter la quantité (+1)"
                 >
                   <Plus className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Quick increment buttons */}
-              <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end">
+              {/* Quick direct buttons: 0 (Stock nul), 1, +5, +10, +50, +100 */}
+              <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setQuantite(0)}
+                  className={`px-3 py-2 text-xs font-bold rounded-lg border shadow-2xs transition-all cursor-pointer flex items-center gap-1 ${
+                    quantite === 0
+                      ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-200 border-rose-400 dark:border-rose-600 ring-2 ring-rose-400/50'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-rose-300 hover:text-rose-600'
+                  }`}
+                  title="Saisir 0 (Rupture de stock / Pièce épuisée)"
+                >
+                  <span className="font-mono font-black">0</span>
+                  <span className="hidden sm:inline text-[11px] font-medium">(Épuisé)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuantite(1)}
+                  className={`px-2.5 py-2 text-xs font-bold rounded-lg border shadow-2xs transition-all cursor-pointer ${
+                    quantite === 1
+                      ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border-amber-400 dark:border-amber-600 ring-1 ring-amber-400'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-400 hover:text-amber-700'
+                  }`}
+                  title="Saisir 1 pièce"
+                >
+                  1
+                </button>
                 {[+5, +10, +50, +100].map((inc) => (
                   <button
                     key={inc}
                     type="button"
                     onClick={() => handleAdjustQty(inc)}
-                    className="flex-1 sm:flex-none px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-700 dark:hover:text-amber-400 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+                    className="flex-1 sm:flex-none px-2.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-700 dark:hover:text-amber-400 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
                   >
                     +{inc}
                   </button>
