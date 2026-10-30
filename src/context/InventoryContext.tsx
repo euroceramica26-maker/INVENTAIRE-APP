@@ -1184,7 +1184,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       foundUser = {
         id: 'usr-admin-01',
         username: 'ouaradtech',
-        nom: 'Mohamed Ouarad (Admin)',
+        nom: 'Radouan Ouarad (Admin)',
         motDePasse: 'Ouaradtech26@',
         role: 'admin',
         actif: true,

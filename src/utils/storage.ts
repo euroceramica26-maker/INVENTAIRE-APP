@@ -20,7 +20,7 @@ export const DEFAULT_USERS: AppUser[] = [
   {
     id: 'usr-admin-01',
     username: 'ouaradtech',
-    nom: 'Mohamed Ouarad (Admin)',
+    nom: 'Radouan Ouarad (Admin)',
     motDePasse: 'Ouaradtech26@',
     role: 'admin',
     actif: true,
@@ -52,14 +52,31 @@ export function getStoredUsers(): AppUser[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        let hasChanges = false;
+        // Migrate any previous name containing 'Mohamed Ouarad' to 'Radouan Ouarad'
+        const updated = parsed.map((u: AppUser) => {
+          if (u.nom && u.nom.includes('Mohamed Ouarad')) {
+            hasChanges = true;
+            return {
+              ...u,
+              nom: u.nom.replace(/Mohamed\s+Ouarad/g, 'Radouan Ouarad')
+            };
+          }
+          return u;
+        });
+
         // Ensure ouaradtech admin is always present and active
-        const hasAdmin = parsed.some((u) => u.username?.toLowerCase() === 'ouaradtech');
+        const hasAdmin = updated.some((u) => u.username?.toLowerCase() === 'ouaradtech');
         if (!hasAdmin) {
-          const merged = [DEFAULT_USERS[0], ...parsed];
+          const merged = [DEFAULT_USERS[0], ...updated];
           saveStoredUsers(merged);
           return merged;
         }
-        return parsed;
+
+        if (hasChanges) {
+          saveStoredUsers(updated);
+        }
+        return updated;
       }
     }
   } catch (e) {
@@ -84,6 +101,10 @@ export function getStoredCurrentUser(): AppUser | null {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.id && parsed.username) {
+        if (parsed.nom && parsed.nom.includes('Mohamed Ouarad')) {
+          parsed.nom = parsed.nom.replace(/Mohamed\s+Ouarad/g, 'Radouan Ouarad');
+          saveStoredCurrentUser(parsed);
+        }
         return parsed;
       }
     }
