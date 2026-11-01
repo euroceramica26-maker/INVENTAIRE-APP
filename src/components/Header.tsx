@@ -17,7 +17,7 @@ import {
   Cpu,
   Users
 } from 'lucide-react';
-import { SyncStatusBadge } from './SyncStatusBadge';
+import { NetworkStatusIndicator } from './NetworkStatusIndicator';
 import { useInventory } from '../context/InventoryContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -78,17 +78,10 @@ export const Header: React.FC<HeaderProps> = ({
     activeInventory,
     switchInventory,
     syncState,
-    entries,
-    triggerManualSync
+    entries
   } = useInventory();
 
   const { isDark, toggleTheme } = useTheme();
-
-  const isPendingSync =
-    syncState.isSyncing ||
-    syncState.pendingCount > 0 ||
-    !syncState.isOnline ||
-    entries.some((e) => e.syncStatus === 'pending');
 
   const [isCampaignDropdownOpen, setIsCampaignDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -220,37 +213,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Action Controls: Sync, Theme Toggle, Excel Import & Scanner */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Visual Indicator: Cloud Sync Status */}
-            <button
-              type="button"
-              data-testid="cloud-sync-indicator"
-              onClick={triggerManualSync}
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors cursor-pointer select-none ${
-                isPendingSync
-                  ? 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200'
-                  : 'bg-emerald-50/60 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
-              }`}
-              title={
-                isPendingSync
-                  ? 'Synchronisation avec le cloud en attente'
-                  : `Synchronisé avec le cloud (${syncState.lastSyncedAt || 'En direct'})`
-              }
-            >
-              <div className="relative flex items-center justify-center shrink-0">
-                <span
-                  className={`w-2 h-2 rounded-full shrink-0 ${
-                    isPendingSync ? 'bg-yellow-400 animate-pulse' : 'bg-emerald-500'
-                  }`}
-                />
-              </div>
-              <Cloud className={`w-3.5 h-3.5 shrink-0 ${isPendingSync ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
-              <span className="hidden md:inline text-[11px] font-semibold">
-                {isPendingSync ? 'Synchro...' : 'Synchronisé'}
-              </span>
-            </button>
-
-            {/* Cloud & Local storage state */}
-            <SyncStatusBadge />
+            {/* Real-time Network & Cloud Sync Status Indicator */}
+            <NetworkStatusIndicator />
 
             {/* Bouton pour changer du mode clair au mode sombre */}
             <button

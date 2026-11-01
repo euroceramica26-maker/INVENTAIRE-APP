@@ -294,9 +294,21 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setSyncState((prev) => ({ ...prev, peerCount: Math.max(1, count) }));
     });
 
+    // Browser online / offline events
+    const handleBrowserOnline = () => {
+      setSyncState((prev) => ({ ...prev, isOnline: true }));
+      syncService.flushOfflineQueue();
+    };
+    const handleBrowserOffline = () => {
+      setSyncState((prev) => ({ ...prev, isOnline: false }));
+    };
+    window.addEventListener('online', handleBrowserOnline);
+    window.addEventListener('offline', handleBrowserOffline);
+
     // 4. Subscribe to socket connection status
     const unsubscribeStatus = syncService.subscribeStatus((connected) => {
-      setSyncState((prev) => ({ ...prev, isOnline: connected }));
+      const isOnline = connected && (typeof navigator === 'undefined' || navigator.onLine);
+      setSyncState((prev) => ({ ...prev, isOnline }));
     });
 
     // 5. Subscribe to real-time sync in-flight activity & pending sync
@@ -304,8 +316,24 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setSyncState((prev) => ({
         ...prev,
         isSyncing,
-        pendingCount: !prev.isOnline ? Math.max(1, pendingCount) : pendingCount,
+        pendingCount,
         lastSyncedAt: !isSyncing ? new Date().toLocaleTimeString('fr-FR') : prev.lastSyncedAt
+      }));
+    });
+
+    // Queue flushed listener
+    const unsubscribeQueueFlushed = syncService.subscribeQueueFlushed(() => {
+      setEntries((prev) => {
+        const hasPending = prev.some((e) => e.syncStatus === 'pending');
+        if (!hasPending) return prev;
+        const next = prev.map((e) => (e.syncStatus === 'pending' ? { ...e, syncStatus: 'synced' as const } : e));
+        saveStoredEntries(next);
+        return next;
+      });
+      setSyncState((prev) => ({
+        ...prev,
+        pendingCount: 0,
+        lastSyncedAt: new Date().toLocaleTimeString('fr-FR')
       }));
     });
 
@@ -331,10 +359,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     return () => {
+      window.removeEventListener('online', handleBrowserOnline);
+      window.removeEventListener('offline', handleBrowserOffline);
       unsubscribeState();
       unsubscribeCount();
       unsubscribeStatus();
       unsubscribeActivity();
+      unsubscribeQueueFlushed();
       unsubscribeChannel();
     };
   }, []);
@@ -353,6 +384,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const triggerManualSync = useCallback(async () => {
     setSyncState((prev) => ({ ...prev, isSyncing: true }));
     try {
+      await syncService.flushOfflineQueue();
       const data = await syncService.fetchInitialState();
       if (!data) {
         // If server had no data yet, push local data to server
@@ -370,7 +402,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ...prev,
         isSyncing: false,
         lastSyncedAt: new Date().toLocaleTimeString('fr-FR'),
-        pendingCount: 0
+        pendingCount: syncService.getPendingCount()
       }));
     }
   }, [articles, entries, locations, familles, machines, lastLocation]);
@@ -557,12 +589,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const rawPos = (entryData.position || '').trim();
       const finalPosition = (rawPos && rawPos !== '-' && rawPos !== 'Non assigné' && rawPos !== 'Non renseigné') ? rawPos : '';
 
+      const isOnlineNow = syncService.isSocketConnected() && (typeof navigator === 'undefined' || navigator.onLine);
+      const currentSyncStatus = isOnlineNow ? ('synced' as const) : ('pending' as const);
+
       const sanitizedData = {
         ...entryData,
         emplacement: realLocation,
         position: finalPosition, // Si vide elle reste vide !
         operator: finalOperator,
-        status: 'saisi' as const
+        status: 'saisi' as const,
+        syncStatus: currentSyncStatus
       };
 
       setEntries((prev) => {
@@ -576,7 +612,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               ...prev[index],
               ...sanitizedData,
               timestamp: now,
-              syncStatus: 'synced'
+              syncStatus: currentSyncStatus
             };
             const next = [...prev];
             next[index] = updatedEntry;
@@ -597,7 +633,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             ...prev[existingMatchIndex],
             ...sanitizedData,
             timestamp: now,
-            syncStatus: 'synced'
+            syncStatus: currentSyncStatus
           };
           const next = [...prev];
           next[existingMatchIndex] = updatedEntry;
@@ -609,7 +645,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           ...sanitizedData,
           id: `entry-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           timestamp: now,
-          syncStatus: 'synced'
+          syncStatus: currentSyncStatus
         };
         const next = [updatedEntry, ...prev];
         saveStoredEntries(next);

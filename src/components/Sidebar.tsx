@@ -19,7 +19,9 @@ import {
   Cloud,
   ScanLine,
   X,
-  Package
+  Package,
+  WifiOff,
+  RefreshCw
 } from 'lucide-react';
 import { ActiveTab } from './Header';
 import { useInventory } from '../context/InventoryContext';
@@ -66,12 +68,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { isDark, toggleTheme } = useTheme();
   const [isCampaignDropdownOpen, setIsCampaignDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const isPendingSync =
-    syncState.isSyncing ||
-    syncState.pendingCount > 0 ||
-    !syncState.isOnline ||
-    entries.some((e) => e.syncStatus === 'pending');
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -385,23 +381,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
           type="button"
           onClick={triggerManualSync}
           className={`w-full flex items-center gap-2 p-2 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
-            isPendingSync
+            syncState.isSyncing
+              ? 'bg-sky-50 dark:bg-sky-950/40 border-sky-300 dark:border-sky-700 text-sky-800 dark:text-sky-200'
+              : !syncState.isOnline && (syncState.pendingCount > 0 || entries.some((e) => e.syncStatus === 'pending'))
               ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200'
+              : !syncState.isOnline
+              ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
               : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
           } ${isCollapsed ? 'justify-center p-2' : ''}`}
-          title={isPendingSync ? 'Synchronisation en attente (cliquer pour forcer)' : 'Données synchronisées'}
+          title={
+            syncState.isSyncing
+              ? 'Synchronisation cloud en cours...'
+              : !syncState.isOnline
+              ? 'Mode hors-ligne (cliquer pour tester la connexion)'
+              : 'Données synchronisées avec le cloud'
+          }
         >
           <div className="relative shrink-0">
-            <Cloud className={`w-3.5 h-3.5 ${isPendingSync ? 'text-amber-500' : 'text-emerald-500'}`} />
+            {syncState.isSyncing ? (
+              <RefreshCw className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 animate-spin" />
+            ) : !syncState.isOnline ? (
+              <WifiOff className={`w-3.5 h-3.5 ${syncState.pendingCount > 0 ? 'text-amber-500' : 'text-slate-400'}`} />
+            ) : (
+              <Cloud className="w-3.5 h-3.5 text-emerald-500" />
+            )}
             <span
               className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${
-                isPendingSync ? 'bg-yellow-400 animate-pulse' : 'bg-emerald-500'
+                syncState.isSyncing
+                  ? 'bg-sky-500 animate-ping'
+                  : !syncState.isOnline && syncState.pendingCount > 0
+                  ? 'bg-amber-500 animate-pulse'
+                  : !syncState.isOnline
+                  ? 'bg-slate-400'
+                  : 'bg-emerald-500'
               }`}
             />
           </div>
           {!isCollapsed && (
             <span className="truncate text-[11px]">
-              {isPendingSync ? 'Synchro en attente' : 'Cloud synchronisé'}
+              {syncState.isSyncing
+                ? 'Synchronisation...'
+                : !syncState.isOnline && (syncState.pendingCount > 0 || entries.some((e) => e.syncStatus === 'pending'))
+                ? `Hors-ligne (${Math.max(syncState.pendingCount, entries.filter((e) => e.syncStatus === 'pending').length)})`
+                : !syncState.isOnline
+                ? 'Hors-ligne'
+                : 'Cloud synchronisé'}
             </span>
           )}
         </button>

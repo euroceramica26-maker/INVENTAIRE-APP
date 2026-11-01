@@ -37,6 +37,7 @@ class RealtimeSyncService {
   private countListeners: Set<ClientCountListener> = new Set();
   private statusListeners: Set<ConnectionStatusListener> = new Set();
   private activityListeners: Set<SyncActivityListener> = new Set();
+  private queueFlushedListeners: Set<() => void> = new Set();
   private clientCount: number = 1;
   private inFlightRequests: number = 0;
   private offlineQueue: QueuedAction[] = [];
@@ -309,6 +310,13 @@ class RealtimeSyncService {
   }
 
   public sendAction(action: string, payload: any): void {
+    // If completely offline according to browser, queue directly without waiting for network timeout
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      this.queueAction(action, payload);
+      this.notifyActivity();
+      return;
+    }
+
     this.inFlightRequests++;
     this.notifyActivity();
 
@@ -401,10 +409,30 @@ class RealtimeSyncService {
           break;
         }
       }
+      if (this.offlineQueue.length === 0) {
+        this.notifyQueueFlushed();
+      }
     } finally {
       this.isFlushingQueue = false;
       this.notifyActivity();
     }
+  }
+
+  public subscribeQueueFlushed(listener: () => void): () => void {
+    this.queueFlushedListeners.add(listener);
+    return () => {
+      this.queueFlushedListeners.delete(listener);
+    };
+  }
+
+  private notifyQueueFlushed(): void {
+    this.queueFlushedListeners.forEach((l) => {
+      try {
+        l();
+      } catch (e) {
+        console.error('[SyncService] Error in queue flushed listener:', e);
+      }
+    });
   }
 
   public sendFullSync(state: Partial<RemoteServerState>): void {
