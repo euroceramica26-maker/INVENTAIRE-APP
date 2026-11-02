@@ -92,6 +92,18 @@ class RealtimeSyncService {
     return this.offlineQueue.length + this.inFlightRequests;
   }
 
+  public clearOfflineQueue(): void {
+    this.offlineQueue = [];
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(OFFLINE_QUEUE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+    this.notifyActivity();
+  }
+
   public subscribeState(listener: StateListener): () => void {
     this.stateListeners.add(listener);
     return () => {

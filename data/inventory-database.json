@@ -5,7 +5,7 @@
       "titre": "Inventaire Principal",
       "code": "INV-01",
       "description": "Campagne principale d'inventaire",
-      "dateCreation": "2026-10-24T10:05:50.243Z",
+      "dateCreation": "2026-11-02T09:22:11.341Z",
       "statut": "en_cours",
       "responsable": "ouaradtech",
       "articles": [],
@@ -27,7 +27,7 @@
     {
       "id": "usr-admin-01",
       "username": "ouaradtech",
-      "nom": "Mohamed Ouarad (Admin)",
+      "nom": "Radouan Ouarad (Admin)",
       "motDePasse": "Ouaradtech26@",
       "role": "admin",
       "actif": true,
@@ -52,5 +52,5 @@
       "dateCreation": "2026-01-01T08:00:00.000Z"
     }
   ],
-  "updatedAt": "2026-10-24T10:05:50.243Z"
+  "updatedAt": "2026-11-02T09:22:11.341Z"
 }

@@ -62,6 +62,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     searchArticles,
     matchScannedArticle,
     clearEntireDatabase,
+    clearAllEntries,
     isAdmin,
     requestAdminAction,
     activeInventory,
@@ -102,6 +103,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Deletion modals & multi-selection state
   const [entryToDelete, setEntryToDelete] = useState<InventoryEntry | null>(null);
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
+  const [isConfirmClearEntriesOpen, setIsConfirmClearEntriesOpen] = useState(false);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
 
@@ -848,11 +850,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 >
                   <HardDrive className="w-4 h-4" />
                 </button>
+                {entries.length > 0 && (
+                  <button
+                    onClick={() => setIsConfirmClearEntriesOpen(true)}
+                    className="p-1.5 text-amber-600 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg transition-colors flex items-center gap-1 text-xs cursor-pointer"
+                    title="Remettre à zéro toutes les saisies d'inventaire (Conserve le catalogue)"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span className="hidden sm:inline font-medium">Vider les saisies</span>
+                  </button>
+                )}
                 {(entries.length > 0 || articles.length > 0) && (
                   <button
                     onClick={() => setIsConfirmClearOpen(true)}
                     className="p-1.5 text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors flex items-center gap-1 text-xs cursor-pointer"
-                    title="Vider toute la base (Mot de passe administrateur obligatoire)"
+                    title="Vider toute la base (Efface définitivement catalogue et saisies)"
                   >
                     <Trash2 className="w-4 h-4" />
                     <span className="hidden sm:inline font-medium">Vider la base</span>
@@ -1379,6 +1391,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         }}
         title="Vider toute la base de données"
         message="Attention : Cette action va effacer définitivement tous les articles importés, les machines, familles, emplacements et toutes les saisies d'inventaire pour repartir d'une base 100% vide."
+      />
+
+      {/* Modal sécurisée remise à zéro des saisies d'inventaire */}
+      <ClearDatabaseModal
+        isOpen={isConfirmClearEntriesOpen}
+        onClose={() => setIsConfirmClearEntriesOpen(false)}
+        onConfirm={() => {
+          clearAllEntries();
+          setIsConfirmClearEntriesOpen(false);
+        }}
+        title="Vider toutes les saisies d'inventaire"
+        message="Attention : Cette action va effacer tous les comptages d'inventaire saisis. Le catalogue d'articles restera conservé et tous les statuts repasseront à 'À faire'."
       />
     </div>
   );

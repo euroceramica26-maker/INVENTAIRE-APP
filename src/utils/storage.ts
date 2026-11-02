@@ -380,19 +380,40 @@ export function saveStoredRoomCode(code: string): void {
 // Effacer toutes les données locales pour redémarrer à zéro
 export function clearAllLocalDatabase(): void {
   try {
-    localStorage.removeItem(STORAGE_KEYS.ARTICLES);
-    localStorage.removeItem(STORAGE_KEYS.ENTRIES);
-    localStorage.removeItem(STORAGE_KEYS.LOCATIONS);
-    localStorage.removeItem(STORAGE_KEYS.FAMILLES);
-    localStorage.removeItem(STORAGE_KEYS.MACHINES);
+    localStorage.setItem(STORAGE_KEYS.ARTICLES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.LOCATIONS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.FAMILLES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.MACHINES, JSON.stringify([]));
     localStorage.removeItem(STORAGE_KEYS.LAST_LOCATION);
+    localStorage.removeItem('inventaire_offline_sync_queue_v5');
+
+    const defaultInv: InventoryCampaign = {
+      id: 'inv-principal',
+      titre: 'Inventaire Principal',
+      code: 'INV-01',
+      description: "Campagne principale d'inventaire",
+      dateCreation: new Date().toISOString(),
+      statut: 'en_cours',
+      responsable: 'ouaradtech',
+      articles: [],
+      entries: [],
+      locations: [],
+      familles: [],
+      machines: [],
+      lastLocation: ''
+    };
+    localStorage.setItem(STORAGE_KEYS.INVENTORIES, JSON.stringify([defaultInv]));
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_INVENTORY_ID, 'inv-principal');
+
     // Nettoyer aussi les anciennes versions si présentes
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 4; i++) {
       localStorage.removeItem(`inventaire_articles_v${i}`);
       localStorage.removeItem(`inventaire_entries_v${i}`);
       localStorage.removeItem(`inventaire_locations_v${i}`);
       localStorage.removeItem(`inventaire_familles_v${i}`);
       localStorage.removeItem(`inventaire_machines_v${i}`);
+      localStorage.removeItem(`inventaire_offline_sync_queue_v${i}`);
     }
     notifySyncChannel('DATABASE_CLEARED', null);
   } catch (e) {

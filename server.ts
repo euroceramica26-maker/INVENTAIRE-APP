@@ -30,7 +30,7 @@ const DEFAULT_USERS = [
   {
     id: 'usr-admin-01',
     username: 'ouaradtech',
-    nom: 'Mohamed Ouarad (Admin)',
+    nom: 'Radouan Ouarad (Admin)',
     motDePasse: 'Ouaradtech26@',
     role: 'admin',
     actif: true,
@@ -92,6 +92,13 @@ function loadDatabase(): ServerDatabase {
       const lastLoc = typeof parsed.lastLocation === 'string' ? parsed.lastLocation : '';
 
       let users = Array.isArray(parsed.users) && parsed.users.length > 0 ? parsed.users : [...DEFAULT_USERS];
+      // Migrate legacy name Mohamed Ouarad to Radouan Ouarad
+      users = users.map((u: any) => {
+        if (u.nom && u.nom.includes('Mohamed Ouarad')) {
+          return { ...u, nom: 'Radouan Ouarad (Admin)' };
+        }
+        return u;
+      });
       if (!users.some((u: any) => u.username?.toLowerCase() === 'ouaradtech')) {
         users.unshift(DEFAULT_USERS[0]);
       }
@@ -324,15 +331,17 @@ function applyAction(actionType: string, payload: any): boolean {
       const entry = payload;
       if (!entry) return false;
 
-      const rawLoc = (entry.emplacement || entry.position || '').trim();
+      const rawLoc = (entry.emplacement || '').trim();
       const realLocation = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
         ? rawLoc
         : (db.lastLocation && db.lastLocation !== 'Non renseigné' && db.lastLocation !== 'Non assigné')
         ? db.lastLocation
-        : (rawLoc || 'Non assigné');
+        : (rawLoc || '');
 
       entry.emplacement = realLocation;
-      entry.position = realLocation;
+      // Position: si vide elle doit rester vide, ne pas copier emplacement dans position !
+      const rawPos = (entry.position || '').trim();
+      entry.position = (rawPos && rawPos !== '-' && rawPos !== 'Non assigné' && rawPos !== 'Non renseigné') ? rawPos : '';
       entry.status = 'saisi';
 
       const index = db.entries.findIndex((e) => e.id === entry.id);
@@ -355,15 +364,13 @@ function applyAction(actionType: string, payload: any): boolean {
         db.lastLocation = realLocation;
       }
 
-      // Update status in db.articles if found
+      // Update status in db.articles if found - Stock Interne (quantite) must NEVER be modified!
       const artIdx = db.articles.findIndex((a) => a.code_article.toLowerCase() === entry.code_article.toLowerCase());
       if (artIdx >= 0) {
         db.articles[artIdx] = {
           ...db.articles[artIdx],
           status: 'saisi',
-          quantite: entry.quantite,
-          emplacement: realLocation,
-          position: realLocation
+          emplacement: realLocation || db.articles[artIdx].emplacement
         };
       }
       syncActiveInventoryInList();
@@ -747,6 +754,26 @@ app.post('/api/inventory/sync', (req, res) => {
   });
 
   res.json({ success: true, data: db });
+});
+
+app.post('/api/inventory/clear-database', (req, res) => {
+  applyAction('CLEAR_DATABASE', null);
+  broadcast({
+    type: 'STATE_UPDATED',
+    payload: db,
+    action: 'CLEAR_DATABASE'
+  });
+  res.json({ success: true, message: 'Base de données effacée définitivement', data: db });
+});
+
+app.post('/api/inventory/clear-entries', (req, res) => {
+  applyAction('CLEAR_ENTRIES', null);
+  broadcast({
+    type: 'STATE_UPDATED',
+    payload: db,
+    action: 'CLEAR_ENTRIES'
+  });
+  res.json({ success: true, message: 'Saisies d inventaire vidées avec succès', data: db });
 });
 
 // Dev vs Prod Vite Integration

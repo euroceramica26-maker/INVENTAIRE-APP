@@ -204,54 +204,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       isRemoteUpdatingRef.current = true;
       try {
         if (Array.isArray(remote.articles)) {
-          if (remote.articles.length > 0) {
-            setArticles(remote.articles);
-            saveStoredArticles(remote.articles);
-          } else {
-            const localArticles = getStoredArticles();
-            if (localArticles.length > 0) {
-              syncService.sendAction('IMPORT_ARTICLES', {
-                newArticles: localArticles,
-                newMachines: getStoredMachines(),
-                newFamilles: getStoredFamilles(),
-                newEmplacements: getStoredLocations().map((l) => l.code)
-              });
-            } else {
-              setArticles([]);
-              saveStoredArticles([]);
-            }
-          }
+          setArticles(remote.articles);
+          saveStoredArticles(remote.articles);
         }
         if (Array.isArray(remote.entries)) {
-          if (remote.entries.length > 0) {
-            setEntries(remote.entries);
-            saveStoredEntries(remote.entries);
-          } else {
-            const localEntries = getStoredEntries();
-            if (localEntries.length > 0) {
-              setEntries(localEntries);
-              localEntries.forEach((ent) => {
-                syncService.sendAction('ADD_ENTRY', ent);
-              });
-            } else {
-              setEntries([]);
-              saveStoredEntries([]);
-            }
-          }
+          setEntries(remote.entries);
+          saveStoredEntries(remote.entries);
         }
         if (Array.isArray(remote.locations)) {
-          if (remote.locations.length > 0) {
-            setLocations(remote.locations);
-            saveStoredLocations(remote.locations);
-          } else {
-            const localLocs = getStoredLocations();
-            if (localLocs.length > 0) {
-              syncService.sendAction('IMPORT_LOCATIONS', { newLocations: localLocs });
-            } else {
-              setLocations([]);
-              saveStoredLocations([]);
-            }
-          }
+          setLocations(remote.locations);
+          saveStoredLocations(remote.locations);
         }
         if (Array.isArray(remote.familles)) {
           setFamilles(remote.familles);
@@ -273,7 +235,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           setUsers(remote.users);
           saveStoredUsers(remote.users);
         }
-        if (typeof remote.lastLocation === 'string' && remote.lastLocation) {
+        if (typeof remote.lastLocation === 'string') {
           setLastLocationState(remote.lastLocation);
           saveStoredLastLocation(remote.lastLocation);
         }
@@ -355,6 +317,24 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setLocations([]);
         setFamilles([]);
         setMachines([]);
+        setLastLocationState('');
+        const cleanInv: InventoryCampaign = {
+          id: 'inv-principal',
+          titre: 'Inventaire Principal',
+          code: 'INV-01',
+          description: "Campagne principale d'inventaire",
+          dateCreation: new Date().toISOString(),
+          statut: 'en_cours',
+          responsable: 'ouaradtech',
+          articles: [],
+          entries: [],
+          locations: [],
+          familles: [],
+          machines: [],
+          lastLocation: ''
+        };
+        setInventories([cleanInv]);
+        setActiveInventoryId('inv-principal');
       }
     });
 
@@ -929,19 +909,50 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   );
 
   const clearAllEntries = useCallback(() => {
+    // Purge pending actions to prevent replaying entries
+    syncService.clearOfflineQueue();
+
     setEntries([]);
     saveStoredEntries([]);
+
     // Update all articles status back to 'a_faire'
     setArticles((prev) => {
       const next = prev.map((a) => ({ ...a, status: 'a_faire' as const }));
       saveStoredArticles(next);
       return next;
     });
+
+    setInventories((prev) => {
+      const updated = prev.map((inv) => {
+        if (inv.id === activeInventoryId) {
+          return {
+            ...inv,
+            entries: [],
+            articles: inv.articles.map((a) => ({ ...a, status: 'a_faire' as const }))
+          };
+        }
+        return inv;
+      });
+      saveStoredInventories(updated);
+      return updated;
+    });
+
     syncService.sendAction('CLEAR_ENTRIES', null);
-  }, []);
+
+    // Call dedicated server clear endpoint
+    fetch('/api/inventory/clear-entries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }).catch(() => {});
+  }, [activeInventoryId]);
 
   const clearEntireDatabase = useCallback(() => {
+    // 1. Purge offline sync queue to prevent resending old operations
+    syncService.clearOfflineQueue();
+
+    // 2. Clear local storage completely
     clearAllLocalDatabase();
+
     const cleanInv: InventoryCampaign = {
       id: 'inv-principal',
       titre: 'Inventaire Principal',
@@ -957,17 +968,34 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       machines: [],
       lastLocation: ''
     };
+
+    // 3. Clear all React states immediately
     setInventories([cleanInv]);
     setActiveInventoryId('inv-principal');
     saveStoredInventories([cleanInv]);
     saveStoredActiveInventoryId('inv-principal');
+
     setArticles([]);
+    saveStoredArticles([]);
     setEntries([]);
+    saveStoredEntries([]);
     setLocations([]);
+    saveStoredLocations([]);
     setFamilles([]);
+    saveStoredFamilles([]);
     setMachines([]);
+    saveStoredMachines([]);
     setLastLocationState('');
+    saveStoredLastLocation('');
+
+    // 4. Send action to websocket
     syncService.sendAction('CLEAR_DATABASE', null);
+
+    // 5. Direct HTTP POST call to guarantee server database is permanently wiped
+    fetch('/api/inventory/clear-database', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }).catch(() => {});
   }, []);
 
   const loadDemoSampleData = useCallback(() => {

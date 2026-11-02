@@ -71,6 +71,7 @@ export const AdminView: React.FC = () => {
   const [editDescription, setEditDescription] = useState('');
   const [editResponsable, setEditResponsable] = useState('');
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
+  const [isConfirmClearEntriesOpen, setIsConfirmClearEntriesOpen] = useState(false);
   const [activeAdminSubTab, setActiveAdminSubTab] = useState<'inventories' | 'users' | 'permissions' | 'backup'>('inventories');
 
   const activeInv = useMemo(() => {
@@ -515,10 +516,19 @@ export const AdminView: React.FC = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => setIsConfirmClearOpen(true)}
-                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-sm transition-colors cursor-pointer"
+                  title="Supprimer définitivement tous les articles, machines, emplacements et saisies"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span>Vider Toute la Base</span>
+                </button>
+                <button
+                  onClick={() => setIsConfirmClearEntriesOpen(true)}
+                  className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-2 shadow-sm transition-colors cursor-pointer"
+                  title="Remettre à zéro tous les comptages d'inventaire sans supprimer les articles du catalogue"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Vider Toutes les Saisies</span>
                 </button>
               </div>
             </div>
@@ -620,6 +630,18 @@ export const AdminView: React.FC = () => {
         }}
         title="Vider toute la base de données (Admin)"
         message="Attention : Vous êtes sur le point de supprimer définitivement tous les inventaires, tous les articles, toutes les saisies, machines, familles et emplacements pour repartir d'une base 100% vide."
+      />
+
+      {/* Sécurisation Vider Toutes les Saisies d'inventaire avec mot de passe admin obligatoire */}
+      <ClearDatabaseModal
+        isOpen={isConfirmClearEntriesOpen}
+        onClose={() => setIsConfirmClearEntriesOpen(false)}
+        onConfirm={() => {
+          clearAllEntries();
+          setIsConfirmClearEntriesOpen(false);
+        }}
+        title="Vider toutes les saisies d'inventaire (Admin)"
+        message="Attention : Vous êtes sur le point d'effacer tous les comptages d'inventaire saisis. Le catalogue d'articles, les machines et les emplacements seront conservés, mais tous les statuts repasseront à 'À faire'."
       />
     </div>
   );
