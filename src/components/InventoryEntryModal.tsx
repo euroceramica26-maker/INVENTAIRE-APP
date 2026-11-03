@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   Minus,
@@ -36,6 +36,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
 }) => {
   const {
     articles,
+    entries,
     locations,
     familles,
     machines,
@@ -50,7 +51,8 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
   } = useInventory();
 
   // Form states
-  const [quantite, setQuantite] = useState<number>(1);
+  const [quantiteInput, setQuantiteInput] = useState<string>('1');
+  const [isQuantityValidated, setIsQuantityValidated] = useState<boolean>(false);
   const [qualite, setQualite] = useState<QualiteEtat>('conforme');
   const [emplacement, setEmplacement] = useState<string>('');
   const [position, setPosition] = useState<string>('');
@@ -71,12 +73,36 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
   const [isAddingNewLocation, setIsAddingNewLocation] = useState(false);
   const [newLocationInput, setNewLocationInput] = useState('');
 
+  // Active item tracking ref to initialize strictly ONCE on modal open, NEVER resetting while typing
+  const activeKeyRef = useRef<string>('');
+  const currentKey = existingEntry?.id || (article ? `${article.id || article.code_article}` : '');
+
+  // Derived numeric quantity
+  const quantite = useMemo(() => {
+    const parsed = parseFloat(quantiteInput);
+    return isNaN(parsed) ? 0 : Math.max(0, parsed);
+  }, [quantiteInput]);
+
   useEffect(() => {
+    if (!isOpen) {
+      activeKeyRef.current = '';
+      setIsQuantityValidated(false);
+      return;
+    }
+
+    // Only initialize when opening modal or switching to a different article/entry
+    if (activeKeyRef.current === currentKey && activeKeyRef.current !== '') {
+      return;
+    }
+    activeKeyRef.current = currentKey;
+    setIsQuantityValidated(false);
+
     if (existingEntry) {
       setCodeArticleInput(existingEntry.code_article || '');
       setDesignationInput(existingEntry.designation || '');
       setReferenceInput(existingEntry.reference || '');
-      setQuantite(existingEntry.quantite);
+      const initialQty = typeof existingEntry.quantite === 'number' ? existingEntry.quantite : 1;
+      setQuantiteInput(String(initialQty));
       setQualite(existingEntry.qualite);
       const entLoc = (existingEntry.emplacement || '').trim();
       const cleanEntLoc = (entLoc && entLoc !== 'Non renseigné' && entLoc !== 'Non assigné') ? entLoc : '';
@@ -91,21 +117,41 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
       setCodeArticleInput(article.code_article || '');
       setDesignationInput(article.designation || '');
       setReferenceInput(article.reference || '');
-      setQuantite(article.quantite && article.quantite > 0 ? article.quantite : 1);
-      setQualite('conforme');
-      const artLoc = (article.emplacement || '').trim();
-      const cleanArtLoc = (artLoc && artLoc !== 'Non renseigné' && artLoc !== 'Non assigné') ? artLoc : '';
-      const cleanLastLoc = (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné') ? lastLocation.trim() : '';
-      const loc = cleanLastLoc || cleanArtLoc || (locations[0]?.code ?? '');
-      setEmplacement(loc);
-      setPosition(article.position || '');
-      setMachine(article.machine || (machines[0] ?? ''));
-      setFamille(article.famille || (familles[0] ?? ''));
-      setUnite(article.unite || 'Pièce');
-      setNotes('');
+
+      // Check if an entry for this article code already exists in entries
+      const existing = entries.find(
+        (e: InventoryEntry) => (e.code_article || '').toLowerCase().trim() === (article.code_article || '').toLowerCase().trim()
+      );
+
+      if (existing) {
+        setQuantiteInput(String(existing.quantite));
+        setQualite(existing.qualite || 'conforme');
+        const entLoc = (existing.emplacement || '').trim();
+        const cleanEntLoc = (entLoc && entLoc !== 'Non renseigné' && entLoc !== 'Non assigné') ? entLoc : '';
+        setEmplacement(cleanEntLoc || lastLocation || '');
+        setPosition(existing.position || article.position || '');
+        setMachine(existing.machine || article.machine || '');
+        setFamille(existing.famille || article.famille || '');
+        setUnite(existing.unite || article.unite || 'Pièce');
+        setNotes(existing.notes || '');
+      } else {
+        // New count : default to 1 unit
+        setQuantiteInput('1');
+        setQualite('conforme');
+        const artLoc = (article.emplacement || '').trim();
+        const cleanArtLoc = (artLoc && artLoc !== 'Non renseigné' && artLoc !== 'Non assigné') ? artLoc : '';
+        const cleanLastLoc = (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné') ? lastLocation.trim() : '';
+        const loc = cleanLastLoc || cleanArtLoc || (locations[0]?.code ?? '');
+        setEmplacement(loc);
+        setPosition(article.position || '');
+        setMachine(article.machine || (machines[0] ?? ''));
+        setFamille(article.famille || (familles[0] ?? ''));
+        setUnite(article.unite || 'Pièce');
+        setNotes('');
+      }
       setCurrentOperator(operator);
     }
-  }, [article, existingEntry, isOpen, lastLocation, locations, machines, familles, operator]);
+  }, [isOpen, currentKey, existingEntry, article, entries, lastLocation, locations, machines, familles, operator]);
 
   const matchingArt = useMemo(() => {
     if (article) return article;
@@ -134,7 +180,15 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
   );
 
   const handleAdjustQty = (delta: number) => {
-    setQuantite(prev => Math.max(0, Math.round((prev + delta) * 100) / 100));
+    setIsQuantityValidated(false);
+    const curr = parseFloat(quantiteInput) || 0;
+    const next = Math.max(0, Math.round((curr + delta) * 100) / 100);
+    setQuantiteInput(String(next));
+  };
+
+  const handleSetExactQty = (val: number) => {
+    setIsQuantityValidated(false);
+    setQuantiteInput(String(Math.max(0, Math.round(val * 100) / 100)));
   };
 
   const handleAddNewMachine = () => {
@@ -388,19 +442,16 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                     type="number"
                     step="any"
                     min="0"
-                    value={quantite}
+                    value={quantiteInput}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === '') {
-                        setQuantite(0);
-                      } else {
-                        const num = parseFloat(val);
-                        setQuantite(isNaN(num) ? 0 : Math.max(0, Math.round(num * 100) / 100));
-                      }
+                      setIsQuantityValidated(false);
+                      setQuantiteInput(e.target.value);
                     }}
                     className={`w-full h-12 text-center font-mono text-2xl font-bold bg-white dark:bg-slate-950 border-2 rounded-xl focus:border-amber-500 focus:outline-none tabular-nums transition-colors ${
                       quantite === 0
                         ? 'border-rose-400 text-rose-700 dark:text-rose-300 dark:border-rose-600'
+                        : isQuantityValidated
+                        ? 'border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
                         : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white'
                     }`}
                     placeholder="0"
@@ -419,11 +470,21 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                 </button>
               </div>
 
-              {/* Quick direct buttons: 0 (Stock nul), 1, +5, +10, +50, +100 */}
+              {/* Quick direct buttons: 0 (Stock nul), 1, +5, +10, +50, +100 + Copier Stock Interne */}
               <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end flex-wrap">
+                {typeof currentArticle.quantite === 'number' && currentArticle.quantite > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleSetExactQty(currentArticle.quantite as number)}
+                    className="px-2.5 py-2 text-xs font-bold rounded-lg border shadow-2xs transition-all cursor-pointer bg-sky-50 dark:bg-sky-950/70 text-sky-800 dark:text-sky-200 border-sky-300 dark:border-sky-700 hover:bg-sky-100 dark:hover:bg-sky-900 flex items-center gap-1"
+                    title={`Reprendre exactement la valeur du stock interne (${currentArticle.quantite})`}
+                  >
+                    <span>= Stock ({currentArticle.quantite})</span>
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => setQuantite(0)}
+                  onClick={() => handleSetExactQty(0)}
                   className={`px-3 py-2 text-xs font-bold rounded-lg border shadow-2xs transition-all cursor-pointer flex items-center gap-1 ${
                     quantite === 0
                       ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-200 border-rose-400 dark:border-rose-600 ring-2 ring-rose-400/50'
@@ -436,7 +497,7 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setQuantite(1)}
+                  onClick={() => handleSetExactQty(1)}
                   className={`px-2.5 py-2 text-xs font-bold rounded-lg border shadow-2xs transition-all cursor-pointer ${
                     quantite === 1
                       ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border-amber-400 dark:border-amber-600 ring-1 ring-amber-400'
@@ -501,11 +562,76 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
                       {ecartPrevisionnel > 0 ? `+${ecartPrevisionnel.toFixed(2)}` : ecartPrevisionnel.toFixed(2)}
                     </span>
                     <span className="text-[10px] block opacity-80 font-medium">
-                      {ecartPrevisionnel === 0 ? 'Conforme' : ecartPrevisionnel > 0 ? 'Surplus' : 'Déficit / Manquant'}
+                      {ecartPrevisionnel === 0 ? 'Conforme' : ecartPrevisionnel > 0 ? 'Surplus (+)' : 'Déficit (-)'}
                     </span>
                   </div>
                 );
               })()}
+            </div>
+
+            {/* Bouton de validation explicite de la quantité saisie (Acceptée qu'elle soit inférieure ou supérieure au stock interne) */}
+            <div className="mt-3.5 pt-3.5 border-t border-slate-200/80 dark:border-slate-700/80 space-y-2.5">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="text-xs">
+                  {(() => {
+                    const stockTheorique = typeof currentArticle.quantite === 'number' ? currentArticle.quantite : 0;
+                    if (quantite < stockTheorique) {
+                      return (
+                        <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-semibold">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                          <span>
+                            Quantité inférieure au stock interne : <strong>{quantite}</strong> vs <strong>{stockTheorique}</strong> (Déficit : {(stockTheorique - quantite).toFixed(2)} {unite})
+                          </span>
+                        </div>
+                      );
+                    } else if (quantite > stockTheorique) {
+                      return (
+                        <div className="flex items-center gap-1.5 text-sky-700 dark:text-sky-300 font-semibold">
+                          <span className="w-2.5 h-2.5 rounded-full bg-sky-500 shrink-0" />
+                          <span>
+                            Quantité supérieure au stock interne : <strong>{quantite}</strong> vs <strong>{stockTheorique}</strong> (Surplus : +{(quantite - stockTheorique).toFixed(2)} {unite})
+                          </span>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                          <span>Quantité identique au stock interne : <strong>{quantite}</strong> {unite} (Conforme)</span>
+                        </div>
+                      );
+                    }
+                  })()}
+                </div>
+
+                <button
+                  type="button"
+                  data-testid="validate-quantity-button"
+                  onClick={() => setIsQuantityValidated(true)}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer active:scale-98 shrink-0 ${
+                    isQuantityValidated
+                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-400/50'
+                      : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black hover:text-white'
+                  }`}
+                  title="Valider cette quantité (acceptée qu'elle soit inférieure ou supérieure au stock interne)"
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>
+                    {isQuantityValidated
+                      ? `✓ Quantité validée (${quantite} ${unite})`
+                      : `Valider la quantité saisie (${quantite} ${unite})`}
+                  </span>
+                </button>
+              </div>
+
+              {isQuantityValidated && (
+                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs text-emerald-900 dark:text-emerald-200 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>
+                    Quantité réelle de <strong>{quantite} {unite}</strong> validée avec succès (qu'elle soit inférieure ou supérieure au stock interne). Vous pouvez finaliser et enregistrer la saisie.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -824,10 +950,10 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
             <button
               type="button"
               onClick={() => handleSave(false)}
-              className="flex-1 sm:flex-none px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 cursor-pointer"
+              className="flex-1 sm:flex-none px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 cursor-pointer"
             >
-              <Save className="w-4 h-4" />
-              <span>Valider la Saisie</span>
+              <CheckCircle2 className="w-4 h-4 text-slate-950" />
+              <span>Valider la Saisie ({quantite} {unite})</span>
             </button>
           </div>
         </div>

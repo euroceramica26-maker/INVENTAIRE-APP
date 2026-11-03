@@ -78,7 +78,9 @@ export const Header: React.FC<HeaderProps> = ({
     activeInventory,
     switchInventory,
     syncState,
-    entries
+    entries,
+    autoSaveStatus,
+    lastSavedAt
   } = useInventory();
 
   const { isDark, toggleTheme } = useTheme();
@@ -216,6 +218,29 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Real-time Network & Cloud Sync Status Indicator */}
             <NetworkStatusIndicator />
 
+            {/* Auto-Save Persistence Status Badge */}
+            <div
+              className={`hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all select-none ${
+                autoSaveStatus === 'saving'
+                  ? 'bg-sky-50 dark:bg-sky-950/40 border-sky-300 dark:border-sky-700 text-sky-800 dark:text-sky-200'
+                  : autoSaveStatus === 'error'
+                  ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200'
+                  : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+              }`}
+              title={`Sauvegarde automatique activée dans la base de données. Dernière sauvegarde : ${lastSavedAt}`}
+            >
+              <div className="relative flex items-center justify-center shrink-0">
+                {autoSaveStatus === 'saving' ? (
+                  <span className="w-2 h-2 rounded-full bg-sky-500 animate-ping" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                )}
+              </div>
+              <span className="text-[11px] font-medium">
+                {autoSaveStatus === 'saving' ? 'Sauvegarde...' : `Sauvegarde auto · ${lastSavedAt}`}
+              </span>
+            </div>
+
             {/* Bouton pour changer du mode clair au mode sombre */}
             <button
               type="button"
@@ -253,17 +278,15 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </button>
 
-            {/* Excel Import button (Admin uniquement) */}
-            {isAdmin && (
-              <button
-                onClick={onOpenImport}
-                className="hidden md:flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
-                title="Importer un fichier Excel"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Import Excel</span>
-              </button>
-            )}
+            {/* Excel Import button (Accessible pour charger un inventaire ou catalogue) */}
+            <button
+              onClick={onOpenImport}
+              className="hidden md:flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+              title="Importer un fichier Excel"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>Import Excel</span>
+            </button>
 
             {/* Primary Action Button: Scanner QR / OCR */}
             <button

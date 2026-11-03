@@ -37,9 +37,9 @@ function AuthenticatedApp() {
     entries
   } = useInventory();
 
-  // Strict route guard: standard user accounts ONLY have the right to Comptage & Saisie
+  // Route guard: only protect 'users' and 'admin' tabs for administrator
   useEffect(() => {
-    if (!isAdmin && activeTab !== 'dashboard') {
+    if (!isAdmin && (activeTab === 'users' || activeTab === 'admin')) {
       setActiveTab('dashboard');
     }
   }, [isAdmin, activeTab]);
@@ -87,7 +87,10 @@ function AuthenticatedApp() {
 
   const handleCountArticle = (article: Article) => {
     setSelectedArticle(article);
-    setSelectedEntry(null);
+    const existing = entries.find(
+      (e) => (e.code_article || '').toLowerCase().trim() === (article.code_article || '').toLowerCase().trim()
+    );
+    setSelectedEntry(existing || null);
     setIsEntryModalOpen(true);
   };
 
@@ -124,13 +127,6 @@ function AuthenticatedApp() {
     }, 200);
   };
 
-  // Strict Role Guard: Les comptes utilisateurs ont SEULEMENT le droit Comptage & Saisie
-  useEffect(() => {
-    if (!isAdmin && activeTab !== 'dashboard') {
-      setActiveTab('dashboard');
-    }
-  }, [isAdmin, activeTab]);
-
   return (
     <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors duration-150">
       {/* Menu Navigation Vertical (Sidebar) */}
@@ -146,7 +142,7 @@ function AuthenticatedApp() {
       />
 
       {/* Main App Layout Container */}
-      <div className={`flex-1 min-w-0 flex flex-col min-h-screen ${isAdmin ? 'pb-20 lg:pb-8' : 'pb-8'}`}>
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen pb-20 lg:pb-8">
         {/* Top Bar Header */}
         <Header
           activeTab={activeTab}
@@ -156,50 +152,49 @@ function AuthenticatedApp() {
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
 
-        {/* Main Content Area (Comptage & Saisie pour utilisateurs, Vues complètes pour Admin) */}
+        {/* Main Content Area (Comptage, Catalogue, Emplacements, Exports partagés par tous les utilisateurs) */}
         <main className="flex-1 w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6">
-        {activeTab === 'dashboard' && (
-          <DashboardView
-            onOpenScanner={() => setIsScannerOpen(true)}
-            onOpenImport={() => setIsImportOpen(true)}
-            onOpenExport={() => setActiveTab('export')}
-            onSelectArticleToCount={handleCountArticle}
-            onEditEntry={handleEditEntry}
-            onOpenManualEntry={handleOpenManualEntry}
-          />
-        )}
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              onOpenScanner={() => setIsScannerOpen(true)}
+              onOpenImport={() => setIsImportOpen(true)}
+              onOpenExport={() => setActiveTab('export')}
+              onSelectArticleToCount={handleCountArticle}
+              onEditEntry={handleEditEntry}
+              onOpenManualEntry={handleOpenManualEntry}
+            />
+          )}
 
-        {isAdmin && activeTab === 'catalog' && (
-          <CatalogView
-            onOpenImport={() => setIsImportOpen(true)}
-            onCountArticle={handleCountArticle}
-          />
-        )}
+          {activeTab === 'catalog' && (
+            <CatalogView
+              onOpenImport={() => setIsImportOpen(true)}
+              onCountArticle={handleCountArticle}
+            />
+          )}
 
-        {isAdmin && activeTab === 'locations' && (
-          <LocationsMachinesView
-            onOpenImport={() => setIsImportOpen(true)}
-          />
-        )}
+          {activeTab === 'locations' && (
+            <LocationsMachinesView
+              onOpenImport={() => setIsImportOpen(true)}
+            />
+          )}
 
-        {isAdmin && activeTab === 'export' && (
-          <ExportView />
-        )}
+          {activeTab === 'export' && (
+            <ExportView />
+          )}
 
-        {isAdmin && activeTab === 'users' && (
-          <UserManagementView onNavigateToTab={(tab) => setActiveTab(tab as ActiveTab)} />
-        )}
+          {isAdmin && activeTab === 'users' && (
+            <UserManagementView onNavigateToTab={(tab) => setActiveTab(tab as ActiveTab)} />
+          )}
 
-        {isAdmin && activeTab === 'admin' && (
-          <AdminView />
-        )}
-      </main>
-    </div>
+          {isAdmin && activeTab === 'admin' && (
+            <AdminView />
+          )}
+        </main>
+      </div>
 
-      {/* Mobile Ergonomic Bottom Tab Bar: Uniquement visible pour l'administrateur */}
-      {isAdmin && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 transition-colors">
-          <div className="grid grid-cols-6 items-center h-16 max-w-lg mx-auto px-1">
+      {/* Mobile Ergonomic Bottom Tab Bar: Accessible pour tous les utilisateurs */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 transition-colors">
+        <div className={`grid ${isAdmin ? 'grid-cols-6' : 'grid-cols-4'} items-center h-16 max-w-lg mx-auto px-1`}>
           {/* Tab 1: Saisie */}
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -249,33 +244,35 @@ function AuthenticatedApp() {
             <span className="text-[9px] mt-1 font-medium">Exports</span>
           </button>
 
-          {/* Tab 5: Utilisateurs */}
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
-              activeTab === 'users' ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span className="text-[9px] mt-1 font-medium">Utilisateurs</span>
-          </button>
+          {/* Admin Tabs */}
+          {isAdmin && (
+            <>
+              {/* Tab 5: Utilisateurs */}
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
+                  activeTab === 'users' ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span className="text-[9px] mt-1 font-medium">Utilisateurs</span>
+              </button>
 
-          {/* Tab 6: Admin */}
-          <button
-            onClick={() => setActiveTab('admin')}
-            className={`min-h-[44px] flex flex-col items-center justify-center transition-colors relative ${
-              activeTab === 'admin' ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'
-            }`}
-          >
-            <Shield className="w-4 h-4" />
-            <span className="text-[9px] mt-1 font-medium">Admin</span>
-            {isAdmin && (
-              <span className="absolute top-2 right-3 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
-            )}
-          </button>
+              {/* Tab 6: Admin */}
+              <button
+                onClick={() => setActiveTab('admin')}
+                className={`min-h-[44px] flex flex-col items-center justify-center transition-colors relative ${
+                  activeTab === 'admin' ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <Shield className="w-4 h-4" />
+                <span className="text-[9px] mt-1 font-medium">Admin</span>
+                <span className="absolute top-2 right-3 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+              </button>
+            </>
+          )}
         </div>
       </div>
-      )}
 
       {/* Floating Center Scan Button on Mobile */}
       <div className="md:hidden fixed bottom-5 right-5 z-40">

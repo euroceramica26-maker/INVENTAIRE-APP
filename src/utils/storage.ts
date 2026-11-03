@@ -264,6 +264,9 @@ export function getStoredArticles(): Article[] {
 
 export function saveStoredArticles(articles: Article[]): void {
   try {
+    if (articles.length > 0) {
+      unmarkDatabaseCleared();
+    }
     localStorage.setItem(STORAGE_KEYS.ARTICLES, JSON.stringify(articles));
     notifySyncChannel('ARTICLES_UPDATED', articles);
   } catch (e) {
@@ -377,9 +380,32 @@ export function saveStoredRoomCode(code: string): void {
   localStorage.setItem(STORAGE_KEYS.ROOM_CODE, code.toUpperCase().trim());
 }
 
+const CLEARED_MARKER_KEY = 'inventaire_database_cleared_marker_v5';
+
+export function markDatabaseCleared(): void {
+  try {
+    localStorage.setItem(CLEARED_MARKER_KEY, 'true');
+  } catch {}
+}
+
+export function unmarkDatabaseCleared(): void {
+  try {
+    localStorage.removeItem(CLEARED_MARKER_KEY);
+  } catch {}
+}
+
+export function isDatabaseMarkedCleared(): boolean {
+  try {
+    return localStorage.getItem(CLEARED_MARKER_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 // Effacer toutes les données locales pour redémarrer à zéro
 export function clearAllLocalDatabase(): void {
   try {
+    markDatabaseCleared();
     localStorage.setItem(STORAGE_KEYS.ARTICLES, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.LOCATIONS, JSON.stringify([]));

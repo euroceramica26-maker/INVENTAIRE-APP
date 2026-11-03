@@ -18,7 +18,7 @@ import {
 import { useInventory } from '../context/InventoryContext';
 
 export const NetworkStatusIndicator: React.FC = () => {
-  const { syncState, triggerManualSync, entries, articles } = useInventory();
+  const { syncState, triggerManualSync, entries, articles, autoSaveStatus, lastSavedAt } = useInventory();
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isSyncTriggering, setIsSyncTriggering] = useState(false);
@@ -265,6 +265,28 @@ export const NetworkStatusIndicator: React.FC = () => {
               </span>
               <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
                 {peerCount} appareil(s)
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <HardDrive className="w-3.5 h-3.5 text-amber-500" />
+                Sauvegarde Auto Base de Données :
+              </span>
+              <span
+                className={`font-mono font-bold px-2 py-0.5 rounded text-[10px] ${
+                  autoSaveStatus === 'saving'
+                    ? 'bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 animate-pulse'
+                    : autoSaveStatus === 'error'
+                    ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300'
+                    : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                }`}
+              >
+                {autoSaveStatus === 'saving'
+                  ? 'Écriture en cours...'
+                  : autoSaveStatus === 'error'
+                  ? 'Erreur locale'
+                  : `À jour (${lastSavedAt})`}
               </span>
             </div>
 

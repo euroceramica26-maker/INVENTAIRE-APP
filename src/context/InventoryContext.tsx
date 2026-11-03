@@ -40,7 +40,10 @@ import {
   saveStoredUsers,
   getStoredCurrentUser,
   saveStoredCurrentUser,
-  clearStoredCurrentUser
+  clearStoredCurrentUser,
+  isDatabaseMarkedCleared,
+  markDatabaseCleared,
+  unmarkDatabaseCleared
 } from '../utils/storage';
 import { ADMIN_CREDENTIALS } from '../utils/auth';
 import { isValidLocation } from '../utils/excelImport';
@@ -125,6 +128,11 @@ interface InventoryContextType {
   clearAllEntries: () => void;
   clearEntireDatabase: () => void;
   loadDemoSampleData: () => void;
+
+  // Auto-Save Persistence
+  autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  lastSavedAt: string;
+  triggerAutoSaveNow: () => Promise<void>;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
@@ -183,6 +191,77 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [currentUser]);
 
   const isRemoteUpdatingRef = useRef<boolean>(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('saved');
+  const [lastSavedAt, setLastSavedAt] = useState<string>(() => new Date().toLocaleTimeString('fr-FR'));
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isAutoSavingRef = useRef<boolean>(false);
+  const hasLoadedInitialStateRef = useRef<boolean>(false);
+
+  const performAutoSave = useCallback(async () => {
+    if (isAutoSavingRef.current || isRemoteUpdatingRef.current) return;
+    isAutoSavingRef.current = true;
+    setAutoSaveStatus('saving');
+    try {
+      const currentArticles = getStoredArticles();
+      const currentEntries = getStoredEntries();
+      const currentLocations = getStoredLocations();
+      const currentFamilles = getStoredFamilles();
+      const currentMachines = getStoredMachines();
+      const currentLastLocation = getStoredLastLocation();
+      const currentInventories = getStoredInventories();
+      const currentActiveInvId = getStoredActiveInventoryId();
+      const currentUsers = getStoredUsers();
+
+      const payload = {
+        articles: currentArticles,
+        entries: currentEntries,
+        locations: currentLocations,
+        familles: currentFamilles,
+        machines: currentMachines,
+        lastLocation: currentLastLocation,
+        inventories: currentInventories,
+        activeInventoryId: currentActiveInvId,
+        users: currentUsers
+      };
+
+      const res = await fetch('/api/inventory/save-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        const time = new Date().toLocaleTimeString('fr-FR');
+        setLastSavedAt(time);
+        setAutoSaveStatus('saved');
+      } else {
+        setAutoSaveStatus('error');
+      }
+    } catch (err) {
+      console.warn('Auto-save network error:', err);
+      setAutoSaveStatus('error');
+    } finally {
+      isAutoSavingRef.current = false;
+    }
+  }, []);
+
+  const scheduleAutoSave = useCallback((delay = 800) => {
+    if (isRemoteUpdatingRef.current) return;
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    setAutoSaveStatus('saving');
+    autoSaveTimerRef.current = setTimeout(() => {
+      performAutoSave();
+    }, delay);
+  }, [performAutoSave]);
+
+  const triggerAutoSaveNow = useCallback(async () => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    await performAutoSave();
+  }, [performAutoSave]);
 
   const setLastLocation = useCallback((loc: string) => {
     const trimmed = loc.trim();
@@ -203,17 +282,78 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const unsubscribeState = syncService.subscribeState((remote: RemoteServerState) => {
       isRemoteUpdatingRef.current = true;
       try {
+        const wasCleared = isDatabaseMarkedCleared();
+
         if (Array.isArray(remote.articles)) {
-          setArticles(remote.articles);
-          saveStoredArticles(remote.articles);
+          if (remote.articles.length > 0) {
+            unmarkDatabaseCleared();
+            setArticles(remote.articles);
+            saveStoredArticles(remote.articles);
+          } else {
+            const localArticles = getStoredArticles();
+            if (localArticles.length > 0 && !wasCleared) {
+              // The user has imported articles that must be preserved!
+              setArticles(localArticles);
+              syncService.sendAction('IMPORT_ARTICLES', {
+                newArticles: localArticles,
+                newMachines: getStoredMachines(),
+                newFamilles: getStoredFamilles(),
+                newEmplacements: getStoredLocations().map((l) => l.code)
+              });
+              fetch('/api/inventory/import-articles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  newArticles: localArticles,
+                  newMachines: getStoredMachines(),
+                  newFamilles: getStoredFamilles(),
+                  newEmplacements: getStoredLocations().map((l) => l.code)
+                })
+              }).catch(() => {});
+            } else {
+              setArticles([]);
+              saveStoredArticles([]);
+            }
+          }
         }
+
         if (Array.isArray(remote.entries)) {
-          setEntries(remote.entries);
-          saveStoredEntries(remote.entries);
+          if (remote.entries.length > 0) {
+            setEntries(remote.entries);
+            saveStoredEntries(remote.entries);
+          } else {
+            const localEntries = getStoredEntries();
+            if (localEntries.length > 0 && !wasCleared) {
+              setEntries(localEntries);
+              localEntries.forEach((ent) => {
+                syncService.sendAction('ADD_ENTRY', ent);
+              });
+            } else {
+              setEntries([]);
+              saveStoredEntries([]);
+            }
+          }
         }
+
         if (Array.isArray(remote.locations)) {
-          setLocations(remote.locations);
-          saveStoredLocations(remote.locations);
+          if (remote.locations.length > 0) {
+            setLocations(remote.locations);
+            saveStoredLocations(remote.locations);
+          } else {
+            const localLocs = getStoredLocations();
+            if (localLocs.length > 0 && !wasCleared) {
+              setLocations(localLocs);
+              syncService.sendAction('IMPORT_LOCATIONS', { newLocations: localLocs });
+              fetch('/api/inventory/import-locations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ newLocations: localLocs })
+              }).catch(() => {});
+            } else {
+              setLocations([]);
+              saveStoredLocations([]);
+            }
+          }
         }
         if (Array.isArray(remote.familles)) {
           setFamilles(remote.familles);
@@ -999,6 +1139,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   const loadDemoSampleData = useCallback(() => {
+    unmarkDatabaseCleared();
     setArticles(INITIAL_ARTICLES);
     saveStoredArticles(INITIAL_ARTICLES);
     setLocations(INITIAL_EMPLACEMENTS);
@@ -1014,6 +1155,17 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       familles: INITIAL_FAMILLES,
       machines: INITIAL_MACHINES
     });
+
+    fetch('/api/inventory/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        articles: INITIAL_ARTICLES,
+        locations: INITIAL_EMPLACEMENTS,
+        familles: INITIAL_FAMILLES,
+        machines: INITIAL_MACHINES
+      })
+    }).catch(() => {});
   }, []);
 
   const importArticlesBulk = useCallback(
@@ -1091,18 +1243,32 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return updated;
       });
 
+      unmarkDatabaseCleared();
       syncService.sendAction('IMPORT_ARTICLES', {
         newArticles,
         newMachines,
         newFamilles,
         newEmplacements
       });
+
+      // Synchronously guarantee database persistence on server disk
+      fetch('/api/inventory/import-articles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newArticles,
+          newMachines,
+          newFamilles,
+          newEmplacements
+        })
+      }).catch((err) => console.warn('HTTP import-articles fallback failed:', err));
     },
     [activeInventoryId]
   );
 
   const importLocationsBulk = useCallback(
     (locs: EmplacementItem[]) => {
+      unmarkDatabaseCleared();
       let merged: EmplacementItem[] = [];
       setLocations((prev) => {
         const map = new Map<string, EmplacementItem>();
@@ -1128,6 +1294,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
 
       syncService.sendAction('IMPORT_LOCATIONS', { newLocations: locs });
+
+      // Synchronously guarantee database persistence on server disk
+      fetch('/api/inventory/import-locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newLocations: locs })
+      }).catch((err) => console.warn('HTTP import-locations fallback failed:', err));
     },
     [activeInventoryId]
   );
@@ -1233,6 +1406,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return next;
     });
   }, [articles, entries, locations, familles, machines, lastLocation, activeInventoryId]);
+
+  // Automatically trigger debounced auto-save after local changes
+  useEffect(() => {
+    if (!hasLoadedInitialStateRef.current) {
+      hasLoadedInitialStateRef.current = true;
+      return;
+    }
+    if (isRemoteUpdatingRef.current) return;
+    scheduleAutoSave(1200);
+  }, [articles, entries, locations, familles, machines, lastLocation, inventories, activeInventoryId, scheduleAutoSave]);
 
   // User Authentication & Session Login (Mandatory at startup)
   const loginUser = useCallback((username: string, motDePasse: string): { success: boolean; message?: string } => {
@@ -1524,8 +1707,17 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       saveStoredLastLocation(loadedLastLoc);
 
       syncService.sendAction('SWITCH_INVENTORY', { inventoryId: target.id, id: target.id });
+
+      // Direct HTTP endpoint to persist switch immediately on server
+      fetch('/api/inventory/switch-inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventoryId: target.id })
+      }).catch((err) => console.warn('HTTP switch-inventory error:', err));
+
+      scheduleAutoSave(200);
     },
-    [activeInventoryId, inventories, articles, entries, locations, familles, machines, lastLocation]
+    [activeInventoryId, inventories, articles, entries, locations, familles, machines, lastLocation, scheduleAutoSave]
   );
 
   const createInventory = useCallback(
@@ -1543,7 +1735,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         description: options.description?.trim() || '',
         dateCreation: new Date().toISOString(),
         statut: 'en_cours',
-        responsable: options.responsable?.trim() || 'ouaradtech',
+        responsable: options.responsable?.trim() || currentUser?.nom || currentUser?.username || 'Radouan Ouarad (Admin)',
         articles: initialArticles,
         entries: [],
         locations: [...locations],
@@ -1556,7 +1748,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setInventories(nextList);
       saveStoredInventories(nextList);
 
-      if (options.switchToNew !== false) {
+      const doSwitch = options.switchToNew !== false;
+      if (doSwitch) {
         setActiveInventoryId(newId);
         saveStoredActiveInventoryId(newId);
         setArticles(newCampaign.articles);
@@ -1565,20 +1758,47 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         saveStoredEntries(newCampaign.entries);
       }
 
-      syncService.sendAction('CREATE_INVENTORY', newCampaign);
+      // Broadcast WebSocket
+      syncService.sendAction('CREATE_INVENTORY', {
+        campaign: newCampaign,
+        switchToNew: doSwitch
+      });
+
+      // Synchronously post to server database endpoint to guarantee permanent disk storage
+      fetch('/api/inventory/create-inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaign: newCampaign,
+          switchToNew: doSwitch
+        })
+      }).catch((err) => console.warn('HTTP create-inventory error:', err));
+
+      scheduleAutoSave(200);
       return newCampaign;
     },
-    [articles, entries, locations, familles, machines, lastLocation, inventories]
+    [articles, entries, locations, familles, machines, lastLocation, inventories, currentUser, scheduleAutoSave]
   );
 
-  const updateInventory = useCallback((updated: Partial<InventoryCampaign> & { id: string }) => {
-    setInventories((prev) => {
-      const next = prev.map((inv) => (inv.id === updated.id ? { ...inv, ...updated } : inv));
-      saveStoredInventories(next);
-      return next;
-    });
-    syncService.sendAction('UPDATE_INVENTORY', updated);
-  }, []);
+  const updateInventory = useCallback(
+    (updated: Partial<InventoryCampaign> & { id: string }) => {
+      setInventories((prev) => {
+        const next = prev.map((inv) => (inv.id === updated.id ? { ...inv, ...updated } : inv));
+        saveStoredInventories(next);
+        return next;
+      });
+      syncService.sendAction('UPDATE_INVENTORY', updated);
+
+      fetch('/api/inventory/update-inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      }).catch((err) => console.warn('HTTP update-inventory error:', err));
+
+      scheduleAutoSave(200);
+    },
+    [scheduleAutoSave]
+  );
 
   const deleteInventory = useCallback(
     (id: string) => {
@@ -1603,32 +1823,32 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return next;
       });
       syncService.sendAction('DELETE_INVENTORY', id);
+
+      fetch('/api/inventory/delete-inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      }).catch((err) => console.warn('HTTP delete-inventory error:', err));
+
+      scheduleAutoSave(200);
     },
-    [activeInventoryId]
+    [activeInventoryId, scheduleAutoSave]
   );
 
-  const closeInventory = useCallback((id: string) => {
-    const dateCloture = new Date().toISOString();
-    setInventories((prev) => {
-      const next = prev.map((inv) =>
-        inv.id === id ? { ...inv, statut: 'cloture' as const, dateCloture } : inv
-      );
-      saveStoredInventories(next);
-      return next;
-    });
-    syncService.sendAction('UPDATE_INVENTORY', { id, statut: 'cloture', dateCloture });
-  }, []);
+  const closeInventory = useCallback(
+    (id: string) => {
+      const dateCloture = new Date().toISOString();
+      updateInventory({ id, statut: 'cloture', dateCloture });
+    },
+    [updateInventory]
+  );
 
-  const reopenInventory = useCallback((id: string) => {
-    setInventories((prev) => {
-      const next = prev.map((inv) =>
-        inv.id === id ? { ...inv, statut: 'en_cours' as const, dateCloture: undefined } : inv
-      );
-      saveStoredInventories(next);
-      return next;
-    });
-    syncService.sendAction('UPDATE_INVENTORY', { id, statut: 'en_cours', dateCloture: undefined });
-  }, []);
+  const reopenInventory = useCallback(
+    (id: string) => {
+      updateInventory({ id, statut: 'en_cours', dateCloture: undefined });
+    },
+    [updateInventory]
+  );
 
   return (
     <InventoryContext.Provider
@@ -1702,7 +1922,12 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateRoomCode,
         clearAllEntries,
         clearEntireDatabase,
-        loadDemoSampleData
+        loadDemoSampleData,
+
+        // Auto-Save Persistence
+        autoSaveStatus,
+        lastSavedAt,
+        triggerAutoSaveNow
       }}
     >
       {children}

@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const DATA_DIR = path.resolve(__dirname, 'data');
 const DB_FILE = path.resolve(DATA_DIR, 'inventory-database.json');
+const BACKUP_FILE = path.resolve(DATA_DIR, 'inventory-database-backup.json');
 
 // Interface for server database state
 interface ServerDatabase {
@@ -24,6 +25,7 @@ interface ServerDatabase {
   lastLocation: string;
   users: any[];
   updatedAt: string;
+  isCleared?: boolean;
 }
 
 const DEFAULT_USERS = [
@@ -67,7 +69,8 @@ const emptyDatabase: ServerDatabase = {
   machines: [],
   lastLocation: '',
   users: DEFAULT_USERS,
-  updatedAt: new Date().toISOString()
+  updatedAt: new Date().toISOString(),
+  isCleared: false
 };
 
 // Ensure data directory exists
@@ -90,6 +93,7 @@ function loadDatabase(): ServerDatabase {
       const fams = Array.isArray(parsed.familles) ? parsed.familles : [];
       const machs = Array.isArray(parsed.machines) ? parsed.machines : [];
       const lastLoc = typeof parsed.lastLocation === 'string' ? parsed.lastLocation : '';
+      const isCleared = typeof parsed.isCleared === 'boolean' ? parsed.isCleared : false;
 
       let users = Array.isArray(parsed.users) && parsed.users.length > 0 ? parsed.users : [...DEFAULT_USERS];
       // Migrate legacy name Mohamed Ouarad to Radouan Ouarad
@@ -137,7 +141,8 @@ function loadDatabase(): ServerDatabase {
         machines: machs,
         lastLocation: lastLoc,
         users,
-        updatedAt: parsed.updatedAt || new Date().toISOString()
+        updatedAt: parsed.updatedAt || new Date().toISOString(),
+        isCleared
       };
     }
   } catch (err) {
@@ -190,7 +195,9 @@ function saveDatabase(): void {
   try {
     syncActiveInventoryInList();
     db.updatedAt = new Date().toISOString();
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
+    const serialized = JSON.stringify(db, null, 2);
+    fs.writeFileSync(DB_FILE, serialized, 'utf-8');
+    fs.writeFileSync(BACKUP_FILE, serialized, 'utf-8');
   } catch (err) {
     console.error('Error saving inventory database file:', err);
   }
@@ -248,7 +255,7 @@ function applyAction(actionType: string, payload: any): boolean {
     }
 
     case 'CREATE_INVENTORY': {
-      const newInv = payload;
+      const newInv = payload.campaign || payload;
       if (!newInv || !newInv.id) return false;
       const existingIdx = db.inventories.findIndex((i) => i.id === newInv.id);
       if (existingIdx >= 0) {
@@ -256,7 +263,8 @@ function applyAction(actionType: string, payload: any): boolean {
       } else {
         db.inventories.unshift(newInv);
       }
-      if (payload.switchToNew) {
+      const doSwitch = payload.switchToNew !== false;
+      if (doSwitch) {
         syncActiveInventoryInList();
         db.activeInventoryId = newInv.id;
         db.articles = Array.isArray(newInv.articles) ? newInv.articles : [];
@@ -266,6 +274,7 @@ function applyAction(actionType: string, payload: any): boolean {
         db.machines = Array.isArray(newInv.machines) ? newInv.machines : [];
         db.lastLocation = newInv.lastLocation || '';
       }
+      db.isCleared = false;
       break;
     }
 
@@ -283,6 +292,7 @@ function applyAction(actionType: string, payload: any): boolean {
         db.machines = Array.isArray(target.machines) ? target.machines : [];
         db.lastLocation = target.lastLocation || '';
       }
+      db.isCleared = false;
       break;
     }
 
@@ -401,6 +411,7 @@ function applyAction(actionType: string, payload: any): boolean {
     }
 
     case 'CLEAR_DATABASE': {
+      db.isCleared = true;
       db.articles = [];
       db.entries = [];
       db.locations = [];
@@ -528,6 +539,7 @@ function applyAction(actionType: string, payload: any): boolean {
     }
 
     case 'IMPORT_ARTICLES': {
+      db.isCleared = false;
       const { newArticles, newMachines, newFamilles, newEmplacements } = payload;
       if (Array.isArray(newArticles)) {
         const map = new Map<string, any>();
@@ -566,6 +578,7 @@ function applyAction(actionType: string, payload: any): boolean {
     }
 
     case 'IMPORT_LOCATIONS': {
+      db.isCleared = false;
       const { newLocations, newZones } = payload;
       if (Array.isArray(newLocations)) {
         const map = new Map<string, any>();
@@ -774,6 +787,133 @@ app.post('/api/inventory/clear-entries', (req, res) => {
     action: 'CLEAR_ENTRIES'
   });
   res.json({ success: true, message: 'Saisies d inventaire vidées avec succès', data: db });
+});
+
+app.post('/api/inventory/import-articles', (req, res) => {
+  db.isCleared = false;
+  applyAction('IMPORT_ARTICLES', req.body);
+  broadcast({
+    type: 'STATE_UPDATED',
+    payload: db,
+    action: 'IMPORT_ARTICLES'
+  });
+  res.json({ success: true, message: 'Articles importés et enregistrés avec succès', count: db.articles.length, data: db });
+});
+
+app.post('/api/inventory/import-locations', (req, res) => {
+  db.isCleared = false;
+  applyAction('IMPORT_LOCATIONS', req.body);
+  broadcast({
+    type: 'STATE_UPDATED',
+    payload: db,
+    action: 'IMPORT_LOCATIONS'
+  });
+  res.json({ success: true, message: 'Emplacements importés et enregistrés avec succès', count: db.locations.length, data: db });
+});
+
+// Sauvegarde automatique globale après toute modification ou importation
+app.post('/api/inventory/save-all', (req, res) => {
+  const { articles, entries, locations, familles, machines, lastLocation, inventories, activeInventoryId, users } = req.body;
+  if (Array.isArray(articles) && articles.length > 0) db.isCleared = false;
+  if (articles !== undefined) db.articles = articles;
+  if (entries !== undefined) db.entries = entries;
+  if (locations !== undefined) db.locations = locations;
+  if (familles !== undefined) db.familles = familles;
+  if (machines !== undefined) db.machines = machines;
+  if (lastLocation !== undefined) db.lastLocation = lastLocation;
+  if (Array.isArray(inventories) && inventories.length > 0) db.inventories = inventories;
+  if (typeof activeInventoryId === 'string' && activeInventoryId) db.activeInventoryId = activeInventoryId;
+  if (Array.isArray(users) && users.length > 0) db.users = users;
+
+  saveDatabase();
+  broadcast({
+    type: 'STATE_UPDATED',
+    payload: db,
+    action: 'SAVE_ALL'
+  });
+
+  res.json({
+    success: true,
+    message: 'Sauvegarde automatique réussie',
+    savedAt: db.updatedAt,
+    data: db
+  });
+});
+
+app.post('/api/inventory/create-inventory', (req, res) => {
+  const ok = applyAction('CREATE_INVENTORY', req.body);
+  if (ok) {
+    saveDatabase();
+    broadcast({
+      type: 'STATE_UPDATED',
+      payload: db,
+      action: 'CREATE_INVENTORY'
+    });
+    return res.json({
+      success: true,
+      message: 'Nouvel inventaire créé et enregistré avec succès dans la base',
+      activeInventoryId: db.activeInventoryId,
+      inventories: db.inventories,
+      data: db
+    });
+  }
+  res.status(400).json({ success: false, error: "Impossible de créer l'inventaire" });
+});
+
+app.post('/api/inventory/switch-inventory', (req, res) => {
+  const ok = applyAction('SWITCH_INVENTORY', req.body);
+  if (ok) {
+    saveDatabase();
+    broadcast({
+      type: 'STATE_UPDATED',
+      payload: db,
+      action: 'SWITCH_INVENTORY'
+    });
+    return res.json({
+      success: true,
+      message: "Dossier d'inventaire activé et synchronisé",
+      activeInventoryId: db.activeInventoryId,
+      data: db
+    });
+  }
+  res.status(400).json({ success: false, error: "Impossible de changer d'inventaire" });
+});
+
+app.post('/api/inventory/update-inventory', (req, res) => {
+  const ok = applyAction('UPDATE_INVENTORY', req.body);
+  if (ok) {
+    saveDatabase();
+    broadcast({
+      type: 'STATE_UPDATED',
+      payload: db,
+      action: 'UPDATE_INVENTORY'
+    });
+    return res.json({
+      success: true,
+      message: "Inventaire mis à jour et sauvegardé",
+      data: db
+    });
+  }
+  res.status(400).json({ success: false, error: "Impossible de mettre à jour l'inventaire" });
+});
+
+app.post('/api/inventory/delete-inventory', (req, res) => {
+  const ok = applyAction('DELETE_INVENTORY', req.body);
+  if (ok) {
+    saveDatabase();
+    broadcast({
+      type: 'STATE_UPDATED',
+      payload: db,
+      action: 'DELETE_INVENTORY'
+    });
+    return res.json({
+      success: true,
+      message: "Inventaire supprimé de la base",
+      activeInventoryId: db.activeInventoryId,
+      data: db
+    });
+  }
+  res.status(400).json({ success: false, error: "Impossible de supprimer l'inventaire" });
 });
 
 // Dev vs Prod Vite Integration

@@ -125,6 +125,8 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const isScanningRef = useRef<boolean>(false);
 
   // Auto-load countdown timer ref for single mode
   const autoLoadTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -179,12 +181,28 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
     setBatchSaveSuccess(null);
     cancelAutoLoad();
 
+    // Ensure container exists in DOM before instantiating scanner
+    const container = document.getElementById('qr-reader-container');
+    if (!container) {
+      setTimeout(() => {
+        if (isOpen && activeTab === 'qr') {
+          startQrScanner();
+        }
+      }, 80);
+      return;
+    }
+
     try {
       if (html5QrCodeRef.current) {
+        const prevScanner = html5QrCodeRef.current;
+        html5QrCodeRef.current = null;
         try {
-          await html5QrCodeRef.current.stop();
+          if (prevScanner.isScanning) {
+            await prevScanner.stop();
+          }
+          await prevScanner.clear();
         } catch {
-          // ignore stop error
+          // ignore previous stop/clear error
         }
       }
 
@@ -216,9 +234,11 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
           // Frame without code, ignore
         }
       );
+      isScanningRef.current = true;
       setQrScanning(true);
     } catch (err: any) {
       console.error('Camera QR error:', err);
+      isScanningRef.current = false;
       setCameraError(
         err?.message ||
           "Impossible d'accéder à la caméra. Vérifiez les autorisations de votre navigateur."
@@ -229,10 +249,15 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
 
   const stopQrScanner = async () => {
     cancelAutoLoad();
-    if (html5QrCodeRef.current && qrScanning) {
+    isScanningRef.current = false;
+    if (html5QrCodeRef.current) {
+      const scanner = html5QrCodeRef.current;
+      html5QrCodeRef.current = null;
       try {
-        await html5QrCodeRef.current.stop();
-        html5QrCodeRef.current = null;
+        if (scanner.isScanning) {
+          await scanner.stop();
+        }
+        await scanner.clear();
       } catch (e) {
         console.warn('Error stopping scanner', e);
       }
@@ -371,16 +396,21 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   // Start live OCR camera stream
   const startOcrCamera = async () => {
     try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
       if (stream) {
         stream.getTracks().forEach((t) => t.stop());
       }
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
       });
+      streamRef.current = mediaStream;
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
+        videoRef.current.play().catch(() => {});
       }
     } catch {
       setCameraError("Erreur caméra pour l'OCR. Vous pouvez aussi téléverser une photo.");
@@ -388,6 +418,10 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   };
 
   const stopOcrCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
     if (stream) {
       stream.getTracks().forEach((t) => t.stop());
       setStream(null);

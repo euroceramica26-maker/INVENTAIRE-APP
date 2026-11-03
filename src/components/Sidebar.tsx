@@ -99,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: articles.length,
       badgeColor: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
       description: 'Catalogue & stock interne',
-      adminOnly: true
+      adminOnly: false
     },
     {
       id: 'locations' as ActiveTab,
@@ -109,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: locations.length,
       badgeColor: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
       description: 'Zones & lignes industrielles',
-      adminOnly: true
+      adminOnly: false
     },
     {
       id: 'export' as ActiveTab,
@@ -119,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'XLSX',
       badgeColor: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800',
       description: 'Rapports Saisis & À faire',
-      adminOnly: true
+      adminOnly: false
     },
     {
       id: 'users' as ActiveTab,
@@ -332,12 +332,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Non-Admin Info Card */}
         {!isAdmin && !isCollapsed && (
-          <div className="mt-4 p-3 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
-            <span className="font-bold block flex items-center gap-1 mb-0.5">
+          <div className="mt-4 p-3 bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 rounded-xl text-[11px] text-emerald-900 dark:text-emerald-200 leading-relaxed">
+            <span className="font-bold flex items-center gap-1 mb-0.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Poste Saisie Opérateur
+              Données Communes & Synchronisées
             </span>
-            Vous êtes connecté sur le module de comptage terrain. L'accès aux exports et paramètres requiert le compte administrateur.
+            Vous partagez exactement le même catalogue d'articles, emplacements et dossiers d'inventaire que l'administrateur.
           </div>
         )}
       </div>
