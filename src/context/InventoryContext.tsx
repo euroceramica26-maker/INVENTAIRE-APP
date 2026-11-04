@@ -196,6 +196,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isAutoSavingRef = useRef<boolean>(false);
   const hasLoadedInitialStateRef = useRef<boolean>(false);
+  const isSwitchingInventoryRef = useRef<boolean>(false);
 
   const performAutoSave = useCallback(async () => {
     if (isAutoSavingRef.current || isRemoteUpdatingRef.current) return;
@@ -317,22 +318,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
 
-        if (Array.isArray(remote.entries)) {
-          if (remote.entries.length > 0) {
-            setEntries(remote.entries);
-            saveStoredEntries(remote.entries);
-          } else {
-            const localEntries = getStoredEntries();
-            if (localEntries.length > 0 && !wasCleared) {
-              setEntries(localEntries);
-              localEntries.forEach((ent) => {
-                syncService.sendAction('ADD_ENTRY', ent);
-              });
-            } else {
-              setEntries([]);
-              saveStoredEntries([]);
-            }
-          }
+        if (!isSwitchingInventoryRef.current && Array.isArray(remote.entries)) {
+          setEntries(remote.entries);
+          saveStoredEntries(remote.entries);
         }
 
         if (Array.isArray(remote.locations)) {
@@ -693,7 +681,6 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       entryData: Omit<InventoryEntry, 'id' | 'timestamp' | 'syncStatus'>,
       existingId?: string
     ): InventoryEntry => {
-      let updatedEntry: InventoryEntry;
       const now = new Date().toISOString();
       const finalOperator = entryData.operator || currentUser?.nom || currentUser?.username || operator || 'Opérateur';
 
@@ -721,58 +708,39 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         syncStatus: currentSyncStatus
       };
 
+      const codeMatch = (sanitizedData.code_article || '').trim().toLowerCase();
+      const locMatch = (sanitizedData.emplacement || '').trim().toLowerCase();
+
+      // Find existing match synchronously
+      const existing = existingId
+        ? entries.find((e) => e.id === existingId)
+        : entries.find(
+            (e) =>
+              (e.code_article || '').trim().toLowerCase() === codeMatch &&
+              (e.emplacement || '').trim().toLowerCase() === locMatch
+          );
+
+      const targetEntryId = existing?.id || existingId || `entry-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      const finalEntry: InventoryEntry = {
+        ...(existing || {}),
+        ...sanitizedData,
+        id: targetEntryId,
+        timestamp: now,
+        syncStatus: currentSyncStatus
+      };
+
+      // 1. Enregistrement local inconditionnel dans les entrées
       setEntries((prev) => {
-        const codeMatch = (sanitizedData.code_article || '').trim().toLowerCase();
-        const locMatch = (sanitizedData.emplacement || '').trim().toLowerCase();
-
-        if (existingId) {
-          const index = prev.findIndex((e) => e.id === existingId);
-          if (index >= 0) {
-            updatedEntry = {
-              ...prev[index],
-              ...sanitizedData,
-              timestamp: now,
-              syncStatus: currentSyncStatus
-            };
-            const next = [...prev];
-            next[index] = updatedEntry;
-            saveStoredEntries(next);
-            return next;
-          }
-        }
-
-        // Check if entry already exists for this article code & location
-        const existingMatchIndex = prev.findIndex(
-          (e) =>
-            (e.code_article || '').trim().toLowerCase() === codeMatch &&
-            (e.emplacement || '').trim().toLowerCase() === locMatch
-        );
-
-        if (existingMatchIndex >= 0 && !existingId) {
-          updatedEntry = {
-            ...prev[existingMatchIndex],
-            ...sanitizedData,
-            timestamp: now,
-            syncStatus: currentSyncStatus
-          };
-          const next = [...prev];
-          next[existingMatchIndex] = updatedEntry;
-          saveStoredEntries(next);
-          return next;
-        }
-
-        updatedEntry = {
-          ...sanitizedData,
-          id: `entry-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          timestamp: now,
-          syncStatus: currentSyncStatus
-        };
-        const next = [updatedEntry, ...prev];
+        const idx = prev.findIndex((e) => e.id === targetEntryId);
+        const next = idx >= 0
+          ? prev.map((e) => (e.id === targetEntryId ? finalEntry : e))
+          : [finalEntry, ...prev];
         saveStoredEntries(next);
         return next;
       });
 
-      // Synchronize article in the articles list: add it if missing, and change status to 'saisi' avec l'emplacement réel
+      // 2. Synchronize article in the articles list: add it if missing, and change status to 'saisi' avec l'emplacement réel
       setArticles((prevArts) => {
         const artIdx = prevArts.findIndex(
           (a) => a.code_article.toLowerCase() === sanitizedData.code_article.toLowerCase()
@@ -789,10 +757,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             famille: sanitizedData.famille || curr.famille,
             machine: sanitizedData.machine || curr.machine,
             unite: sanitizedData.unite || curr.unite,
-            emplacement: realLocation, // Emplacement dans le magasin
-            position: finalPosition || currPos || '', // Ne jamais copier emplacement dans position ! Si vide, elle reste vide.
-            // CRITICAL: Stock Interne est le stock théorique et Qté Saisie est le stock réel !
-            // Ne PAS modifier le stock interne (curr.quantite), il doit rester le même pour voir l'écart.
+            emplacement: realLocation,
+            position: finalPosition || currPos || '',
             quantite: typeof curr.quantite === 'number' ? curr.quantite : 0,
             status: 'saisi'
           };
@@ -800,8 +766,6 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           syncService.sendAction('UPDATE_ARTICLE', nextArts[artIdx]);
           return nextArts;
         } else {
-          // If not in articles, add to articles list with status: 'saisi'
-          // For an article not initially in the catalog, its theoretical internal stock is 0
           const newArt: Article = {
             id: sanitizedData.articleId || `art-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             code_article: sanitizedData.code_article,
@@ -811,8 +775,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             machine: sanitizedData.machine || 'Standard',
             unite: sanitizedData.unite || 'Pièce',
             emplacement: realLocation,
-            position: finalPosition || '', // Ne pas copier emplacement dans position ! Si vide, elle reste vide.
-            quantite: 0, // Stock interne théorique initial = 0 pour un article non présent au catalogue
+            position: finalPosition || '',
+            quantite: 0,
             status: 'saisi'
           };
           const nextArts = [newArt, ...prevArts];
@@ -829,15 +793,15 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setLastLocation(realLocation);
       }
 
-      // Synchroniser immédiatement la campagne d'inventaire active
+      // 3. Synchroniser la campagne d'inventaire active
       setInventories((prev) => {
         const next = prev.map((inv) => {
           if (inv.id === activeInventoryId) {
             const existingEntries = inv.entries || [];
-            const idx = existingEntries.findIndex((e) => e.id === updatedEntry!.id);
+            const idx = existingEntries.findIndex((e) => e.id === targetEntryId);
             const nextEntries = idx >= 0
-              ? existingEntries.map((e) => (e.id === updatedEntry!.id ? updatedEntry! : e))
-              : [updatedEntry!, ...existingEntries];
+              ? existingEntries.map((e) => (e.id === targetEntryId ? finalEntry : e))
+              : [finalEntry, ...existingEntries];
             return {
               ...inv,
               entries: nextEntries,
@@ -850,13 +814,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return next;
       });
 
-      // Broadcast to other devices in real-time
-      syncService.sendAction('ADD_ENTRY', updatedEntry!);
+      // 4. Diffusion réseau temps réel (ou mise en file d'attente hors-ligne automatique)
+      syncService.sendAction('ADD_ENTRY', finalEntry);
 
       setSyncState((prev) => ({ ...prev, lastSyncedAt: new Date().toLocaleTimeString('fr-FR') }));
-      return updatedEntry!;
+      return finalEntry;
     },
-    [setLastLocation, addMachine, addFamille, addLocation, currentUser, operator, lastLocation, activeInventoryId]
+    [setLastLocation, addMachine, addFamille, addLocation, currentUser, operator, lastLocation, activeInventoryId, entries]
   );
 
   const addManualArticle = useCallback(
@@ -1375,7 +1339,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Synchronize current working state into active inventory campaign
   useEffect(() => {
-    if (!activeInventoryId) return;
+    if (!activeInventoryId || isSwitchingInventoryRef.current) return;
     setInventories((prev) => {
       const idx = prev.findIndex((i) => i.id === activeInventoryId);
       if (idx === -1) return prev;
@@ -1663,6 +1627,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const target = inventories.find((i) => i.id === id);
       if (!target) return;
 
+      isSwitchingInventoryRef.current = true;
+
       // 1. Flush current lists into old active inventory
       const updatedInventories = inventories.map((inv) => {
         if (inv.id === activeInventoryId) {
@@ -1715,7 +1681,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         body: JSON.stringify({ inventoryId: target.id })
       }).catch((err) => console.warn('HTTP switch-inventory error:', err));
 
-      scheduleAutoSave(200);
+      setTimeout(() => {
+        isSwitchingInventoryRef.current = false;
+        scheduleAutoSave(200);
+      }, 150);
     },
     [activeInventoryId, inventories, articles, entries, locations, familles, machines, lastLocation, scheduleAutoSave]
   );

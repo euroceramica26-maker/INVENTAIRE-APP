@@ -13,7 +13,8 @@ import {
   Save,
   Package,
   Edit3,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { Article, InventoryEntry, QualiteEtat } from '../types/inventory';
@@ -72,14 +73,16 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
   const [newFamilleInput, setNewFamilleInput] = useState('');
   const [isAddingNewLocation, setIsAddingNewLocation] = useState(false);
   const [newLocationInput, setNewLocationInput] = useState('');
+  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
 
   // Active item tracking ref to initialize strictly ONCE on modal open, NEVER resetting while typing
   const activeKeyRef = useRef<string>('');
   const currentKey = existingEntry?.id || (article ? `${article.id || article.code_article}` : '');
 
-  // Derived numeric quantity
+  // Derived numeric quantity (supports both dot and comma e.g. 1.5 or 1,5)
   const quantite = useMemo(() => {
-    const parsed = parseFloat(quantiteInput);
+    const clean = (quantiteInput || '').replace(',', '.').trim();
+    const parsed = parseFloat(clean);
     return isNaN(parsed) ? 0 : Math.max(0, parsed);
   }, [quantiteInput]);
 
@@ -220,78 +223,88 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
   };
 
   const handleSave = (continueScanning = false) => {
+    setSaveErrorMessage(null);
     const finalCode = (codeArticleInput.trim() || currentArticle.code_article).trim();
     const finalDesig = (designationInput.trim() || currentArticle.designation).trim() || finalCode;
     const finalRef = (referenceInput.trim() || currentArticle.reference).trim();
 
-    if (!finalCode) return;
+    if (!finalCode) {
+      setSaveErrorMessage("Veuillez renseigner un code article pour enregistrer.");
+      return;
+    }
 
-    // Déterminer l'emplacement réel magasin : priorité à la valeur saisie, puis dernier emplacement, sans jamais 'Non renseigné'
-    const rawLoc = (emplacement || '').trim();
-    const cleanArtLoc = (currentArticle.emplacement && currentArticle.emplacement !== 'Non renseigné' && currentArticle.emplacement !== 'Non assigné')
-      ? currentArticle.emplacement.trim()
-      : '';
-    const cleanLastLoc = (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné')
-      ? lastLocation.trim()
-      : '';
-    const realLocation = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
-      ? rawLoc
-      : (cleanLastLoc || cleanArtLoc || '');
+    try {
+      // Déterminer l'emplacement réel magasin : priorité à la valeur saisie, puis dernier emplacement, sans jamais 'Non renseigné'
+      const rawLoc = (emplacement || '').trim();
+      const cleanArtLoc = (currentArticle.emplacement && currentArticle.emplacement !== 'Non renseigné' && currentArticle.emplacement !== 'Non assigné')
+        ? currentArticle.emplacement.trim()
+        : '';
+      const cleanLastLoc = (lastLocation && lastLocation !== 'Non renseigné' && lastLocation !== 'Non assigné')
+        ? lastLocation.trim()
+        : '';
+      const realLocation = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
+        ? rawLoc
+        : (cleanLastLoc || cleanArtLoc || '');
 
-    // Position dans la machine : si vide elle DOIT RESTER VIDE ! Ne jamais copier l'emplacement dans position.
-    const rawPos = position.trim();
-    const cleanPos = (rawPos && rawPos !== '-' && rawPos !== 'Non assigné' && rawPos !== 'Non renseigné')
-      ? rawPos
-      : (currentArticle.position && currentArticle.position !== '-' && currentArticle.position !== 'Non assigné' && currentArticle.position !== 'Non renseigné')
-      ? currentArticle.position.trim()
-      : '';
+      // Position dans la machine : si vide elle DOIT RESTER VIDE ! Ne jamais copier l'emplacement dans position.
+      const rawPos = position.trim();
+      const cleanPos = (rawPos && rawPos !== '-' && rawPos !== 'Non assigné' && rawPos !== 'Non renseigné')
+        ? rawPos
+        : (currentArticle.position && currentArticle.position !== '-' && currentArticle.position !== 'Non assigné' && currentArticle.position !== 'Non renseigné')
+        ? currentArticle.position.trim()
+        : '';
 
-    // Stock interne théorique initial (Catalogue) : ne jamais écraser par la quantité saisie
-    const stockTheoriqueInitial = typeof currentArticle.quantite === 'number' ? currentArticle.quantite : 0;
+      // Stock interne théorique initial (Catalogue) : ne jamais écraser par la quantité saisie
+      const stockTheoriqueInitial = typeof currentArticle.quantite === 'number' ? currentArticle.quantite : 0;
 
-    // 1. Conserver l'article dans le catalogue avec son stock interne théorique inchangé
-    addArticle({
-      code_article: finalCode,
-      designation: finalDesig,
-      reference: finalRef,
-      famille: famille || currentArticle.famille || 'Général',
-      machine: machine || currentArticle.machine || 'Standard',
-      position: cleanPos, // Position de la pièce dans la machine (vide si vide)
-      emplacement: realLocation, // Position de la pièce dans le magasin (dépôt, rayonnage, bac...)
-      unite: unite || currentArticle.unite || 'Pièce',
-      quantite: stockTheoriqueInitial, // Le stock interne théorique ne doit PAS être modifié !
-      status: 'saisi'
-    });
-
-    // 2. Ajouter dans la liste des saisis (entries) : enregistre la quantité réelle comptée
-    addOrUpdateEntry(
-      {
-        articleId: currentArticle.id,
+      // 1. Conserver l'article dans le catalogue avec son stock interne théorique inchangé
+      addArticle({
         code_article: finalCode,
         designation: finalDesig,
         reference: finalRef,
         famille: famille || currentArticle.famille || 'Général',
         machine: machine || currentArticle.machine || 'Standard',
-        position: cleanPos, // Position dans la machine (reste vide si vide)
-        emplacement: realLocation, // Position dans le magasin
+        position: cleanPos, // Position de la pièce dans la machine (vide si vide)
+        emplacement: realLocation, // Position de la pièce dans le magasin (dépôt, rayonnage, bac...)
         unite: unite || currentArticle.unite || 'Pièce',
-        quantite: quantite, // Quantité saisie réelle (stock physique)
-        qualite,
-        notes: notes.trim(),
-        operator: currentOperator || operator,
+        quantite: stockTheoriqueInitial, // Le stock interne théorique ne doit PAS être modifié !
         status: 'saisi'
-      },
-      existingEntry?.id
-    );
+      });
 
-    if (realLocation && realLocation !== 'Non assigné' && realLocation !== 'Non renseigné') {
-      setLastLocation(realLocation);
-    }
+      // 2. Ajouter dans la liste des saisis (entries) : enregistre la quantité réelle comptée
+      // Sauvegarde immédiate en local inconditionnelle (même sans réseau)
+      addOrUpdateEntry(
+        {
+          articleId: currentArticle.id,
+          code_article: finalCode,
+          designation: finalDesig,
+          reference: finalRef,
+          famille: famille || currentArticle.famille || 'Général',
+          machine: machine || currentArticle.machine || 'Standard',
+          position: cleanPos, // Position dans la machine (reste vide si vide)
+          emplacement: realLocation, // Position dans le magasin
+          unite: unite || currentArticle.unite || 'Pièce',
+          quantite: quantite, // Quantité saisie réelle (stock physique)
+          qualite,
+          notes: notes.trim(),
+          operator: currentOperator || operator,
+          status: 'saisi'
+        },
+        existingEntry?.id
+      );
 
-    if (continueScanning && onSaveAndNext) {
-      onSaveAndNext();
-    } else {
-      onClose();
+      if (realLocation && realLocation !== 'Non assigné' && realLocation !== 'Non renseigné') {
+        setLastLocation(realLocation);
+      }
+
+      if (continueScanning && onSaveAndNext) {
+        onSaveAndNext();
+      } else {
+        onClose();
+      }
+    } catch (err) {
+      console.error('Erreur validation saisie:', err);
+      setSaveErrorMessage("Erreur technique lors de l'enregistrement. Vos données locales sont préservées.");
     }
   };
 
@@ -925,6 +938,13 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({
             </div>
           </div>
         </div>
+
+        {saveErrorMessage && (
+          <div className="mx-6 mb-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+            <span className="font-medium">{saveErrorMessage}</span>
+          </div>
+        )}
 
         {/* Footer Actions */}
         <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">

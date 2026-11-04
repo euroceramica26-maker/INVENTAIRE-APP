@@ -142,23 +142,23 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Active Campaign Quick Badge */}
-            <div className="hidden xl:flex items-center ml-2" ref={dropdownRef}>
+            {/* Active Campaign Quick Badge (Accessible on all devices) */}
+            <div className="flex items-center ml-1 sm:ml-2" ref={dropdownRef}>
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setIsCampaignDropdownOpen(!isCampaignDropdownOpen)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
                   title="Changer d'inventaire actif"
                 >
-                  <Layers className="w-3.5 h-3.5 text-amber-500" />
+                  <Layers className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                   <span className="font-mono text-[11px] font-bold text-amber-600 dark:text-amber-400">
                     {activeInventory?.code || 'INV-01'}
                   </span>
-                  <span className="truncate max-w-[140px] text-slate-800 dark:text-slate-200">
+                  <span className="hidden md:inline truncate max-w-[140px] text-slate-800 dark:text-slate-200">
                     {activeInventory?.titre || 'Inventaire Principal'}
                   </span>
-                  <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
+                  <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5 shrink-0" />
                 </button>
 
                 {isCampaignDropdownOpen && (

@@ -66,6 +66,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     isAdmin,
     requestAdminAction,
     activeInventory,
+    inventories,
+    switchInventory,
+    activeInventoryId,
     users
   } = useInventory();
 
@@ -330,6 +333,57 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* 0. BANDEAU DE NAVIGATION ENTRE DOSSIERS D'INVENTAIRE */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3.5 sm:p-4 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
+            <Layers className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Inventaire Actif :
+              </span>
+              <span className="font-mono text-xs font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                {activeInventory?.code || 'INV-01'}
+              </span>
+              <span className="text-xs font-bold text-slate-900 dark:text-white">
+                {activeInventory?.titre || 'Inventaire Principal'}
+              </span>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                activeInventory?.statut === 'cloture'
+                  ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                  : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+              }`}>
+                {activeInventory?.statut === 'cloture' ? 'Clôturé' : 'En cours'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Les saisies physiques et le suivi affichés ci-dessous appartiennent à ce dossier d'inventaire.
+            </p>
+          </div>
+        </div>
+
+        {/* Sélecteur rapide de bascule d'inventaire */}
+        <div className="flex items-center gap-2 self-end sm:self-auto w-full sm:w-auto">
+          <label htmlFor="inventory-campaign-switcher" className="text-xs font-semibold text-slate-600 dark:text-slate-300 shrink-0">
+            Naviguer vers :
+          </label>
+          <select
+            id="inventory-campaign-switcher"
+            value={activeInventoryId}
+            onChange={(e) => switchInventory(e.target.value)}
+            className="flex-1 sm:flex-none px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer transition-colors shadow-2xs"
+          >
+            {inventories.map((inv) => (
+              <option key={inv.id} value={inv.id}>
+                {inv.code} - {inv.titre} ({inv.id === activeInventoryId ? countSaisis : (inv.entries?.length || 0)} saisies)
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* 1. TOP HERO WORKSTATION / SEARCH & SCAN PROMPT */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-xs transition-colors">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
