@@ -13,7 +13,7 @@
       "locations": [],
       "familles": [],
       "machines": [],
-      "lastLocation": ""
+      "lastLocation": "ZONE-A"
     }
   ],
   "activeInventoryId": "inv-principal",
@@ -22,7 +22,7 @@
   "locations": [],
   "familles": [],
   "machines": [],
-  "lastLocation": "",
+  "lastLocation": "ZONE-A",
   "users": [
     {
       "id": "usr-admin-01",
@@ -52,6 +52,6 @@
       "dateCreation": "2026-01-01T08:00:00.000Z"
     }
   ],
-  "updatedAt": "2026-11-03T09:02:54.941Z",
+  "updatedAt": "2026-11-04T12:06:08.245Z",
   "isCleared": false
 }

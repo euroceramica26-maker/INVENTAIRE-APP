@@ -319,8 +319,64 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
 
         if (!isSwitchingInventoryRef.current && Array.isArray(remote.entries)) {
-          setEntries(remote.entries);
-          saveStoredEntries(remote.entries);
+          if (remote.entries.length > 0) {
+            const localEntries = getStoredEntries();
+            if (!wasCleared && localEntries.length > 0) {
+              const remoteIds = new Set(remote.entries.map((e) => e.id));
+              const unsyncedLocals = localEntries.filter((e) => !remoteIds.has(e.id));
+              if (unsyncedLocals.length > 0) {
+                // Merge remote entries with any pending local entries
+                const merged = [...remote.entries, ...unsyncedLocals];
+                setEntries(merged);
+                saveStoredEntries(merged);
+                // Send unsynced entries to server
+                unsyncedLocals.forEach((entry) => {
+                  syncService.sendAction('ADD_ENTRY', entry);
+                  fetch('/api/inventory/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'ADD_ENTRY',
+                      payload: entry,
+                      clientId: syncService.getClientId()
+                    })
+                  }).catch(() => {});
+                });
+              } else {
+                setEntries(remote.entries);
+                saveStoredEntries(remote.entries);
+              }
+            } else {
+              setEntries(remote.entries);
+              saveStoredEntries(remote.entries);
+            }
+          } else {
+            // remote.entries is EMPTY!
+            const localEntries = getStoredEntries();
+            if (localEntries.length > 0 && !wasCleared) {
+              // Crucial: preserve local entries! Never delete them just because remote sent an empty list.
+              setEntries(localEntries);
+              // Push local entries immediately to server so server receives them
+              fetch('/api/inventory/save-all', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  articles: getStoredArticles(),
+                  entries: localEntries,
+                  locations: getStoredLocations(),
+                  familles: getStoredFamilles(),
+                  machines: getStoredMachines(),
+                  lastLocation: getStoredLastLocation(),
+                  inventories: getStoredInventories(),
+                  activeInventoryId: getStoredActiveInventoryId(),
+                  users: getStoredUsers()
+                })
+              }).catch(() => {});
+            } else if (wasCleared) {
+              setEntries([]);
+              saveStoredEntries([]);
+            }
+          }
         }
 
         if (Array.isArray(remote.locations)) {
@@ -817,10 +873,24 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // 4. Diffusion réseau temps réel (ou mise en file d'attente hors-ligne automatique)
       syncService.sendAction('ADD_ENTRY', finalEntry);
 
+      // Sauvegarde immédiate via HTTP POST pour garantir la persistance même si le WebSocket est en reconnexion
+      fetch('/api/inventory/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'ADD_ENTRY',
+          payload: finalEntry,
+          clientId: syncService.getClientId()
+        })
+      }).catch(() => {});
+
+      // Déclenchement immédiat de la persistance disque
+      scheduleAutoSave(200);
+
       setSyncState((prev) => ({ ...prev, lastSyncedAt: new Date().toLocaleTimeString('fr-FR') }));
       return finalEntry;
     },
-    [setLastLocation, addMachine, addFamille, addLocation, currentUser, operator, lastLocation, activeInventoryId, entries]
+    [setLastLocation, addMachine, addFamille, addLocation, currentUser, operator, lastLocation, activeInventoryId, entries, scheduleAutoSave]
   );
 
   const addManualArticle = useCallback(

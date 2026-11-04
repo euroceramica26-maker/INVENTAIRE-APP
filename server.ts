@@ -244,7 +244,11 @@ function applyAction(actionType: string, payload: any): boolean {
           db.activeInventoryId = payload.activeInventoryId;
         }
         if (Array.isArray(payload.articles)) db.articles = payload.articles;
-        if (Array.isArray(payload.entries)) db.entries = payload.entries;
+        if (Array.isArray(payload.entries)) {
+          if (payload.entries.length > 0 || db.isCleared) {
+            db.entries = payload.entries;
+          }
+        }
         if (Array.isArray(payload.locations)) db.locations = payload.locations;
         if (Array.isArray(payload.familles)) db.familles = payload.familles;
         if (Array.isArray(payload.machines)) db.machines = payload.machines;
@@ -339,7 +343,7 @@ function applyAction(actionType: string, payload: any): boolean {
     case 'ADD_ENTRY':
     case 'UPDATE_ENTRY': {
       const entry = payload;
-      if (!entry) return false;
+      if (!entry || !entry.code_article) return false;
 
       const rawLoc = (entry.emplacement || '').trim();
       const realLocation = (rawLoc && rawLoc !== 'Non renseigné' && rawLoc !== 'Non assigné')
@@ -349,20 +353,23 @@ function applyAction(actionType: string, payload: any): boolean {
         : (rawLoc || '');
 
       entry.emplacement = realLocation;
-      // Position: si vide elle doit rester vide, ne pas copier emplacement dans position !
       const rawPos = (entry.position || '').trim();
       entry.position = (rawPos && rawPos !== '-' && rawPos !== 'Non assigné' && rawPos !== 'Non renseigné') ? rawPos : '';
       entry.status = 'saisi';
 
-      const index = db.entries.findIndex((e) => e.id === entry.id);
+      const entryCode = (entry.code_article || '').toLowerCase().trim();
+      const entryLoc = (entry.emplacement || '').toLowerCase().trim();
+
+      const index = db.entries.findIndex((e) => e && e.id === entry.id);
       if (index >= 0) {
         db.entries[index] = entry;
       } else {
-        // Check duplicate code_article & emplacement
+        // Safe check duplicate code_article & emplacement
         const matchIdx = db.entries.findIndex(
           (e) =>
-            e.code_article.toLowerCase() === entry.code_article.toLowerCase() &&
-            e.emplacement.toLowerCase() === entry.emplacement.toLowerCase()
+            e &&
+            (e.code_article || '').toLowerCase().trim() === entryCode &&
+            (e.emplacement || '').toLowerCase().trim() === entryLoc
         );
         if (matchIdx >= 0) {
           db.entries[matchIdx] = entry;
@@ -375,7 +382,7 @@ function applyAction(actionType: string, payload: any): boolean {
       }
 
       // Update status in db.articles if found - Stock Interne (quantite) must NEVER be modified!
-      const artIdx = db.articles.findIndex((a) => a.code_article.toLowerCase() === entry.code_article.toLowerCase());
+      const artIdx = db.articles.findIndex((a) => a && (a.code_article || '').toLowerCase().trim() === entryCode);
       if (artIdx >= 0) {
         db.articles[artIdx] = {
           ...db.articles[artIdx],
@@ -383,7 +390,9 @@ function applyAction(actionType: string, payload: any): boolean {
           emplacement: realLocation || db.articles[artIdx].emplacement
         };
       }
+      db.isCleared = false;
       syncActiveInventoryInList();
+      saveDatabase();
       break;
     }
 
@@ -751,7 +760,11 @@ app.post('/api/inventory/action', (req, res) => {
 app.post('/api/inventory/sync', (req, res) => {
   const { articles, entries, locations, familles, machines, lastLocation, inventories, activeInventoryId, users } = req.body;
   if (articles !== undefined) db.articles = articles;
-  if (entries !== undefined) db.entries = entries;
+  if (Array.isArray(entries)) {
+    if (entries.length > 0 || db.isCleared) {
+      db.entries = entries;
+    }
+  }
   if (locations !== undefined) db.locations = locations;
   if (familles !== undefined) db.familles = familles;
   if (machines !== undefined) db.machines = machines;
@@ -816,7 +829,11 @@ app.post('/api/inventory/save-all', (req, res) => {
   const { articles, entries, locations, familles, machines, lastLocation, inventories, activeInventoryId, users } = req.body;
   if (Array.isArray(articles) && articles.length > 0) db.isCleared = false;
   if (articles !== undefined) db.articles = articles;
-  if (entries !== undefined) db.entries = entries;
+  if (Array.isArray(entries)) {
+    if (entries.length > 0 || db.isCleared) {
+      db.entries = entries;
+    }
+  }
   if (locations !== undefined) db.locations = locations;
   if (familles !== undefined) db.familles = familles;
   if (machines !== undefined) db.machines = machines;
@@ -917,7 +934,9 @@ app.post('/api/inventory/delete-inventory', (req, res) => {
 });
 
 // Dev vs Prod Vite Integration
-const isProduction = process.env.NODE_ENV === 'production';
+const distPath = path.resolve(__dirname, 'dist');
+const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
+const isProduction = process.env.NODE_ENV === 'production' || (hasDist && process.env.NODE_ENV !== 'development');
 
 async function startServer() {
   if (!isProduction) {
@@ -928,7 +947,6 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.resolve(__dirname, 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.resolve(distPath, 'index.html'));
