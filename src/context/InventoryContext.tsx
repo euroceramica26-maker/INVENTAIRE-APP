@@ -225,11 +225,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         users: currentUsers
       };
 
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3500);
+
       const res = await fetch('/api/inventory/save-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timer);
 
       if (res.ok) {
         const time = new Date().toLocaleTimeString('fr-FR');
@@ -239,7 +244,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setAutoSaveStatus('error');
       }
     } catch (err) {
-      console.warn('Auto-save network error:', err);
+      console.warn('Auto-save network error or timeout:', err);
       setAutoSaveStatus('error');
     } finally {
       isAutoSavingRef.current = false;
@@ -457,6 +462,11 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setSyncState((prev) => ({ ...prev, isOnline }));
     });
 
+    // 4b. Subscribe to connection quality (bad / degraded connection detection)
+    const unsubscribeQuality = syncService.subscribeConnectionQuality((isDegraded) => {
+      setSyncState((prev) => ({ ...prev, isDegraded }));
+    });
+
     // 5. Subscribe to real-time sync in-flight activity & pending sync
     const unsubscribeActivity = syncService.subscribeActivity((isSyncing, pendingCount) => {
       setSyncState((prev) => ({
@@ -528,6 +538,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       unsubscribeState();
       unsubscribeCount();
       unsubscribeStatus();
+      unsubscribeQuality();
       unsubscribeActivity();
       unsubscribeQueueFlushed();
       unsubscribeChannel();
@@ -873,7 +884,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // 4. Diffusion réseau temps réel (ou mise en file d'attente hors-ligne automatique)
       syncService.sendAction('ADD_ENTRY', finalEntry);
 
-      // Sauvegarde immédiate via HTTP POST pour garantir la persistance même si le WebSocket est en reconnexion
+      // Sauvegarde immédiate via HTTP POST pour garantir la persistance même si le WebSocket est en reconnexion (timeout 3000ms)
+      const actionCtrl = new AbortController();
+      const actionTimer = setTimeout(() => actionCtrl.abort(), 3000);
       fetch('/api/inventory/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -881,8 +894,11 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           action: 'ADD_ENTRY',
           payload: finalEntry,
           clientId: syncService.getClientId()
-        })
-      }).catch(() => {});
+        }),
+        signal: actionCtrl.signal
+      })
+        .catch(() => {})
+        .finally(() => clearTimeout(actionTimer));
 
       // Déclenchement immédiat de la persistance disque
       scheduleAutoSave(200);

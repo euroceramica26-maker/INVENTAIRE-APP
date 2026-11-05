@@ -23,19 +23,38 @@ interface QueuedAction {
 type StateListener = (state: RemoteServerState) => void;
 type ClientCountListener = (count: number) => void;
 type ConnectionStatusListener = (isConnected: boolean) => void;
+type ConnectionQualityListener = (isDegraded: boolean) => void;
 type SyncActivityListener = (isSyncing: boolean, pendingCount: number) => void;
 
 const OFFLINE_QUEUE_KEY = 'inventaire_offline_sync_queue_v5';
+
+// High-reliability fetch with strict timeout for bad/degraded connections
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 3200): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 class RealtimeSyncService {
   private socket: WebSocket | null = null;
   private clientId: string;
   private isConnected: boolean = false;
+  private isDegraded: boolean = false;
   private reconnectTimer: any = null;
   private pingTimer: any = null;
+  private pongTimeoutTimer: any = null;
+  private autoFlushInterval: any = null;
   private stateListeners: Set<StateListener> = new Set();
   private countListeners: Set<ClientCountListener> = new Set();
   private statusListeners: Set<ConnectionStatusListener> = new Set();
+  private qualityListeners: Set<ConnectionQualityListener> = new Set();
   private activityListeners: Set<SyncActivityListener> = new Set();
   private queueFlushedListeners: Set<() => void> = new Set();
   private clientCount: number = 1;
@@ -88,6 +107,10 @@ class RealtimeSyncService {
     return this.isConnected;
   }
 
+  public isConnectionDegraded(): boolean {
+    return this.isDegraded;
+  }
+
   public getPendingCount(): number {
     return this.offlineQueue.length + this.inFlightRequests;
   }
@@ -127,6 +150,14 @@ class RealtimeSyncService {
     };
   }
 
+  public subscribeConnectionQuality(listener: ConnectionQualityListener): () => void {
+    this.qualityListeners.add(listener);
+    listener(this.isDegraded);
+    return () => {
+      this.qualityListeners.delete(listener);
+    };
+  }
+
   public subscribeActivity(listener: SyncActivityListener): () => void {
     this.activityListeners.add(listener);
     const pending = this.getPendingCount();
@@ -134,6 +165,19 @@ class RealtimeSyncService {
     return () => {
       this.activityListeners.delete(listener);
     };
+  }
+
+  private setDegraded(degraded: boolean): void {
+    if (this.isDegraded !== degraded) {
+      this.isDegraded = degraded;
+      this.qualityListeners.forEach((l) => {
+        try {
+          l(degraded);
+        } catch {
+          // ignore
+        }
+      });
+    }
   }
 
   private notifyActivity(): void {
@@ -152,6 +196,7 @@ class RealtimeSyncService {
     if (typeof window === 'undefined') return;
 
     window.addEventListener('online', () => {
+      this.setDegraded(false);
       this.connect();
       this.fetchInitialState();
       this.flushOfflineQueue();
@@ -159,6 +204,7 @@ class RealtimeSyncService {
 
     window.addEventListener('offline', () => {
       this.isConnected = false;
+      this.setDegraded(true);
       this.notifyStatus(false);
       this.notifyActivity();
     });
@@ -166,6 +212,18 @@ class RealtimeSyncService {
     this.connect();
     this.fetchInitialState();
     this.flushOfflineQueue();
+
+    // Periodic background queue auto-flusher every 8 seconds
+    if (!this.autoFlushInterval) {
+      this.autoFlushInterval = setInterval(() => {
+        if (this.offlineQueue.length > 0) {
+          this.flushOfflineQueue();
+        }
+        if (!this.isConnected && (typeof navigator === 'undefined' || navigator.onLine)) {
+          this.connect();
+        }
+      }, 8000);
+    }
   }
 
   private getWebSocketUrl(): string {
@@ -185,6 +243,7 @@ class RealtimeSyncService {
 
       this.socket.onopen = () => {
         this.isConnected = true;
+        this.setDegraded(false);
         this.notifyStatus(true);
         this.startHeartbeat();
         this.flushOfflineQueue();
@@ -208,10 +267,12 @@ class RealtimeSyncService {
 
       this.socket.onerror = () => {
         this.isConnected = false;
+        this.setDegraded(true);
         this.notifyStatus(false);
       };
     } catch (err) {
       console.warn('[SyncService] Connection error:', err);
+      this.setDegraded(true);
       this.scheduleReconnect();
     }
   }
@@ -222,7 +283,7 @@ class RealtimeSyncService {
       this.reconnectTimer = null;
       this.connect();
       this.fetchInitialState();
-    }, 2000);
+    }, 2500);
   }
 
   private startHeartbeat(): void {
@@ -230,15 +291,35 @@ class RealtimeSyncService {
     this.pingTimer = setInterval(() => {
       if (this.socket && this.socket.readyState === WebSocket.OPEN) {
         try {
+          // Expect PONG within 5 seconds; otherwise consider connection degraded or stalled
+          this.clearPongTimeout();
+          this.pongTimeoutTimer = setTimeout(() => {
+            console.warn('[SyncService] Heartbeat PONG timeout - connection is degraded or stalled');
+            this.setDegraded(true);
+            try {
+              if (this.socket) this.socket.close();
+            } catch {
+              // ignore
+            }
+          }, 5000);
+
           this.socket.send(JSON.stringify({ type: 'PING' }));
         } catch {
-          // ignore
+          this.setDegraded(true);
         }
       }
     }, 15000);
   }
 
+  private clearPongTimeout(): void {
+    if (this.pongTimeoutTimer) {
+      clearTimeout(this.pongTimeoutTimer);
+      this.pongTimeoutTimer = null;
+    }
+  }
+
   private stopHeartbeat(): void {
+    this.clearPongTimeout();
     if (this.pingTimer) {
       clearInterval(this.pingTimer);
       this.pingTimer = null;
@@ -246,7 +327,11 @@ class RealtimeSyncService {
   }
 
   private handleIncomingMessage(data: any): void {
-    if (data.type === 'PONG') return;
+    if (data.type === 'PONG') {
+      this.clearPongTimeout();
+      this.setDegraded(false);
+      return;
+    }
 
     if (data.type === 'INIT_STATE' || data.type === 'STATE_UPDATED') {
       if (data.payload) {
@@ -298,10 +383,11 @@ class RealtimeSyncService {
     this.inFlightRequests++;
     this.notifyActivity();
     try {
-      const res = await fetch('/api/inventory/state');
+      const res = await fetchWithTimeout('/api/inventory/state', {}, 3000);
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
+          this.setDegraded(false);
           this.notifyState(json.data);
           if (typeof json.connectedClients === 'number') {
             this.clientCount = json.connectedClients;
@@ -309,9 +395,12 @@ class RealtimeSyncService {
           }
           return json.data;
         }
+      } else {
+        this.setDegraded(true);
       }
     } catch {
-      // offline or server starting
+      // offline or poor connection
+      this.setDegraded(true);
     } finally {
       setTimeout(() => {
         this.inFlightRequests = Math.max(0, this.inFlightRequests - 1);
@@ -322,15 +411,13 @@ class RealtimeSyncService {
   }
 
   public sendAction(action: string, payload: any): void {
-    // If completely offline according to browser, queue directly without waiting for network timeout
+    // If completely offline according to browser, queue immediately without blocking
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       this.queueAction(action, payload);
+      this.setDegraded(true);
       this.notifyActivity();
       return;
     }
-
-    this.inFlightRequests++;
-    this.notifyActivity();
 
     const message = {
       type: 'ACTION',
@@ -347,11 +434,15 @@ class RealtimeSyncService {
         sentViaWs = true;
       } catch (err) {
         console.warn('[SyncService] WS send failed, fallback to HTTP', err);
+        this.setDegraded(true);
       }
     }
 
     if (!sentViaWs) {
-      fetch('/api/inventory/action', {
+      this.inFlightRequests++;
+      this.notifyActivity();
+
+      fetchWithTimeout('/api/inventory/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -359,12 +450,14 @@ class RealtimeSyncService {
           payload,
           clientId: this.clientId
         })
-      })
+      }, 3000)
         .then((res) => {
           if (!res.ok) throw new Error('HTTP action failed');
+          this.setDegraded(false);
         })
         .catch(() => {
-          // Add to offline queue if completely offline
+          // In bad network or timeout, safely queue to persistent offline queue in localStorage!
+          this.setDegraded(true);
           this.queueAction(action, payload);
         })
         .finally(() => {
@@ -375,7 +468,7 @@ class RealtimeSyncService {
       setTimeout(() => {
         this.inFlightRequests = Math.max(0, this.inFlightRequests - 1);
         this.notifyActivity();
-      }, 400);
+      }, 250);
     }
   }
 
@@ -400,7 +493,7 @@ class RealtimeSyncService {
       while (this.offlineQueue.length > 0) {
         const item = this.offlineQueue[0];
         try {
-          const res = await fetch('/api/inventory/action', {
+          const res = await fetchWithTimeout('/api/inventory/action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -408,16 +501,20 @@ class RealtimeSyncService {
               payload: item.payload,
               clientId: this.clientId
             })
-          });
+          }, 3200);
+
           if (res.ok) {
             this.offlineQueue.shift();
             this.saveOfflineQueue();
+            this.setDegraded(false);
             this.notifyActivity();
           } else {
+            this.setDegraded(true);
             break;
           }
         } catch {
-          // Still offline
+          // Still offline or timeout
+          this.setDegraded(true);
           break;
         }
       }
@@ -451,19 +548,23 @@ class RealtimeSyncService {
     this.inFlightRequests++;
     this.notifyActivity();
 
-    fetch('/api/inventory/sync', {
+    fetchWithTimeout('/api/inventory/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state)
-    })
+    }, 3500)
+      .then((res) => {
+        if (res.ok) this.setDegraded(false);
+      })
       .catch((err) => {
         console.warn('[SyncService] HTTP full sync failed', err);
+        this.setDegraded(true);
       })
       .finally(() => {
         setTimeout(() => {
           this.inFlightRequests = Math.max(0, this.inFlightRequests - 1);
           this.notifyActivity();
-        }, 500);
+        }, 400);
       });
   }
 }

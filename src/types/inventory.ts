@@ -113,6 +113,7 @@ export interface ExportCombinedItem {
 export interface SyncState {
   isOnline: boolean;
   isSyncing: boolean;
+  isDegraded?: boolean;
   lastSyncedAt: string | null;
   pendingCount: number;
   roomCode: string;

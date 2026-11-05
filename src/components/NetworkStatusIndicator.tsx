@@ -65,10 +65,13 @@ export const NetworkStatusIndicator: React.FC = () => {
   // States
   const isSyncing = syncState.isSyncing || isSyncTriggering;
   const isOnline = syncState.isOnline;
+  const isDegraded = !!syncState.isDegraded;
   const isOfflineWithPending = !isOnline && effectivePending > 0;
   const isOfflineNoPending = !isOnline && effectivePending === 0;
-  const isOnlineWithPending = isOnline && effectivePending > 0 && !isSyncing;
-  const isOnlineSynced = isOnline && !isSyncing && effectivePending === 0;
+  const isDegradedWithPending = isOnline && isDegraded && effectivePending > 0;
+  const isDegradedNoPending = isOnline && isDegraded && effectivePending === 0;
+  const isOnlineWithPending = isOnline && !isDegraded && effectivePending > 0 && !isSyncing;
+  const isOnlineSynced = isOnline && !isDegraded && !isSyncing && effectivePending === 0;
 
   const peerCount = syncState.peerCount || 1;
 
@@ -82,10 +85,12 @@ export const NetworkStatusIndicator: React.FC = () => {
         className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer select-none shadow-2xs active:scale-98 ${
           isSyncing
             ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-300 dark:border-sky-700 text-sky-800 dark:text-sky-200'
-            : isOfflineWithPending
+            : isOfflineWithPending || isDegradedWithPending
             ? 'bg-amber-50 dark:bg-amber-950/70 border-amber-300 dark:border-amber-600 text-amber-900 dark:text-amber-200 animate-pulse'
             : isOfflineNoPending
             ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+            : isDegradedNoPending
+            ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300'
             : isOnlineWithPending
             ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200'
             : 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
@@ -97,13 +102,15 @@ export const NetworkStatusIndicator: React.FC = () => {
         <div className="relative flex items-center justify-center shrink-0">
           {isSyncing ? (
             <RefreshCw className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 animate-spin" />
-          ) : isOfflineWithPending ? (
+          ) : isOfflineWithPending || isDegradedWithPending ? (
             <div className="relative flex items-center justify-center">
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping absolute" />
               <WifiOff className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
             </div>
           ) : isOfflineNoPending ? (
             <WifiOff className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+          ) : isDegradedNoPending ? (
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
           ) : (
             <div className="relative flex items-center justify-center">
               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
@@ -123,6 +130,13 @@ export const NetworkStatusIndicator: React.FC = () => {
               <span className="hidden sm:inline">Hors-ligne · </span>
               <span>{effectivePending} en attente</span>
             </>
+          ) : isDegradedWithPending ? (
+            <>
+              <span className="hidden sm:inline">Réseau lent · </span>
+              <span>{effectivePending} en attente</span>
+            </>
+          ) : isDegradedNoPending ? (
+            <span>Connexion instable</span>
           ) : isOfflineNoPending ? (
             <span>Hors-ligne</span>
           ) : isOnlineWithPending ? (
@@ -163,7 +177,7 @@ export const NetworkStatusIndicator: React.FC = () => {
             className={`p-3.5 rounded-xl border flex items-start gap-3 ${
               isSyncing
                 ? 'bg-sky-50 dark:bg-sky-950/50 border-sky-200 dark:border-sky-800 text-sky-950 dark:text-sky-200'
-                : isOfflineWithPending
+                : isOfflineWithPending || isDegradedWithPending || isDegradedNoPending
                 ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-300 dark:border-amber-700 text-amber-950 dark:text-amber-200'
                 : isOfflineNoPending
                 ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
@@ -174,7 +188,7 @@ export const NetworkStatusIndicator: React.FC = () => {
               className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                 isSyncing
                   ? 'bg-sky-200/80 dark:bg-sky-800 text-sky-700 dark:text-sky-300'
-                  : isOfflineWithPending
+                  : isOfflineWithPending || isDegradedWithPending || isDegradedNoPending
                   ? 'bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200'
                   : isOfflineNoPending
                   ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
@@ -183,7 +197,7 @@ export const NetworkStatusIndicator: React.FC = () => {
             >
               {isSyncing ? (
                 <RefreshCw className="w-5 h-5 animate-spin" />
-              ) : isOfflineWithPending ? (
+              ) : isOfflineWithPending || isDegradedWithPending || isDegradedNoPending ? (
                 <AlertTriangle className="w-5 h-5" />
               ) : isOfflineNoPending ? (
                 <WifiOff className="w-5 h-5" />
@@ -196,6 +210,8 @@ export const NetworkStatusIndicator: React.FC = () => {
               <h4 className="font-bold text-xs uppercase tracking-wider mb-0.5">
                 {isSyncing
                   ? 'Synchronisation Cloud Active'
+                  : isDegradedWithPending || isDegradedNoPending
+                  ? 'Connexion Internet Instable ou Lente'
                   : isOfflineWithPending
                   ? 'Mode Hors-Ligne (Modifications en attente)'
                   : isOfflineNoPending
@@ -205,6 +221,8 @@ export const NetworkStatusIndicator: React.FC = () => {
               <p className="text-[11px] leading-relaxed opacity-90">
                 {isSyncing
                   ? 'Transmission des données en direct avec le serveur cloud...'
+                  : isDegradedWithPending || isDegradedNoPending
+                  ? 'Connexion internet dégradée. L’application fonctionne en mode autonome 100% fonctionnel : toutes vos saisies et modifications sont enregistrées localement sans blocage et synchronisées dès que la liaison s’améliore.'
                   : isOfflineWithPending
                   ? `${effectivePending} modification(s) enregistrée(s) localement sur cet appareil. Elles seront automatiquement envoyées au cloud dès le rétablissement de la connexion.`
                   : isOfflineNoPending

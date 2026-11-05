@@ -24,7 +24,10 @@ import {
   Download,
   Shield,
   Plus,
-  Users
+  Users,
+  WifiOff,
+  RefreshCw,
+  X
 } from 'lucide-react';
 
 function AuthenticatedApp() {
@@ -34,8 +37,19 @@ function AuthenticatedApp() {
     setIsAdminLoginModalOpen,
     adminActionMessage,
     isAdmin,
-    entries
+    entries,
+    syncState,
+    triggerManualSync
   } = useInventory();
+
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+
+  // Reset banner dismissal when connection is fully restored
+  useEffect(() => {
+    if (syncState.isOnline && !syncState.isDegraded) {
+      setIsBannerDismissed(false);
+    }
+  }, [syncState.isOnline, syncState.isDegraded]);
 
   // Route guard: only protect 'users' and 'admin' tabs for administrator
   useEffect(() => {
@@ -151,6 +165,45 @@ function AuthenticatedApp() {
           onOpenImport={() => setIsImportOpen(true)}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
+
+        {/* Reassuring Network Alert Banner for poor or offline connection */}
+        {(!syncState.isOnline || syncState.isDegraded) && !isBannerDismissed && (
+          <div className="mx-3 sm:mx-6 lg:mx-8 mt-3 p-3 bg-amber-50 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800 rounded-xl text-amber-950 dark:text-amber-200 text-xs flex items-center justify-between gap-3 shadow-2xs transition-all">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-amber-200/80 dark:bg-amber-900/60 flex items-center justify-center shrink-0 text-amber-800 dark:text-amber-300 font-bold">
+                <WifiOff className="w-4 h-4" />
+              </div>
+              <div className="truncate">
+                <span className="font-bold">
+                  {!syncState.isOnline ? 'Mode autonome (Hors-ligne)' : 'Connexion internet instable ou lente'} :
+                </span>{' '}
+                <span className="text-amber-900/90 dark:text-amber-300/90">
+                  L’application fonctionne normalement. Vos saisies physiques sont enregistrées localement et seront synchronisées automatiquement
+                  {syncState.pendingCount > 0 ? ` (${syncState.pendingCount} en attente)` : ''}.
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => triggerManualSync()}
+                disabled={syncState.isSyncing}
+                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${syncState.isSyncing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Synchroniser</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsBannerDismissed(true)}
+                className="p-1 text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 rounded-md cursor-pointer"
+                title="Masquer l'alerte"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Main Content Area (Comptage, Catalogue, Emplacements, Exports partagés par tous les utilisateurs) */}
         <main className="flex-1 w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6">

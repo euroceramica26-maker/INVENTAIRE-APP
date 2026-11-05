@@ -24,7 +24,8 @@ import {
   TrendingDown,
   CheckSquare,
   Square,
-  MinusSquare
+  MinusSquare,
+  BarChart3
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { Article, InventoryEntry, QualiteEtat } from '../types/inventory';
@@ -331,6 +332,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const distinctMachinesCount = new Set(entries.map(e => e.machine)).size;
   const anomaliesQualityCount = entries.filter(e => e.qualite !== 'conforme' && e.qualite !== 'bon_etat').length;
 
+  // Progress calculations: percentage of catalog items counted compared to total imported
+  const countedCatalogCodes = useMemo(() => {
+    const codes = new Set<string>();
+    entries.forEach((e) => {
+      if (e.code_article) {
+        codes.add(e.code_article.toLowerCase().trim());
+      }
+    });
+    return codes;
+  }, [entries]);
+
+  const countedCatalogCount = useMemo(() => {
+    return articles.filter((art) => {
+      const code = (art.code_article || '').toLowerCase().trim();
+      return countedCatalogCodes.has(code) || art.status === 'saisi';
+    }).length;
+  }, [articles, countedCatalogCodes]);
+
+  const totalCatalogCount = articles.length;
+  const progressPercentage = totalCatalogCount > 0
+    ? Math.min(100, Math.round((countedCatalogCount / totalCatalogCount) * 100))
+    : 0;
+  const progressDecimal = totalCatalogCount > 0
+    ? ((countedCatalogCount / totalCatalogCount) * 100).toFixed(1)
+    : '0.0';
+  const remainingCatalogCount = Math.max(0, totalCatalogCount - countedCatalogCount);
+
   return (
     <div className="space-y-6">
       {/* 0. BANDEAU DE NAVIGATION ENTRE DOSSIERS D'INVENTAIRE */}
@@ -599,6 +627,148 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      {/* 1.5. PROGRESSION DU CATALOGUE (PROGRESS BAR) */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-xs transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+              progressPercentage === 100
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+            }`}>
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                  Progression du Recensement Physique
+                </h2>
+                {totalCatalogCount > 0 && (
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    progressPercentage === 100
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                  }`}>
+                    {progressPercentage === 100 ? 'Inventaire terminé à 100%' : `${progressPercentage}% complété`}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Articles du catalogue importé ayant été comptés et validés sur le terrain
+              </p>
+            </div>
+          </div>
+
+          {/* Large percentage display */}
+          <div className="flex items-baseline gap-1.5 self-start sm:self-auto">
+            <span className={`text-3xl sm:text-4xl font-extrabold font-mono tabular-nums tracking-tight ${
+              progressPercentage === 100
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-slate-900 dark:text-white'
+            }`}>
+              {progressDecimal}
+            </span>
+            <span className="text-base font-bold text-slate-500 dark:text-slate-400 font-mono">%</span>
+          </div>
+        </div>
+
+        {/* Progress Bar Track */}
+        <div className="space-y-2.5">
+          <div className="w-full h-3.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-200/60 dark:border-slate-700/60 relative">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ease-out relative ${
+                progressPercentage === 100
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-xs'
+                  : progressPercentage > 0
+                  ? 'bg-gradient-to-r from-amber-500 via-emerald-500 to-emerald-600 shadow-xs'
+                  : 'bg-transparent'
+              }`}
+              style={{ width: `${Math.max(0, Math.min(100, progressPercentage))}%` }}
+              role="progressbar"
+              aria-valuenow={progressPercentage}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Taux d'avancement des articles du catalogue"
+            />
+          </div>
+
+          {/* Breakdown summary / Interactive drill-down buttons */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1 text-xs">
+            <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleDisplayModeChange('saisis')}
+                className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer group"
+                title="Afficher les articles déjà saisis"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 group-hover:scale-125 transition-transform" />
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  {countedCatalogCount}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {countedCatalogCount > 1 ? 'articles comptés' : 'article compté'}
+                </span>
+              </button>
+
+              <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">·</span>
+
+              <button
+                type="button"
+                onClick={() => handleDisplayModeChange('a_faire')}
+                className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer group"
+                title="Afficher les articles restants à inventorier"
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 group-hover:scale-125 transition-transform" />
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  {remainingCatalogCount}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {remainingCatalogCount > 1 ? 'restants à faire' : 'restant à faire'}
+                </span>
+              </button>
+
+              <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">·</span>
+
+              <button
+                type="button"
+                onClick={() => handleDisplayModeChange('tous')}
+                className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer group"
+                title="Afficher le catalogue complet"
+              >
+                <span className="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600 shrink-0 group-hover:scale-125 transition-transform" />
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  {totalCatalogCount}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  total importé
+                </span>
+              </button>
+            </div>
+
+            {totalCatalogCount === 0 && (
+              <div className="flex items-center gap-2 text-slate-400 text-xs">
+                <span>Aucun article importé.</span>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={onOpenImport}
+                    className="text-amber-600 dark:text-amber-400 hover:underline font-semibold cursor-pointer"
+                  >
+                    Importer le fichier Excel
+                  </button>
+                )}
+              </div>
+            )}
+
+            {totalCatalogCount > 0 && (
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 self-end sm:self-auto font-mono">
+                {countedCatalogCount} / {totalCatalogCount} références
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* 2. STATS & KPI STRIP */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* KPI 1 */}
@@ -608,10 +778,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="text-2xl sm:text-3xl font-bold font-mono text-slate-900 dark:text-white tabular-nums">
               {totalCountedLines}
             </span>
-            <span className="text-xs text-slate-400 dark:text-slate-500">références</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              {totalCatalogCount > 0 ? `/ ${totalCatalogCount}` : 'références'}
+            </span>
           </div>
           <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-2">
-            Articles répertoriés à l'inventaire
+            {totalCatalogCount > 0 ? `${progressDecimal}% du catalogue inventorié` : "Articles répertoriés à l'inventaire"}
           </span>
         </div>
 
